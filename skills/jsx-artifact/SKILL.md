@@ -199,10 +199,12 @@ Background hierarchy:
 - Input / well: `bg-zinc-800/50`
 
 Text hierarchy:
-- Primary: `text-white`
-- Body: `text-zinc-300`
-- Secondary: `text-zinc-400`
-- Muted / labels: `text-zinc-500`
+- Primary: `text-white` -- headings, stat values, emphasis
+- Body: `text-zinc-300` -- paragraphs, table cells, descriptions
+- Labels: `text-zinc-400` -- card labels, column headers, secondary info
+- Placeholders: `text-zinc-500` -- input placeholders, disabled text only
+
+Do not use `text-zinc-500` for labels or captions. It fails WCAG AA contrast on `bg-zinc-800` (3.3:1, needs 4.5:1). This is visible on low-quality displays.
 
 Borders: `border-zinc-700`
 
@@ -214,6 +216,42 @@ Accent colors:
 - Info / cool: `cyan` -- `bg-cyan-900/30 text-cyan-400`
 
 Use gentle opacity backgrounds (`bg-emerald-900/30`) for status badges and category indicators. Full-strength backgrounds (`bg-blue-600`) for primary action buttons only.
+
+## Light theme
+
+When the user requests a light theme, use these tokens instead. The structure mirrors the dark theme exactly.
+
+Background hierarchy:
+- Page: `bg-white` or `bg-zinc-50`
+- Card / panel: `bg-white` (with border) or `bg-zinc-50`
+- Elevated surface: `bg-white`
+- Input / well: `bg-zinc-100`
+
+Text hierarchy:
+- Primary: `text-zinc-900` -- headings, values
+- Body: `text-zinc-700` -- paragraphs, table cells
+- Labels: `text-zinc-500` -- card labels, column headers
+- Placeholders: `text-zinc-400` -- input placeholders
+
+Borders: `border-zinc-200`
+
+Accent colors remain the same base hues, adjusted for light backgrounds:
+- Success: `bg-emerald-50 text-emerald-700 border-emerald-200`
+- Error: `bg-red-50 text-red-700 border-red-200`
+- Warning: `bg-amber-50 text-amber-700 border-amber-200`
+- Primary: `bg-blue-600 hover:bg-blue-700 text-white`
+- Info: `bg-cyan-50 text-cyan-700 border-cyan-200`
+
+Light theme page shell:
+
+```jsx
+<div className="min-h-screen bg-zinc-50 text-zinc-900">
+  <div className="max-w-5xl mx-auto p-3 md:p-6">
+    <h1 className="text-xl md:text-2xl font-bold mb-6">Title</h1>
+    {/* content */}
+  </div>
+</div>
+```
 
 ## Layout
 

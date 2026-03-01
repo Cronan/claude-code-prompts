@@ -18,12 +18,14 @@ Token reference for JSX artifacts. All artifacts default to dark mode. This guid
 
 ### Text
 
-| Role      | Class            | When to use                      |
-|-----------|------------------|----------------------------------|
-| Primary   | `text-white`     | Headings, stat values, emphasis  |
-| Body      | `text-zinc-300`  | Paragraphs, table cells          |
-| Secondary | `text-zinc-400`  | Labels, descriptions, captions   |
-| Muted     | `text-zinc-500`  | Placeholders, disabled text      |
+| Role         | Class            | When to use                            |
+|--------------|------------------|----------------------------------------|
+| Primary      | `text-white`     | Headings, stat values, emphasis        |
+| Body         | `text-zinc-300`  | Paragraphs, table cells, descriptions  |
+| Labels       | `text-zinc-400`  | Card labels, column headers, captions  |
+| Placeholders | `text-zinc-500`  | Input placeholders, disabled text only |
+
+Do not use `text-zinc-500` for labels or visible captions. It fails WCAG AA contrast against `bg-zinc-800` (3.3:1, needs 4.5:1).
 
 ### Borders
 
@@ -45,6 +47,43 @@ Use Tailwind's palette for semantic meaning. Pair gentle opacity backgrounds wit
 | Primary  | blue    | `bg-blue-600`       | `text-white`      |
 
 Use `/30` opacity for status backgrounds. Use full-strength (`bg-blue-600`) only for primary action buttons.
+
+## Light theme
+
+When the user requests a light theme, swap tokens. Structure mirrors dark theme exactly.
+
+### Light backgrounds
+
+| Surface          | Class            |
+|------------------|------------------|
+| Page             | `bg-zinc-50`     |
+| Card / panel     | `bg-white`       |
+| Elevated surface | `bg-white`       |
+| Input / well     | `bg-zinc-100`    |
+| Tab container    | `bg-zinc-100`    |
+
+### Light text
+
+| Role         | Class            |
+|--------------|------------------|
+| Primary      | `text-zinc-900`  |
+| Body         | `text-zinc-700`  |
+| Labels       | `text-zinc-500`  |
+| Placeholders | `text-zinc-400`  |
+
+### Light borders
+
+`border-zinc-200`
+
+### Light accents
+
+| Meaning  | Background       | Text               | Border              |
+|----------|------------------|---------------------|---------------------|
+| Success  | `bg-emerald-50`  | `text-emerald-700`  | `border-emerald-200`|
+| Error    | `bg-red-50`      | `text-red-700`      | `border-red-200`    |
+| Warning  | `bg-amber-50`    | `text-amber-700`    | `border-amber-200`  |
+| Info     | `bg-cyan-50`     | `text-cyan-700`     | `border-cyan-200`   |
+| Primary  | `bg-blue-600`    | `text-white`        | --                  |
 
 ## Spacing
 
@@ -78,7 +117,7 @@ Consistent spacing patterns:
 | Body            | `text-sm text-zinc-300`              |
 | Stat value      | `text-2xl font-bold`                 |
 | Stat trend      | `text-emerald-400 font-medium` (up) or `text-red-400 font-medium` (down) |
-| Small / caption | `text-xs text-zinc-500`              |
+| Small / caption | `text-xs text-zinc-400`              |
 | Mono / code     | `font-mono text-xs`                  |
 
 Use `text-sm` as the base body size. Artifacts are information-dense.
