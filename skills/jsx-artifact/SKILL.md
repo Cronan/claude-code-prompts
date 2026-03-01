@@ -2,10 +2,11 @@
 name: jsx-artifact
 description: |
   Build interactive single-file React artifacts: dashboards, trackers, data
-  visualizations, planners, calculators, or any self-contained UI. Produces
-  a .jsx file styled with Tailwind CSS that renders in a local Vite dev
-  server. Trigger this when the user asks for a dashboard, tracker, chart,
-  tool, widget, visualizer, planner, monitor, or any interactive UI component.
+  visualizations, planners, calculators, or any self-contained UI. Outputs
+  either a .jsx file for a Vite renderer or a standalone .html file that
+  opens directly in any browser. Trigger this when the user asks for a
+  dashboard, tracker, chart, tool, widget, visualizer, planner, monitor,
+  or any interactive UI component.
 user-invocable: true
 context: fork
 allowed-tools:
@@ -19,11 +20,26 @@ allowed-tools:
 
 # Build a JSX artifact
 
-You build single-file React components. Each artifact is one `.jsx` file that renders in a local Vite+React dev server. The user opens a browser and sees the result. No separate build step.
+You build single-file React components. Each artifact is one file containing a complete interactive UI: data, components, and rendering in a single place.
 
-## File shape
+## Environment detection
 
-Every artifact follows this structure:
+On first use, determine which output mode to use:
+
+1. Look for a Vite+React renderer: check for `~/jsx-renderer/`, or a `package.json` with `react` and `vite` in the current project, or a running dev server.
+2. If a renderer is found, use **renderer mode** (`.jsx` file with ES module imports).
+3. If no renderer is found, use **standalone mode** (`.html` file with CDN-loaded scripts).
+4. If you are unsure, ask the user.
+
+The user can override at any time by asking for a specific format. Both modes use the same design tokens, component patterns, and Tailwind classes. The component code is nearly identical -- only the file shell differs.
+
+-----
+
+## Renderer mode
+
+Use this when a Vite+React dev server is available. Produces a `.jsx` file.
+
+### File shape
 
 ```jsx
 import { useState } from "react";
@@ -56,32 +72,121 @@ Key points:
 - Standard ES module `import` / `export default` syntax.
 - One default export: the `App` component.
 - Helper components defined above `App` in the same file.
-- Hardcoded data as named constants near the top, clearly separated, easy to edit.
 
-## Output location
+### Output location
 
-Save artifacts to `~/jsx-renderer/artifacts/` unless the user specifies a different path. On first use, check whether this directory exists. If not, ask the user where their renderer artifacts folder is.
+Save to the renderer's artifacts directory. Common locations:
+- `~/jsx-renderer/artifacts/`
+- `./artifacts/`
+- `./src/artifacts/`
 
-Name files with kebab-case: `fitness-tracker.jsx`, `recipe-planner.jsx`, `system-monitor.jsx`.
+On first use, check whether the expected directory exists. If not, ask the user where to save.
 
-## Available libraries
+### Available libraries
 
-The renderer environment may include these packages. Only import what the artifact actually needs. Not all may be installed -- if a library is missing, the renderer will show an error. Stick to `react`, `recharts`, and `lucide-react` unless the user asks for something specific.
+The renderer may have these installed. Only import what the artifact needs. Before importing anything beyond `react`, verify the package exists (check `package.json` or `node_modules`). Stick to `react`, `recharts`, and `lucide-react` unless the user asks for something specific or you have confirmed availability.
 
 | Package | Use for |
 |---|---|
 | react | Core. Always available. |
 | recharts | Charts: line, bar, area, pie, radar, scatter |
-| lucide-react | Icons. Hundreds available: `Search`, `Menu`, `X`, `ChevronDown`, etc. |
-| d3 | Custom data visualization beyond what Recharts covers |
+| lucide-react | Icons: `Search`, `Menu`, `X`, `ChevronDown`, etc. |
+| d3 | Custom data visualization beyond Recharts |
 | lodash | Utility functions when native JS is awkward |
 | mathjs | Math expressions, unit conversions, matrix operations |
 | papaparse | CSV parsing |
 | xlsx | Excel file reading/writing |
-| three | 3D rendering (Three.js, r128+) |
+| three | 3D rendering (Three.js) |
 | mammoth | .docx to HTML conversion |
 | chart.js | Alternative charting library |
 | tone | Audio synthesis and music |
+
+-----
+
+## Standalone mode
+
+Use this when no renderer is available. Produces a `.html` file that opens directly in any browser. No Node.js, npm, or build step required.
+
+### File shape
+
+```html
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artifact Title</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Add only if needed: -->
+  <!-- <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script> -->
+  <!-- <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script> -->
+  <script>
+    tailwind.config = { darkMode: "class" }
+  </script>
+</head>
+<body class="bg-zinc-900 text-white min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useMemo, useEffect, useRef } = React;
+    // If using Recharts: const { LineChart, Line, ... } = Recharts;
+    // If using Lucide: const { Search, Menu, ... } = LucideReact;
+
+    // ── Data ──────────────────────────────────────────────────
+
+    const ITEMS = [
+      { id: 1, name: "Alpha", value: 42 },
+    ];
+
+    // ── Components ────────────────────────────────────────────
+
+    const App = () => {
+      // ...
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
+```
+
+Key differences from renderer mode:
+- No `import` or `export` statements. Libraries are loaded via CDN `<script>` tags and accessed as globals (`React`, `Recharts`, `LucideReact`).
+- Destructure hooks and library components from their global objects.
+- The component is mounted with `ReactDOM.createRoot`, not exported.
+- Do not load CDN scripts the artifact does not use.
+- No TypeScript. Babel standalone handles JSX only.
+
+### Tailwind CDN and dynamic classes
+
+Tailwind's Play CDN scans the HTML for class names at runtime. Dynamically constructed class names that never appear as complete strings in the file will be missed. If you build class names from variables, include the full strings somewhere the CDN can find them:
+
+```jsx
+// Tailwind CDN safelist:
+// bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400
+const statusStyles = {
+  active: "bg-emerald-900/30 text-emerald-400",
+  error: "bg-red-900/30 text-red-400",
+};
+```
+
+### Output location
+
+Save standalone artifacts wherever the user requests. Reasonable defaults:
+- The current working directory
+- A `./artifacts/` subdirectory
+- The user's home directory
+
+Name files with kebab-case: `system-monitor.html`, `recipe-planner.html`.
+
+-----
+
+## Shared design rules
+
+Everything below applies to both modes. The component code inside the file shell is identical.
 
 ## Dark theme
 
@@ -184,8 +289,8 @@ Wrap in `overflow-x-auto` for small screens:
     <tbody>
       {data.map(row => (
         <tr key={row.id} className="border-b border-zinc-700/50 hover:bg-zinc-800/50">
-          <td className="px-4 py-3">{row.name}</td>
-          <td className="px-4 py-3">{row.status}</td>
+          <td className="px-4 py-3 text-zinc-300">{row.name}</td>
+          <td className="px-4 py-3 text-zinc-300">{row.status}</td>
         </tr>
       ))}
     </tbody>
@@ -198,8 +303,6 @@ Wrap in `overflow-x-auto` for small screens:
 Always wrap in `ResponsiveContainer`. Match chart colors to the dark theme:
 
 ```jsx
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-
 <div className="h-64">
   <ResponsiveContainer width="100%" height="100%">
     <LineChart data={data}>
@@ -218,6 +321,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
     </LineChart>
   </ResponsiveContainer>
 </div>
+```
+
+Renderer mode import:
+```jsx
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+```
+
+Standalone mode global:
+```jsx
+const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
 ```
 
 Chart line colors (Tailwind 500-level hex):
@@ -262,13 +375,12 @@ Do not fetch from external APIs. Do not use `localStorage` or `sessionStorage`. 
 
 ## What not to do
 
-- No `<artifact>` or `<antartifact>` wrapper tags. Just the JSX.
+- No `<artifact>` or `<antartifact>` wrapper tags.
 - No `<form>` tags.
 - No external API calls or `fetch`.
 - No `localStorage` or `sessionStorage`.
-- No external image URLs. Use Lucide icons, inline SVGs, or CSS-only graphics.
+- No external image URLs. Use Lucide icons (renderer mode), inline SVGs, or CSS-only graphics.
 - No hover-only interactions without a tap/click alternative.
-- No TypeScript syntax unless the renderer is configured for it.
 - No class components. Functional components with hooks only.
 
 ## Responsiveness
@@ -297,12 +409,12 @@ The artifact runs in a browser on any platform: desktop Linux, Raspberry Pi, mac
 Before saving the file, verify:
 
 1. The component renders without errors (no missing imports, no undefined references).
-2. All data is hardcoded at the top and clearly structured.
+2. All data is hardcoded at the top and clearly structured for easy editing.
 3. The layout works at mobile, tablet, and desktop widths.
 4. Dark theme tokens are consistent (not mixing `zinc-900` page with `zinc-900` cards).
 5. Interactive elements (tabs, filters, sort) work without requiring hover.
-6. No unused imports.
-7. File is named with kebab-case and `.jsx` extension.
+6. No unused imports or CDN scripts.
+7. File is named with kebab-case.
 
 ## Reference files
 
@@ -310,4 +422,4 @@ Before building complex artifacts, read the reference material in this skill dir
 
 - Component layout patterns and recurring structures: `references/patterns.md`
 - Tailwind dark theme tokens and spacing conventions: `references/tailwind-guide.md`
-- Complete working example: `examples/example-dashboard.jsx`
+- Complete working examples: `examples/example-dashboard.jsx` (renderer mode), `examples/example-dashboard.html` (standalone mode)

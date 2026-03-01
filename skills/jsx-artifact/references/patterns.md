@@ -2,9 +2,9 @@
 
 Recurring layout and UI structures for JSX artifacts. Each pattern shows the minimal skeleton using the correct dark theme tokens. Combine them to build full artifacts.
 
-All patterns use standard ES module imports and `export default`.
+Patterns below show renderer mode syntax (`import` / `export default`). For standalone mode, the component code is the same -- only the file shell differs. See the standalone shell pattern at the end of this file.
 
-## Page shell
+## Page shell (renderer mode)
 
 Every artifact starts here. `App` owns the outermost layout.
 
@@ -363,3 +363,61 @@ const ProgressBar = ({ value, max, color = "bg-blue-500" }) => {
   );
 };
 ```
+
+-----
+
+## Page shell (standalone mode)
+
+When no Vite renderer is available. The component code inside is the same as renderer mode -- only the file wrapper changes.
+
+```html
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artifact Title</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: "class" }
+  </script>
+</head>
+<body class="bg-zinc-900 text-white min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    // ── Data ──────────────────────────────────────────────────
+
+    // ... hardcoded data here ...
+
+    // ── Components ────────────────────────────────────────────
+
+    // ... helper components here, same JSX as renderer mode ...
+
+    const App = () => {
+      return (
+        <div className="min-h-screen bg-zinc-900 text-white">
+          <div className="max-w-5xl mx-auto p-3 md:p-6">
+            <h1 className="text-xl md:text-2xl font-bold mb-6">Title</h1>
+            {/* content */}
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
+```
+
+Key differences from renderer mode:
+- No `import` / `export`. Destructure from globals: `React`, `Recharts`, `LucideReact`.
+- Mount with `ReactDOM.createRoot` instead of `export default`.
+- Add CDN `<script>` tags only for libraries the artifact uses.
+- Tailwind CDN needs full class strings to be discoverable (see `references/tailwind-guide.md`).

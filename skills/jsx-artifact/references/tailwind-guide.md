@@ -160,6 +160,22 @@ red:      #ef4444
 cyan:     #06b6d4
 ```
 
+## Tailwind CDN safelist (standalone mode only)
+
+In standalone mode, Tailwind's Play CDN generates styles at runtime by scanning the HTML for class names. Dynamically constructed class names that never appear as complete strings will be missed. If you build class names from variables, include the full strings somewhere the CDN can find them:
+
+```jsx
+// Tailwind CDN safelist:
+// bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400
+// bg-amber-900/30 text-amber-400 bg-zinc-700 text-zinc-300
+const statusStyles = {
+  active: "bg-emerald-900/30 text-emerald-400",
+  error: "bg-red-900/30 text-red-400",
+};
+```
+
+This does not apply in renderer mode, where Tailwind processes classes at build time.
+
 ## Platform performance notes
 
 These artifacts may run on a Raspberry Pi with 1GB RAM and a 1024x600 screen. Keep things light:
