@@ -1,6 +1,6 @@
-# Tailwind dark theme reference
+# Tailwind and ECharts theme reference
 
-Token reference for JSX artifacts. All artifacts default to dark mode. This guide covers the color system, spacing conventions, typography, and common utility patterns.
+Token reference for HTML artifacts. All artifacts default to dark mode. This guide covers the color system, spacing conventions, typography, common utility patterns, and ECharts theme configuration.
 
 ## Color system
 
@@ -172,48 +172,81 @@ Standard: bg-zinc-800 rounded-xl p-4 border border-zinc-700
 
 Use `rounded-xl` for cards, `rounded-lg` for buttons and inputs, `rounded-md` for tabs.
 
-## Recharts theme tokens
+## ECharts zinc-dark theme
 
-Match chart chrome to the dark theme:
+Register this theme before initializing any charts. It maps Tailwind's zinc palette to ECharts' internal styling:
 
-```jsx
-// Grid and axes
-<CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
-<XAxis stroke="#71717a" fontSize={12} />
-<YAxis stroke="#71717a" fontSize={12} />
-
-// Tooltip
-contentStyle={{
-  backgroundColor: "#27272a",
-  border: "1px solid #3f3f46",
-  borderRadius: "8px",
-  color: "#fafafa",
-}}
-
-// Line/bar colors (Tailwind 500-level hex values)
-emerald:  #10b981
-blue:     #3b82f6
-violet:   #8b5cf6
-amber:    #f59e0b
-red:      #ef4444
-cyan:     #06b6d4
+```js
+echarts.registerTheme('zinc-dark', {
+  darkMode: true,
+  backgroundColor: 'transparent',
+  color: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4'],
+  textStyle: { color: '#d4d4d8' },
+  title: {
+    textStyle: { color: '#f4f4f5' },
+    subtextStyle: { color: '#a1a1aa' }
+  },
+  legend: { textStyle: { color: '#a1a1aa' } },
+  tooltip: {
+    backgroundColor: '#27272a',
+    borderColor: '#3f3f46',
+    textStyle: { color: '#d4d4d8' }
+  },
+  categoryAxis: {
+    axisLine: { lineStyle: { color: '#3f3f46' } },
+    axisTick: { lineStyle: { color: '#3f3f46' } },
+    axisLabel: { color: '#a1a1aa' },
+    splitLine: { lineStyle: { color: '#27272a' } }
+  },
+  valueAxis: {
+    axisLine: { lineStyle: { color: '#3f3f46' } },
+    axisTick: { lineStyle: { color: '#3f3f46' } },
+    axisLabel: { color: '#a1a1aa' },
+    splitLine: { lineStyle: { color: '#27272a' } }
+  }
+});
 ```
 
-## Tailwind CDN safelist (standalone mode only)
+### Color mapping
 
-In standalone mode, Tailwind's Play CDN generates styles at runtime by scanning the HTML for class names. Dynamically constructed class names that never appear as complete strings will be missed. If you build class names from variables, include the full strings somewhere the CDN can find them:
+| ECharts property | Tailwind token | Hex |
+|---|---|---|
+| `backgroundColor` | transparent | Chart inherits card background via CSS |
+| `textStyle.color` | zinc-300 | `#d4d4d8` |
+| `title.textStyle.color` | zinc-100 | `#f4f4f5` |
+| `title.subtextStyle.color` | zinc-400 | `#a1a1aa` |
+| `legend.textStyle.color` | zinc-400 | `#a1a1aa` |
+| `tooltip.backgroundColor` | zinc-800 | `#27272a` |
+| `tooltip.borderColor` | zinc-700 | `#3f3f46` |
+| `axisLine.lineStyle.color` | zinc-700 | `#3f3f46` |
+| `axisLabel.color` | zinc-400 | `#a1a1aa` |
+| `splitLine.lineStyle.color` | zinc-800 | `#27272a` |
 
-```jsx
-// Tailwind CDN safelist:
-// bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400
-// bg-amber-900/30 text-amber-400 bg-zinc-700 text-zinc-300
-const statusStyles = {
-  active: "bg-emerald-900/30 text-emerald-400",
-  error: "bg-red-900/30 text-red-400",
-};
+### Series colors (Tailwind 500-level hex)
+
+| Color   | Hex       |
+|---------|-----------|
+| emerald | `#10b981` |
+| blue    | `#3b82f6` |
+| violet  | `#8b5cf6` |
+| amber   | `#f59e0b` |
+| red     | `#ef4444` |
+| cyan    | `#06b6d4` |
+
+These appear in the theme's `color` array. ECharts assigns them to series in order. Override per-series with `itemStyle: { color: '#hex' }` if needed.
+
+## Tailwind CDN safelist
+
+Tailwind's Play CDN generates styles at runtime by scanning the HTML for class names. Dynamically constructed class names that never appear as complete strings will be missed. If you build class names from variables, include the full strings somewhere the CDN can find them:
+
+```html
+<!-- Tailwind CDN safelist:
+  bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400
+  bg-amber-900/30 text-amber-400 bg-zinc-700 text-zinc-300
+-->
 ```
 
-This does not apply in renderer mode, where Tailwind processes classes at build time.
+Place this as an HTML comment in the body. The CDN scanner finds the class strings and generates the corresponding CSS.
 
 ## Platform performance notes
 
@@ -222,4 +255,7 @@ These artifacts may run on a Raspberry Pi with 1GB RAM and a 1024x600 screen. Ke
 - DOM node count matters. Paginate or virtualize lists longer than 50 items.
 - CSS transitions are cheaper than JavaScript animation.
 - `box-shadow` stacking and `backdrop-blur` on large surfaces are GPU-intensive. Use sparingly.
-- Recharts renders well with under 100 data points. More than that causes visible lag on constrained hardware.
+- ECharts: disable animation with `animation: false` for Pi-targeted dashboards.
+- ECharts: use the SVG renderer (`{ renderer: 'svg' }`) for dashboards with many small charts.
+- ECharts: keep datasets under 500 points per series. Use `sampling: 'lttb'` for larger datasets.
+- Keep transition durations at 100-200ms. Longer durations feel sluggish on weak hardware.
