@@ -491,6 +491,214 @@ Option A is simpler and recommended for most artifacts.
 | Heatmap | `'heatmap'` | Data is `[[x, y, value], ...]`. Requires a `visualMap` component for color mapping. Use for correlation matrices, calendar heatmaps, time-of-day activity patterns. |
 | Treemap | `'treemap'` | Data is `[{ name, value, children: [...] }]`. No axes. Use for hierarchical part-to-whole: portfolio allocation, budget breakdowns, file size maps. |
 | Boxplot | `'boxplot'` | Data is `[[min, Q1, median, Q3, max], ...]`. Use for distribution comparisons, outlier detection, volatility analysis. |
+| Gauge | `'gauge'` | Single-value display. Data is `[{ value: 72, name: 'Score' }]`. No axes. Use for KPIs, health scores, completion percentage. |
+| Funnel | `'funnel'` | Data is `[{ name, value }]` in descending order. No axes. Use for conversion funnels, sales pipelines, process stages. |
+| Sankey | `'sankey'` | Data is `{ nodes: [...], links: [{ source, target, value }] }`. No axes. Use for flow visualization: budget allocation, traffic sources, energy flow. |
+
+### Chart type examples
+
+The table above covers basic configuration. The examples below show complete option objects for types that need more than a `series.type` and data array.
+
+**Radar** -- multi-dimensional comparison. Each indicator is an axis spoke:
+
+```js
+{
+  radar: {
+    indicator: [
+      { name: 'Performance', max: 100 },
+      { name: 'Reliability', max: 100 },
+      { name: 'Security', max: 100 },
+      { name: 'Usability', max: 100 },
+      { name: 'Scalability', max: 100 }
+    ],
+    shape: 'polygon'
+  },
+  series: [{
+    type: 'radar',
+    data: [
+      { value: [85, 90, 72, 68, 95], name: 'Service A' },
+      { value: [70, 82, 91, 88, 60], name: 'Service B' }
+    ]
+  }]
+}
+```
+
+**Candlestick with volume** -- combine candlestick and bar series with dual axes. The volume bars sit below the price chart:
+
+```js
+{
+  xAxis: { type: 'category', data: dates },
+  yAxis: [
+    { type: 'value', name: 'Price', scale: true },
+    { type: 'value', name: 'Volume', max: (val) => val.max * 3,
+      axisLabel: { show: false }, splitLine: { show: false } }
+  ],
+  series: [
+    { type: 'candlestick', data: ohlcData, yAxisIndex: 0 },
+    { type: 'bar', data: volumeData, yAxisIndex: 1,
+      itemStyle: { color: 'rgba(59, 130, 246, 0.3)' }, barWidth: '60%' }
+  ],
+  dataZoom: [{ type: 'slider', xAxisIndex: 0 }, { type: 'inside' }]
+}
+```
+
+The `max: (val) => val.max * 3` on the volume axis keeps volume bars in the lower third of the chart area.
+
+**Heatmap** -- requires a `visualMap` component for the color gradient:
+
+```js
+{
+  xAxis: { type: 'category', data: hours },
+  yAxis: { type: 'category', data: days },
+  visualMap: {
+    min: 0, max: 100, calculable: true,
+    orient: 'horizontal', left: 'center', bottom: 0,
+    inRange: { color: ['#27272a', '#3b82f6', '#10b981'] }
+  },
+  series: [{
+    type: 'heatmap',
+    data: data,  // [[hourIndex, dayIndex, value], ...]
+    label: { show: true, formatter: (p) => p.value[2] },
+    emphasis: { itemStyle: { borderColor: '#fff', borderWidth: 1 } }
+  }]
+}
+```
+
+**Treemap** -- hierarchical data with drill-down. Click a node to zoom in; click the breadcrumb to zoom out:
+
+```js
+{
+  series: [{
+    type: 'treemap',
+    data: [
+      { name: 'Engineering', value: 1200000, children: [
+        { name: 'Backend', value: 600000 },
+        { name: 'Frontend', value: 400000 },
+        { name: 'Infra', value: 200000 }
+      ]},
+      { name: 'Product', value: 400000 }
+    ],
+    label: { formatter: (p) => p.name + '\n' + fmt.compact(p.value) },
+    breadcrumb: { itemStyle: { color: '#3f3f46', textStyle: { color: '#d4d4d8' } } },
+    levels: [
+      { itemStyle: { borderColor: '#3f3f46', borderWidth: 2, gapWidth: 2 } },
+      { itemStyle: { borderColor: '#27272a', borderWidth: 1, gapWidth: 1 } }
+    ]
+  }]
+}
+```
+
+**Boxplot** -- distribution comparison across categories:
+
+```js
+{
+  xAxis: { type: 'category', data: ['Q1', 'Q2', 'Q3', 'Q4'] },
+  yAxis: { type: 'value', name: 'Response Time (ms)' },
+  series: [{
+    type: 'boxplot',
+    data: [
+      [12, 25, 35, 48, 72],   // Q1: [min, Q1, median, Q3, max]
+      [15, 22, 30, 42, 58],   // Q2
+      [18, 28, 38, 52, 85],   // Q3
+      [10, 20, 28, 40, 95]    // Q4
+    ]
+  }]
+}
+```
+
+To add outlier points alongside a boxplot, add a scatter series with the same x-axis. ECharts does not auto-calculate outliers; pre-compute them in the data.
+
+**Gauge** -- single KPI display. Use for dashboard hero metrics:
+
+```js
+{
+  series: [{
+    type: 'gauge',
+    data: [{ value: 72, name: 'Uptime %' }],
+    min: 0, max: 100,
+    axisLine: {
+      lineStyle: {
+        width: 12,
+        color: [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']]
+      }
+    },
+    pointer: { width: 4 },
+    detail: { formatter: '{value}%', fontSize: 24, color: '#f4f4f5', offsetCenter: [0, '60%'] },
+    title: { offsetCenter: [0, '80%'], color: '#a1a1aa' }
+  }]
+}
+```
+
+The `color` array on `axisLine` defines threshold bands: red below 60, amber 60-80, green above 80.
+
+**Funnel** -- conversion pipeline. Data must be sorted in descending order:
+
+```js
+{
+  series: [{
+    type: 'funnel',
+    data: [
+      { value: 10000, name: 'Visitors' },
+      { value: 4200, name: 'Signups' },
+      { value: 1800, name: 'Active' },
+      { value: 600, name: 'Paid' },
+      { value: 180, name: 'Enterprise' }
+    ],
+    left: '10%', width: '80%',
+    label: {
+      formatter: (p) => p.name + ': ' + fmt.num(p.value),
+      position: 'inside'
+    },
+    gap: 2
+  }]
+}
+```
+
+**Sankey** -- flow between nodes. Each link has a source, target, and value:
+
+```js
+{
+  series: [{
+    type: 'sankey',
+    data: [
+      { name: 'Organic' }, { name: 'Paid' }, { name: 'Referral' },
+      { name: 'Homepage' }, { name: 'Pricing' },
+      { name: 'Signup' }, { name: 'Bounce' }
+    ],
+    links: [
+      { source: 'Organic', target: 'Homepage', value: 5000 },
+      { source: 'Paid', target: 'Homepage', value: 3000 },
+      { source: 'Referral', target: 'Homepage', value: 1200 },
+      { source: 'Homepage', target: 'Pricing', value: 4800 },
+      { source: 'Homepage', target: 'Bounce', value: 4400 },
+      { source: 'Pricing', target: 'Signup', value: 2200 },
+      { source: 'Pricing', target: 'Bounce', value: 2600 }
+    ],
+    emphasis: { focus: 'adjacency' },
+    lineStyle: { color: 'source', opacity: 0.4 },
+    label: { color: '#d4d4d8' }
+  }]
+}
+```
+
+### Combining chart types
+
+A single ECharts instance can render multiple series types. Common combinations:
+
+- **Line + Bar**: overlay a trend line on a bar chart. Both share the same x-axis but may use different y-axes (see dual-axis charts).
+- **Candlestick + Bar**: price chart with volume bars underneath (see candlestick example above).
+- **Line + Scatter**: trend line with outlier points highlighted as scatter markers.
+- **Stacked area**: multiple `type: 'line'` series with `areaStyle` and `stack: 'total'`.
+
+```js
+// Line overlaid on bar chart
+series: [
+  { name: 'Revenue', type: 'bar', data: revenueData },
+  { name: 'Growth %', type: 'line', data: growthData, yAxisIndex: 1 }
+]
+```
+
+When mixing types, ensure the tooltip `trigger` handles both. Use `trigger: 'axis'` for charts sharing a category axis. For mixed axis types, use `trigger: 'item'` on the scatter/pie series.
 
 ### Interactive features
 

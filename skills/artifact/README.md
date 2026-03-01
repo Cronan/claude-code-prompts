@@ -41,15 +41,15 @@ Performance guidance covers DOM limits, animation constraints, and dataset sizes
 
 ## Charts
 
-ECharts provides line, bar, area, pie, radar, and scatter charts. Interactive features include:
+ECharts provides 13 chart types with complete configuration examples:
 
-- DataZoom (slider and scroll-wheel zoom)
-- Linked tooltips across multiple charts
-- Toolbox (save as image, data view, reset)
-- Legend toggle (click to show/hide series)
-- Brush selection
+- **Standard**: line, bar, area, pie, radar, scatter
+- **Financial**: candlestick (with volume overlay), gauge, funnel
+- **Analytical**: heatmap, treemap, boxplot, sankey
 
-Charts use a custom `zinc-dark` theme that matches the Tailwind dark theme tokens. Also supports candlestick, heatmap, treemap, and boxplot charts.
+Interactive features include DataZoom (slider and scroll-wheel zoom), linked tooltips, toolbox (save image, data view, reset), legend toggle, and brush selection. Charts can be combined in a single instance (line + bar, candlestick + volume bars, stacked area).
+
+Charts use a custom `zinc-dark` theme that matches the Tailwind dark theme tokens.
 
 Full specification: [`SKILL.md`](SKILL.md).
 
