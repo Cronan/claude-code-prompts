@@ -12,7 +12,7 @@ cp -r skills/deep-init/ your-repo/.claude/skills/deep-init/
 |---|---|
 | [`/deep-init`](skills/deep-init/) | Mine repo history (PRs, tickets, wiki) to produce a CLAUDE.md grounded in what the team actually learned, not just what the code looks like |
 | [`/stet`](skills/stet/) | Strip the 27 patterns that make AI-assisted writing monotonous, vague, and generic -- an editorial tool, not a humanizer |
-| [`/jsx-artifact`](skills/jsx-artifact/) | Build single-file React artifacts (dashboards, trackers, visualizations) styled with Tailwind -- .jsx for a Vite renderer or standalone .html for any browser |
+| [`/prototype`](skills/prototype/) | Build single-file React artifacts (dashboards, trackers, visualizations) styled with Tailwind -- .jsx for a Vite renderer or standalone .html for any browser |
 
 ## Writing
 

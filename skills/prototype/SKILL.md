@@ -1,5 +1,5 @@
 ---
-name: jsx-artifact
+name: prototype
 description: |
   Build interactive single-file React artifacts: dashboards, trackers, data
   visualizations, planners, calculators, or any self-contained UI. Outputs

@@ -1,4 +1,4 @@
-# /jsx-artifact
+# /prototype
 
 Build interactive single-file React artifacts: dashboards, trackers, data visualizations, planners, calculators, or any self-contained UI.
 
@@ -14,13 +14,13 @@ Both modes use the same design tokens, component patterns, and Tailwind classes.
 ## Install
 
 ```
-cp -r skills/jsx-artifact/ your-repo/.claude/skills/jsx-artifact/
+cp -r skills/prototype/ your-repo/.claude/skills/prototype/
 ```
 
 ## Usage
 
 ```
-/jsx-artifact
+/prototype
 ```
 
 Describe what you want and Claude Code produces an artifact file. The skill also auto-triggers when you ask for dashboards, trackers, charts, tools, widgets, or similar interactive UI.
