@@ -75,7 +75,19 @@ document.addEventListener('alpine:init', () => {
       axisTick: { lineStyle: { color: '#3f3f46' } },
       axisLabel: { color: '#a1a1aa' },
       splitLine: { lineStyle: { color: '#27272a' } }
-    }
+    },
+    dataZoom: {
+      backgroundColor: '#18181b',
+      fillerColor: 'rgba(63, 63, 70, 0.3)',
+      borderColor: '#3f3f46',
+      handleStyle: { color: '#71717a' },
+      textStyle: { color: '#a1a1aa' },
+      dataBackground: {
+        lineStyle: { color: '#3f3f46' },
+        areaStyle: { color: '#27272a' }
+      }
+    },
+    toolbox: { iconStyle: { borderColor: '#a1a1aa' } }
   });
 
   // ── Data ────────────────────────────────────────────────
@@ -197,6 +209,27 @@ Accent colors:
 
 Use gentle opacity backgrounds (`bg-emerald-900/30`) for status badges and category indicators. Full-strength backgrounds (`bg-blue-600`) for primary action buttons only.
 
+### Color-blind accessibility
+
+Approximately 8% of males have red-green color deficiency. Never rely solely on the emerald/red distinction to convey meaning. Always pair color with a redundant signal:
+
+- **Trend indicators**: Use directional text (`+12%` / `-3%`) or arrows alongside color. The `+`/`-` prefix is the primary signal; color reinforces it.
+- **Status badges**: Include the status text (`active`, `error`) inside the badge. The text is the primary signal; color reinforces it.
+- **Chart series**: When contrasting positive vs. negative in charts, use different line styles (solid vs. dashed) or marker shapes in addition to color. ECharts supports `lineStyle: { type: 'dashed' }` and `symbol: 'triangle'` per series.
+
+For color-blind-safe chart palettes, replace the default theme `color` array:
+
+```js
+// Deuteranopia-safe palette (avoids red-green confusion)
+color: ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
+// Blue, amber, violet, cyan, pink, lime -- all distinguishable
+
+// Protanopia-safe palette
+color: ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#f97316', '#14b8a6']
+```
+
+When building dashboards for users who may have color vision deficiency, use the deuteranopia-safe palette and confirm that all data distinctions are also encoded in text, shape, or pattern.
+
 ## Light theme
 
 When the user requests a light theme, use these tokens instead.
@@ -204,7 +237,7 @@ When the user requests a light theme, use these tokens instead.
 Background hierarchy:
 - Page: `bg-zinc-50`
 - Card / panel: `bg-white`
-- Elevated surface: `bg-white`
+- Elevated surface: `bg-white shadow-sm` (shadow distinguishes elevated from card)
 - Input / well: `bg-zinc-100`
 
 Text hierarchy:
@@ -230,6 +263,58 @@ Light theme page shell:
 
 Light theme ECharts: register a `zinc-light` theme variant with matching tokens, or use `echarts.init(el)` without a theme argument (ECharts defaults to a light palette).
 
+### Dark/light mode toggle
+
+When the user requests a theme toggle, use Alpine state and Tailwind's `dark:` variant:
+
+```html
+<html lang="en" :class="darkMode ? 'dark' : ''">
+```
+
+```js
+Alpine.data('app', () => ({
+  darkMode: true,
+  // ...
+  toggleTheme() {
+    this.darkMode = !this.darkMode;
+    // Re-initialize charts with the appropriate theme
+    Object.values(this.charts).forEach(c => c.dispose());
+    this.$nextTick(() => this.initCharts());
+  }
+}));
+```
+
+Configure Tailwind for class-based dark mode (already in the standard config):
+
+```js
+tailwind.config = { darkMode: "class" }
+```
+
+Then use Tailwind's `dark:` prefix throughout the HTML:
+
+```html
+<body class="bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen">
+<div class="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700">
+```
+
+Register both ECharts themes and select based on mode:
+
+```js
+const theme = this.darkMode ? 'zinc-dark' : null;  // null = ECharts light default
+this.charts.main = echarts.init(this.$refs.mainChart, theme);
+```
+
+For the toggle button:
+
+```html
+<button @click="toggleTheme()" class="p-2 rounded-lg text-zinc-400 hover:text-zinc-200">
+  <svg x-show="darkMode" class="w-5 h-5" ...><!-- sun icon --></svg>
+  <svg x-show="!darkMode" class="w-5 h-5" ...><!-- moon icon --></svg>
+</button>
+```
+
+This approach requires duplicating token classes with `dark:` prefixes, which increases HTML verbosity. Only add a toggle when the user requests it; default to dark-only for simpler artifacts.
+
 -----
 
 ## Layout
@@ -243,12 +328,13 @@ Standard page shell:
 </div>
 ```
 
-Use `max-w-5xl` as the default content width. Use `p-3 md:p-6` for mobile-first padding.
+Use `max-w-5xl` as the default content width. For data-dense dashboards, use `max-w-7xl`. Use `p-3 md:p-6` for mobile-first padding. See the Responsiveness section for guidance on wider layouts.
 
 Grid patterns:
 - Stats row: `grid grid-cols-2 md:grid-cols-4 gap-3`
 - Two-column: `grid grid-cols-1 md:grid-cols-2 gap-4`
 - Three-column: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`
+- Four-column (large displays): `grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 gap-3`
 
 -----
 
@@ -270,12 +356,15 @@ For stat cards showing trends:
 
 ## Tabs
 
-Use pill-style tabs inside a container:
+Use pill-style tabs inside a container with ARIA tab roles:
 
 ```html
-<div class="flex gap-1 bg-zinc-800 rounded-lg p-1">
+<div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1">
   <template x-for="t in tabs" :key="t">
-    <button @click="tab = t"
+    <button role="tab"
+            :aria-selected="tab === t"
+            :aria-controls="'panel-' + t.toLowerCase()"
+            @click="tab = t"
             :class="tab === t
               ? 'bg-zinc-700 text-white'
               : 'text-zinc-400 hover:text-zinc-200'"
@@ -285,11 +374,11 @@ Use pill-style tabs inside a container:
 </div>
 ```
 
-Show tab content with `x-show`:
+Show tab content with `x-show` and `role="tabpanel"`:
 
 ```html
-<div x-show="tab === 'overview'">...</div>
-<div x-show="tab === 'details'">...</div>
+<div role="tabpanel" id="panel-overview" x-show="tab === 'overview'">...</div>
+<div role="tabpanel" id="panel-details" x-show="tab === 'details'">...</div>
 ```
 
 ## Tables
@@ -392,12 +481,16 @@ Option A is simpler and recommended for most artifacts.
 
 | Type | `series.type` | Notes |
 |---|---|---|
-| Line | `'line'` | Add `smooth: true` for curved lines |
-| Bar | `'bar'` | Add `barWidth: '50%'` to control width |
+| Line | `'line'` | Add `smooth: true` for curved lines. Caution: smoothing invents intermediate values and misrepresents volatile data (sharp drops, spikes). Use only for trends, not precise data. |
+| Bar | `'bar'` | Add `barWidth: '50%'` to control width. For stacked: add `stack: 'total'` to each series. For grouped: omit `stack` and ECharts groups automatically. Always start bar chart Y-axes at 0 -- a non-zero baseline exaggerates differences. |
 | Area | `'line'` | Add `areaStyle: { opacity: 0.3 }` to a line series |
-| Pie | `'pie'` | No axes. Data is `[{ name, value }]`. Use `radius: ['40%', '70%']` for donut |
+| Pie | `'pie'` | No axes. Data is `[{ name, value }]`. Use `radius: ['40%', '70%']` for donut. Limit to 5-6 slices; use a horizontal bar chart for more categories. |
 | Radar | `'radar'` | Needs a `radar` component with `indicator` array instead of axes |
-| Scatter | `'scatter'` | Data is `[[x, y], ...]` pairs. Both axes are `type: 'value'` |
+| Scatter | `'scatter'` | Data is `[[x, y], ...]` pairs. Both axes are `type: 'value'`. For bubble charts, map a third dimension to `symbolSize`. |
+| Candlestick | `'candlestick'` | Data is `[[open, close, low, high], ...]`. Requires `type: 'category'` or `type: 'time'` x-axis. Standard for OHLC financial data. |
+| Heatmap | `'heatmap'` | Data is `[[x, y, value], ...]`. Requires a `visualMap` component for color mapping. Use for correlation matrices, calendar heatmaps, time-of-day activity patterns. |
+| Treemap | `'treemap'` | Data is `[{ name, value, children: [...] }]`. No axes. Use for hierarchical part-to-whole: portfolio allocation, budget breakdowns, file size maps. |
+| Boxplot | `'boxplot'` | Data is `[[min, Q1, median, Q3, max], ...]`. Use for distribution comparisons, outlier detection, volatility analysis. |
 
 ### Interactive features
 
@@ -451,7 +544,7 @@ Synchronize tooltip position, legend toggles, and zoom range across charts:
 echarts.connect([this.charts.cpu, this.charts.memory, this.charts.network]);
 ```
 
-Connected charts show linked crosshairs on hover -- move over one chart and see the corresponding position on all others.
+Connected charts show linked crosshairs on hover -- move over one chart and see the corresponding position on all others. Only connect charts that share compatible axis types and data ranges. Connecting a time-series line chart to a categorical bar chart produces confusing crosshair behavior.
 
 ### Reactive data updates
 
@@ -467,6 +560,167 @@ this.$watch('filtered', () => {
 ```
 
 `setOption` merges by default. Pass only the parts that changed. When the number of series changes, use `{ replaceMerge: ['series'] }` as the second argument.
+
+### Time axis
+
+For time-series data, use `type: 'time'` instead of `type: 'category'`. ECharts handles irregular intervals, gap detection, and intelligent label formatting automatically:
+
+```js
+xAxis: {
+  type: 'time',
+  axisLabel: {
+    formatter: (val) => new Date(val).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric'
+    })
+  }
+},
+series: [{
+  type: 'line',
+  data: [
+    ['2024-01-15', 42],
+    ['2024-01-22', 58],  // irregular interval is handled correctly
+    ['2024-02-01', 35],
+  ]
+}]
+```
+
+ECharts accepts ISO 8601 strings or Unix milliseconds for time data. Do not use `type: 'category'` with string labels for time data -- it spaces all points equally regardless of actual time gaps, which distorts the visual representation.
+
+For missing data points (weekends, holidays, halted trading), use `null` in the data array to show a gap, or set `connectNulls: true` on the series to draw through gaps.
+
+### Number and axis formatting
+
+Format axis labels and tooltips for readability. Raw numbers without separators or units are unacceptable in data dashboards.
+
+```js
+// Currency axis
+yAxis: {
+  type: 'value',
+  axisLabel: {
+    formatter: (val) => '$' + (Math.abs(val) >= 1e6
+      ? (val / 1e6).toFixed(1) + 'M'
+      : Math.abs(val) >= 1e3
+      ? (val / 1e3).toFixed(0) + 'K'
+      : val.toFixed(0))
+  }
+}
+
+// Percentage axis
+yAxis: {
+  type: 'value',
+  axisLabel: { formatter: '{value}%' }
+}
+```
+
+Define reusable formatting utilities at the top of the data section:
+
+```js
+const fmt = {
+  currency: (v, d = 0) => '$' + Math.abs(v).toLocaleString('en-US', {
+    minimumFractionDigits: d, maximumFractionDigits: d
+  }),
+  pct: (v, d = 1) => v.toFixed(d) + '%',
+  num: (v) => v.toLocaleString('en-US'),
+  compact: (v) => {
+    if (Math.abs(v) >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+    if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+    if (Math.abs(v) >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+    return '$' + v.toFixed(0);
+  }
+};
+```
+
+### Tooltip formatting
+
+Format tooltips with value formatters for readable data:
+
+```js
+tooltip: {
+  trigger: 'axis',
+  axisPointer: { type: 'cross' },
+  confine: true,  // prevents overflow on edge-of-viewport charts
+  valueFormatter: (val) => fmt.currency(val, 2)
+}
+```
+
+For multi-series tooltips where each series has different units, use a `formatter` function:
+
+```js
+tooltip: {
+  trigger: 'axis',
+  confine: true,
+  formatter: (params) => {
+    let html = params[0].axisValueLabel + '<br/>';
+    params.forEach(p => {
+      const val = p.seriesName === 'Revenue' ? fmt.currency(p.value)
+                : p.seriesName === 'Growth' ? fmt.pct(p.value)
+                : fmt.num(p.value);
+      html += p.marker + ' ' + p.seriesName + ': ' + val + '<br/>';
+    });
+    return html;
+  }
+}
+```
+
+### Reference lines and thresholds
+
+Use `markLine` for horizontal reference lines (targets, benchmarks, limits):
+
+```js
+series: [{
+  type: 'line',
+  data: values,
+  markLine: {
+    data: [
+      { yAxis: 100000, name: 'Target' },
+      { yAxis: 50000, name: 'Minimum', lineStyle: { type: 'dashed', color: '#ef4444' } }
+    ],
+    lineStyle: { type: 'dashed', color: '#f59e0b' },
+    label: { color: '#a1a1aa' }
+  }
+}]
+```
+
+Use `markArea` for shaded regions (normal ranges, danger zones):
+
+```js
+markArea: {
+  data: [[{ yAxis: 80 }, { yAxis: 100 }]],
+  itemStyle: { color: 'rgba(239, 68, 68, 0.1)' },
+  label: { show: false }
+}
+```
+
+### Dual-axis charts
+
+Use dual axes only when two metrics have fundamentally different units (price and volume, temperature and humidity). Never use them for metrics with the same unit.
+
+```js
+yAxis: [
+  { type: 'value', name: 'Price ($)', axisLabel: { formatter: '${value}' } },
+  { type: 'value', name: 'Volume', axisLabel: { formatter: (v) => fmt.compact(v) } }
+],
+series: [
+  { name: 'Price', type: 'line', data: prices, yAxisIndex: 0 },
+  { name: 'Volume', type: 'bar', data: volumes, yAxisIndex: 1 }
+]
+```
+
+Warning: dual-axis scales are arbitrary. You can make any two series appear correlated or uncorrelated by adjusting scales. Use sparingly and only when the alternative (two separate charts) is worse.
+
+### Chart interaction (drill-down)
+
+Wire ECharts click events to Alpine state for drill-down patterns:
+
+```js
+init() {
+  this.charts.main = echarts.init(this.$refs.mainChart, 'zinc-dark');
+  this.charts.main.setOption({ /* ... */ });
+  this.charts.main.on('click', (params) => {
+    this.selectedItem = params.name;  // updates Alpine state
+  });
+}
+```
 
 ### Chart line colors
 
@@ -556,10 +810,12 @@ Use `x-model` for inputs:
 
 ### Sorting
 
-Toggle sort direction on header click:
+Toggle sort direction on header click. Add keyboard access and `aria-sort`:
 
 ```html
-<th @click="toggleSort('name')"
+<th @click="toggleSort('name')" @keydown.enter="toggleSort('name')"
+    tabindex="0"
+    :aria-sort="sortKey === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
     class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
   Name
 </th>
@@ -643,14 +899,73 @@ Do not fetch from external APIs. Do not use `localStorage` or `sessionStorage`. 
 
 ## Responsiveness
 
-Design mobile-first. Three breakpoints: default (mobile), `md:` (tablet), `lg:` (desktop).
+Design mobile-first. Use four breakpoints: default (phone), `sm:` (640px), `md:` (768px, tablet), `lg:` (1024px, desktop).
 
-The artifact must not break on:
-- 1024x600 (common Raspberry Pi display)
-- 375px wide (phone)
-- 1920px wide (desktop)
+The artifact must render correctly on:
+- 320px wide (small phone, portrait)
+- 375px wide (standard phone)
+- 768px (tablet)
+- 1024x600 (Raspberry Pi display)
+- 1920px (desktop)
+- 2560px (ultra-wide / large monitor)
 
 Use `overflow-x-auto` on tables and wide content. Avoid fixed widths. Use percentage or `max-w-` constraints.
+
+### Content width
+
+Use `max-w-5xl` (1024px) as the default. For data-dense dashboards with wide tables or many chart columns, use a wider container:
+
+| Content type | Class |
+|---|---|
+| Standard dashboard | `max-w-5xl` |
+| Wide / data-dense | `max-w-7xl` |
+| Full-width (large monitors) | `max-w-[1600px]` with `px-4 sm:px-6 lg:px-8 xl:px-12` |
+
+Do not use `max-w-full` without horizontal padding. Content touching screen edges is unreadable on large displays.
+
+### Phone (default, < 640px)
+
+- Stats grid: `grid-cols-2` minimum. Single-column stat cards waste space.
+- Charts: minimum `h-48` (192px). Shorter charts are unreadable.
+- Tables: always wrap in `overflow-x-auto`. Tables scroll horizontally on phones.
+- Filter chips: use `px-3 py-2` for touch targets (not `py-1.5`). Minimum 44px tap height.
+- Tabs: if more than 4 tabs, add `overflow-x-auto whitespace-nowrap` to the tab container so tabs scroll rather than wrap.
+- Search and filters: stack vertically (`flex-col`), switch to `flex-row` at `md:`.
+- Sidebar: hidden by default, slides in as overlay on tap.
+
+### Tablet and desktop (md: 768px+)
+
+- Stats: `md:grid-cols-4`
+- Charts: `h-64` (256px)
+- Page padding: `md:p-6`
+- Two-column grids activate: `md:grid-cols-2`
+- Three-column grids at `lg:`: `lg:grid-cols-3`
+- Sidebar becomes persistent at `lg:` (`lg:relative lg:translate-x-0`)
+
+### Large displays (xl: 1280px+)
+
+For dashboards targeting large monitors:
+
+- Use `xl:grid-cols-4` for card grids that benefit from more columns.
+- Increase chart heights: `xl:h-96` for primary charts.
+- Consider wider content containers (`max-w-7xl`) to fill the screen.
+- For ultra-wide (2560px+), a persistent sidebar with wide content area works better than centering a narrow column in empty space.
+
+### Touch targets
+
+All interactive elements must be at least 44x44px. This applies to phones and Raspberry Pi touchscreens alike.
+
+- Buttons and filter chips: `min-h-[44px]` with adequate padding
+- Sort headers: `px-4 py-3` minimum
+- Tab buttons: `px-4 py-2` minimum
+
+### Chart responsiveness
+
+Charts resize automatically via the `resize()` handler in the standard init pattern. Additional guidance for narrow screens:
+
+- **Axis labels**: use `axisLabel: { rotate: 45, fontSize: 10 }` or `axisLabel: { interval: 'auto' }` to prevent label overlap on phones.
+- **Legend**: move below the chart on narrow screens: `legend: { bottom: 0, orient: 'horizontal' }`. Top-right placement overlaps the chart at phone widths.
+- **Toolbox**: hide on phones. Set `toolbox: { show: window.innerWidth >= 768 }` in the chart option.
 
 -----
 
@@ -662,9 +977,13 @@ The artifact runs in a browser on any platform: desktop Linux, Raspberry Pi, mac
 - Prefer CSS transitions over JavaScript animation.
 - Avoid stacking `box-shadow` and heavy `backdrop-blur` on large surfaces.
 - Disable ECharts animation on Pi-targeted artifacts: `animation: false` in the chart option.
-- Use the SVG renderer for dashboards with many small charts: `echarts.init(el, 'zinc-dark', { renderer: 'svg' })`.
-- Use the Canvas renderer (default) for charts with large datasets (>1000 points).
-- Keep chart datasets under 500 data points per series for general use. Use ECharts `sampling: 'lttb'` for larger datasets.
+- Use the SVG renderer for dashboards with many small charts: `echarts.init(el, 'zinc-dark', { renderer: 'svg' })`. Use Canvas (default) for charts with large datasets.
+- Dataset size guidance:
+  - Under 1,000 points per series: no special handling needed.
+  - 1,000-10,000 points: use `sampling: 'lttb'`, Canvas renderer, `animation: false`.
+  - 10,000-100,000 points: add `large: true` and `largeThreshold: 2000` on the series for GPU-accelerated rendering.
+  - Over 100,000 points: pre-aggregate the data before charting; this volume is beyond in-browser rendering.
+- Note: `sampling: 'lttb'` only applies to line series. For bar charts with many categories, aggregate into bins. For scatter plots with thousands of points, use `large: true`.
 - Avoid `requestAnimationFrame` loops unless the artifact is explicitly a visualization or game.
 
 -----

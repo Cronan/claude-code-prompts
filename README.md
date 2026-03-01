@@ -14,10 +14,6 @@ cp -r skills/deep-init/ your-repo/.claude/skills/deep-init/
 | [`/stet`](skills/stet/) | Strip the 27 patterns that make AI-assisted writing monotonous, vague, and generic -- an editorial tool, not a humanizer |
 | [`/artifact`](skills/artifact/) | Build single-file HTML dashboards, trackers, and visualizations with Alpine.js, ECharts, and Tailwind -- opens directly in any browser |
 
-## Writing
-
-For background on the pattern taxonomy behind `/stet` and why editorial correction differs from detection evasion, see [The 27 ways AI overwrites your voice](docs/ai-writing-patterns.md).
-
 ## Contributing
 
 Suggestions welcome via [issues](../../issues). Built by [Cronan](https://github.com/Cronan).

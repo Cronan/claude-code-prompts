@@ -78,9 +78,23 @@ For business term definitions, see docs/claude/domain-glossary.md.
 
 **Synthesis.** Findings are cross-referenced by ticket ID, deduplicated, tested against a rule ("does this reveal something Claude cannot discover from the code?"), and written as concise instructions.
 
-Prerequisites: a repo with an existing CLAUDE.md from `/init`, and MCP server access to your PR platform, issue tracker, and wiki. The git subagent works with any git repository directly.
+Prerequisites: a repo with an existing CLAUDE.md from `/init`, and access to your PR platform and issue tracker (via `gh` CLI for GitHub, or MCP servers for other platforms). The git subagent works with any git repository directly.
 
 Full specification: [`SKILL.md`](SKILL.md).
+
+## Install
+
+Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Copy the skill into your repo:
+
+```
+cp -r skills/deep-init/ your-repo/.claude/skills/deep-init/
+```
+
+Then run:
+
+```
+/deep-init
+```
 
 ## Design rationale
 

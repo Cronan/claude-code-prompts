@@ -49,7 +49,9 @@ ECharts provides line, bar, area, pie, radar, and scatter charts. Interactive fe
 - Legend toggle (click to show/hide series)
 - Brush selection
 
-Charts use a custom `zinc-dark` theme that matches the Tailwind dark theme tokens.
+Charts use a custom `zinc-dark` theme that matches the Tailwind dark theme tokens. Also supports candlestick, heatmap, treemap, and boxplot charts.
+
+Full specification: [`SKILL.md`](SKILL.md).
 
 ## Constraints
 

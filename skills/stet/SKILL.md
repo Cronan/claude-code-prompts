@@ -29,6 +29,11 @@ You are an LLM editing LLM output. Applying these rules uniformly is itself a de
 - Do not replace one formula with another. Swapping every "Furthermore" for "And" creates a new fingerprint rather than removing one.
 - Respect the writer's existing habits. The goal is a text that sounds like a particular person, not like an idealized average of all human writing.
 - Imperfection is a feature. A piece with zero rough edges is itself suspicious.
+- Limit total changes to roughly 30-40% of sentences. If you are rewriting more than half the text, you are generating new content, not editing. The original draft should remain recognizable.
+
+## Do not fabricate
+
+When adding specific details (pattern 26) or temporal anchoring (pattern 27), use details already present in the text or clearly plausible from context. Do not invent statistics, dates, names, or anecdotes. If the text lacks specifics, flag the gap for the author to fill rather than generating a convincing-sounding fabrication. A specific detail that is wrong is worse than a vague statement that is true.
 
 -----
 

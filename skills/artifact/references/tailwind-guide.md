@@ -58,7 +58,7 @@ When the user requests a light theme, swap tokens. Structure mirrors dark theme 
 |------------------|------------------|
 | Page             | `bg-zinc-50`     |
 | Card / panel     | `bg-white`       |
-| Elevated surface | `bg-white`       |
+| Elevated surface | `bg-white shadow-sm` |
 | Input / well     | `bg-zinc-100`    |
 | Tab container    | `bg-zinc-100`    |
 
@@ -203,7 +203,19 @@ echarts.registerTheme('zinc-dark', {
     axisTick: { lineStyle: { color: '#3f3f46' } },
     axisLabel: { color: '#a1a1aa' },
     splitLine: { lineStyle: { color: '#27272a' } }
-  }
+  },
+  dataZoom: {
+    backgroundColor: '#18181b',
+    fillerColor: 'rgba(63, 63, 70, 0.3)',
+    borderColor: '#3f3f46',
+    handleStyle: { color: '#71717a' },
+    textStyle: { color: '#a1a1aa' },
+    dataBackground: {
+      lineStyle: { color: '#3f3f46' },
+      areaStyle: { color: '#27272a' }
+    }
+  },
+  toolbox: { iconStyle: { borderColor: '#a1a1aa' } }
 });
 ```
 
@@ -235,6 +247,20 @@ echarts.registerTheme('zinc-dark', {
 
 These appear in the theme's `color` array. ECharts assigns them to series in order. Override per-series with `itemStyle: { color: '#hex' }` if needed.
 
+### Color-blind-safe palettes
+
+Replace the default `color` array when building for users with color vision deficiency:
+
+```js
+// Deuteranopia-safe (avoids red-green confusion)
+color: ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
+
+// Protanopia-safe
+color: ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#f97316', '#14b8a6']
+```
+
+Always pair color with redundant signals (text labels, line styles, marker shapes) so the data is readable without color.
+
 ## Tailwind CDN safelist
 
 Tailwind's Play CDN generates styles at runtime by scanning the HTML for class names. Dynamically constructed class names that never appear as complete strings will be missed. If you build class names from variables, include the full strings somewhere the CDN can find them:
@@ -257,5 +283,5 @@ These artifacts may run on a Raspberry Pi with 1GB RAM and a 1024x600 screen. Ke
 - `box-shadow` stacking and `backdrop-blur` on large surfaces are GPU-intensive. Use sparingly.
 - ECharts: disable animation with `animation: false` for Pi-targeted dashboards.
 - ECharts: use the SVG renderer (`{ renderer: 'svg' }`) for dashboards with many small charts.
-- ECharts: keep datasets under 500 points per series. Use `sampling: 'lttb'` for larger datasets.
+- ECharts dataset sizes: under 1K points needs no special handling. 1K-10K: use `sampling: 'lttb'` (line series only) and `animation: false`. 10K-100K: add `large: true` and `largeThreshold: 2000`. Over 100K: pre-aggregate before charting.
 - Keep transition durations at 100-200ms. Longer durations feel sluggish on weak hardware.

@@ -77,6 +77,7 @@ Fixed sidebar with scrollable main area. Collapses on mobile with a toggle butto
     <div class="flex-1 min-w-0">
       <header class="border-b border-zinc-700 p-3 md:p-4 flex items-center gap-3">
         <button @click="sidebarOpen = !sidebarOpen"
+                aria-label="Toggle sidebar"
                 class="lg:hidden text-zinc-400 hover:text-white">
           <!-- hamburger icon (inline SVG) -->
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,12 +151,15 @@ Responsive grid for a row of stat cards.
 
 ## Tabs
 
-Pill-style tabs inside a container. Active tab gets a lighter background.
+Pill-style tabs inside a container. Active tab gets a lighter background. Use ARIA tab roles for screen reader support.
 
 ```html
-<div class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-4">
+<div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-4">
   <template x-for="t in tabs" :key="t">
-    <button @click="tab = t"
+    <button role="tab"
+            :aria-selected="tab === t"
+            :aria-controls="'panel-' + t.toLowerCase()"
+            @click="tab = t"
             :class="tab === t
               ? 'bg-zinc-700 text-white'
               : 'text-zinc-400 hover:text-zinc-200'"
@@ -164,9 +168,9 @@ Pill-style tabs inside a container. Active tab gets a lighter background.
   </template>
 </div>
 
-<div x-show="tab === 'Overview'"><!-- content --></div>
-<div x-show="tab === 'Details'"><!-- content --></div>
-<div x-show="tab === 'Logs'"><!-- content --></div>
+<div role="tabpanel" id="panel-overview" x-show="tab === 'Overview'"><!-- content --></div>
+<div role="tabpanel" id="panel-details" x-show="tab === 'Details'"><!-- content --></div>
+<div role="tabpanel" id="panel-logs" x-show="tab === 'Logs'"><!-- content --></div>
 ```
 
 Alpine data:
@@ -178,24 +182,30 @@ tabs: ['Overview', 'Details', 'Logs'],
 
 ## Data table
 
-Scrollable table with clickable sort headers.
+Scrollable table with clickable sort headers. Sort headers are keyboard-accessible with `tabindex` and `@keydown.enter`.
 
 ```html
 <div class="overflow-x-auto">
   <table class="w-full text-sm text-left">
     <thead>
       <tr class="border-b border-zinc-700 text-zinc-400">
-        <th @click="toggleSort('name')"
+        <th @click="toggleSort('name')" @keydown.enter="toggleSort('name')"
+            tabindex="0"
+            :aria-sort="sortKey === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
             class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
           Name
           <span x-show="sortKey === 'name'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
         </th>
-        <th @click="toggleSort('status')"
+        <th @click="toggleSort('status')" @keydown.enter="toggleSort('status')"
+            tabindex="0"
+            :aria-sort="sortKey === 'status' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
             class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
           Status
           <span x-show="sortKey === 'status'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
         </th>
-        <th @click="toggleSort('value')"
+        <th @click="toggleSort('value')" @keydown.enter="toggleSort('value')"
+            tabindex="0"
+            :aria-sort="sortKey === 'value' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
             class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
           Value
           <span x-show="sortKey === 'value'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
@@ -251,6 +261,7 @@ Text input with search icon. Pair with a getter for filtering.
           d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
   </svg>
   <input type="text" x-model="search" placeholder="Search..."
+         aria-label="Search"
          class="w-full pl-10 pr-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500">
 </div>
 ```
@@ -351,7 +362,7 @@ When a filtered or searched list has no results.
 
 ```html
 <div x-show="filtered.length === 0"
-     class="flex flex-col items-center justify-center py-12 text-zinc-500">
+     class="flex flex-col items-center justify-center py-12 text-zinc-400">
   <p class="text-sm">No results found</p>
 </div>
 ```
@@ -363,6 +374,7 @@ Click-to-expand detail panel. Uses click, not hover.
 ```html
 <div class="border border-zinc-700 rounded-xl overflow-hidden" x-data="{ open: false }">
   <button @click="open = !open"
+          :aria-expanded="open"
           class="w-full flex items-center justify-between px-4 py-3 bg-zinc-800 hover:bg-zinc-700/50 transition-colors">
     <span class="text-sm font-medium">Section Title</span>
     <svg :class="open ? 'rotate-180' : ''"
@@ -379,11 +391,14 @@ Click-to-expand detail panel. Uses click, not hover.
 
 ## Progress bar
 
-Horizontal bar with percentage fill. Useful for disk usage, completion tracking.
+Horizontal bar with percentage fill. Useful for disk usage, completion tracking. Use `role="progressbar"` with ARIA attributes for accessibility.
 
 ```html
 <div class="flex items-center gap-3">
-  <div class="flex-1 bg-zinc-700 rounded-full h-2 overflow-hidden">
+  <div class="flex-1 bg-zinc-700 rounded-full h-2 overflow-hidden"
+       role="progressbar"
+       :aria-valuenow="Math.round((item.used / item.total) * 100)"
+       aria-valuemin="0" aria-valuemax="100">
     <div class="h-full rounded-full bg-blue-500"
          :style="'width: ' + Math.round((item.used / item.total) * 100) + '%'"></div>
   </div>
