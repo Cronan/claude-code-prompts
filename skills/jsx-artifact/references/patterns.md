@@ -1,46 +1,54 @@
 # Component patterns
 
-Recurring layout and UI structures for JSX artifacts. Each pattern shows the minimal skeleton. Combine them to build full artifacts.
+Recurring layout and UI structures for JSX artifacts. Each pattern shows the minimal skeleton using the correct dark theme tokens. Combine them to build full artifacts.
+
+All patterns use standard ES module imports and `export default`.
 
 ## Page shell
 
-Every artifact starts with this structure. The `App` component owns the outermost layout.
+Every artifact starts here. `App` owns the outermost layout.
 
 ```jsx
-const App = () => {
+import { useState } from "react";
+
+export default function App() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800 px-6 py-4">
-        <h1 className="text-lg font-semibold">Title</h1>
-      </header>
-      <main className="p-6">
+    <div className="min-h-screen bg-zinc-900 text-white">
+      <div className="max-w-5xl mx-auto p-3 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Title</h1>
         {/* content */}
-      </main>
+      </div>
     </div>
   );
-};
+}
 ```
 
 ## Sidebar layout
 
-Fixed sidebar with scrollable main area. Collapses on mobile.
+Fixed sidebar with scrollable main area. Collapses on mobile with a toggle button.
 
 ```jsx
-const App = () => {
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
+
+export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="flex min-h-screen bg-zinc-900 text-white">
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-zinc-900 border-r border-zinc-800
+        fixed inset-y-0 left-0 z-40 w-64 bg-zinc-800 border-r border-zinc-700
         transform transition-transform duration-200
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         lg:relative lg:translate-x-0
       `}>
-        <nav className="p-4 space-y-1">
-          {/* nav items */}
-        </nav>
+        <div className="p-4">
+          <h2 className="text-lg font-bold mb-4">App Name</h2>
+          <nav className="space-y-1">
+            {/* nav items */}
+          </nav>
+        </div>
       </aside>
 
       {/* Overlay */}
@@ -53,35 +61,33 @@ const App = () => {
 
       {/* Main */}
       <div className="flex-1 min-w-0">
-        <header className="border-b border-zinc-800 px-6 py-4 flex items-center gap-4">
+        <header className="border-b border-zinc-700 p-3 md:p-4 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden text-zinc-400 hover:text-zinc-100"
+            className="lg:hidden text-zinc-400 hover:text-white"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <h1 className="text-lg font-semibold">Title</h1>
+          <h1 className="text-lg font-bold">Page Title</h1>
         </header>
-        <main className="p-6">
+        <main className="p-3 md:p-6">
           {/* content */}
         </main>
       </div>
     </div>
   );
-};
+}
 ```
 
 ## Card
 
-The basic content container. Use for dashboard tiles, list items, detail panels.
+The basic content container for dashboard tiles, detail panels, list items.
 
 ```jsx
-const Card = ({ title, children, className = '' }) => (
-  <div className={`bg-zinc-900 border border-zinc-800 rounded-lg p-4 ${className}`}>
+const Card = ({ title, children, className = "" }) => (
+  <div className={`bg-zinc-800 rounded-xl p-4 border border-zinc-700 ${className}`}>
     {title && (
-      <h3 className="text-sm font-medium text-zinc-400 mb-3">{title}</h3>
+      <h3 className="text-sm text-zinc-400 mb-2">{title}</h3>
     )}
     {children}
   </div>
@@ -90,54 +96,92 @@ const Card = ({ title, children, className = '' }) => (
 
 ## Stat card
 
-A card showing a single metric. Common in dashboards.
+A card showing a single metric with optional trend indicator.
 
 ```jsx
 const StatCard = ({ label, value, change, trend }) => (
-  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+  <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
     <p className="text-sm text-zinc-400">{label}</p>
-    <p className="text-2xl font-semibold mt-1">{value}</p>
+    <p className="text-2xl font-bold mt-1">{value}</p>
     {change && (
-      <p className={`text-sm mt-1 ${trend === 'up' ? 'text-emerald-400' : 'text-red-400'}`}>
-        {trend === 'up' ? '+' : ''}{change}
+      <p className={`text-sm font-medium mt-1 ${
+        trend === "up" ? "text-emerald-400" : "text-red-400"
+      }`}>
+        {trend === "up" ? "+" : ""}{change}
       </p>
     )}
   </div>
 );
 ```
 
-## Dashboard grid
+## Stats grid
 
-Responsive grid that adapts from 1 column on mobile to 3-4 on desktop.
+Responsive grid for a row of stat cards.
 
 ```jsx
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
   <StatCard label="Total" value="1,234" change="12%" trend="up" />
   <StatCard label="Active" value="892" change="3%" trend="up" />
   <StatCard label="Errors" value="23" change="5%" trend="down" />
-  <StatCard label="Latency" value="142ms" change="8ms" trend="down" />
+  <StatCard label="Latency" value="142ms" />
 </div>
+```
+
+## Tabs
+
+Pill-style tabs inside a container. Active tab gets a lighter background.
+
+```jsx
+const Tabs = ({ tabs, activeTab, onChange }) => (
+  <div className="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-4">
+    {tabs.map(t => (
+      <button
+        key={t}
+        onClick={() => onChange(t)}
+        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          activeTab === t
+            ? "bg-zinc-700 text-white"
+            : "text-zinc-400 hover:text-zinc-200"
+        }`}
+      >
+        {t}
+      </button>
+    ))}
+  </div>
+);
+```
+
+Usage:
+
+```jsx
+const [tab, setTab] = useState("Overview");
+const tabs = ["Overview", "Details", "Logs"];
+
+<Tabs tabs={tabs} activeTab={tab} onChange={setTab} />
+{tab === "Overview" && <OverviewPanel />}
+{tab === "Details" && <DetailsPanel />}
+{tab === "Logs" && <LogsPanel />}
 ```
 
 ## Data table
 
-Scrollable table with sort headers. Wraps in `overflow-x-auto` for small screens.
+Scrollable table with clickable sort headers.
 
 ```jsx
 const DataTable = ({ columns, data, sortKey, sortDir, onSort }) => (
   <div className="overflow-x-auto">
-    <table className="w-full text-sm">
+    <table className="w-full text-sm text-left">
       <thead>
-        <tr className="border-b border-zinc-800">
+        <tr className="border-b border-zinc-700 text-zinc-400">
           {columns.map(col => (
             <th
               key={col.key}
               onClick={() => onSort(col.key)}
-              className="text-left px-4 py-3 text-zinc-400 font-medium cursor-pointer hover:text-zinc-200"
+              className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200"
             >
               {col.label}
               {sortKey === col.key && (
-                <span className="ml-1">{sortDir === 'asc' ? '\u2191' : '\u2193'}</span>
+                <span className="ml-1">{sortDir === "asc" ? "\u2191" : "\u2193"}</span>
               )}
             </th>
           ))}
@@ -145,9 +189,9 @@ const DataTable = ({ columns, data, sortKey, sortDir, onSort }) => (
       </thead>
       <tbody>
         {data.map((row, i) => (
-          <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+          <tr key={i} className="border-b border-zinc-700/50 hover:bg-zinc-800/50">
             {columns.map(col => (
-              <td key={col.key} className="px-4 py-3">
+              <td key={col.key} className="px-4 py-3 text-zinc-300">
                 {col.render ? col.render(row[col.key], row) : row[col.key]}
               </td>
             ))}
@@ -159,117 +203,78 @@ const DataTable = ({ columns, data, sortKey, sortDir, onSort }) => (
 );
 ```
 
-## Tabs
+## Search bar
 
-Horizontal tab bar with content switching.
+Text input with search icon. Pair with `useMemo` for filtering.
 
 ```jsx
-const Tabs = ({ tabs, activeTab, onChange }) => (
-  <div className="flex gap-1 border-b border-zinc-800 mb-4">
-    {tabs.map(tab => (
+import { Search } from "lucide-react";
+
+const SearchBar = ({ query, onChange, placeholder = "Search..." }) => (
+  <div className="relative">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+    <input
+      type="text"
+      value={query}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full pl-10 pr-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+    />
+  </div>
+);
+```
+
+## Filter chips
+
+Clickable filter buttons. Pair with search bar for combined filtering.
+
+```jsx
+const FilterChips = ({ options, active, onChange }) => (
+  <div className="flex gap-2 flex-wrap">
+    {options.map(opt => (
       <button
-        key={tab.id}
-        onClick={() => onChange(tab.id)}
-        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-          activeTab === tab.id
-            ? 'border-blue-500 text-blue-400'
-            : 'border-transparent text-zinc-400 hover:text-zinc-200'
+        key={opt}
+        onClick={() => onChange(opt)}
+        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+          active === opt
+            ? "bg-blue-600 text-white"
+            : "bg-zinc-800 text-zinc-400 border border-zinc-700 hover:text-zinc-200"
         }`}
       >
-        {tab.label}
+        {opt}
       </button>
     ))}
   </div>
 );
 ```
 
-Usage:
-
-```jsx
-const [activeTab, setActiveTab] = useState('overview');
-const tabs = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'details', label: 'Details' },
-  { id: 'logs', label: 'Logs' },
-];
-
-<Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-{activeTab === 'overview' && <OverviewPanel />}
-{activeTab === 'details' && <DetailsPanel />}
-{activeTab === 'logs' && <LogsPanel />}
-```
-
-## Search/filter bar
-
-Text input with optional filter chips.
-
-```jsx
-const SearchBar = ({ query, onQueryChange, filters, activeFilters, onToggleFilter }) => (
-  <div className="flex flex-col sm:flex-row gap-3 mb-4">
-    <div className="relative flex-1">
-      <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-      <input
-        type="text"
-        value={query}
-        onChange={e => onQueryChange(e.target.value)}
-        placeholder="Search..."
-        className="w-full pl-10 pr-4 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
-      />
-    </div>
-    {filters && (
-      <div className="flex gap-2 flex-wrap">
-        {filters.map(f => (
-          <button
-            key={f}
-            onClick={() => onToggleFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              activeFilters.includes(f)
-                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/50 hover:text-zinc-200'
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
-);
-```
-
 ## Recharts wrapper
 
-When using Recharts for data visualization. Always wrap charts in `ResponsiveContainer`.
+Always wrap charts in `ResponsiveContainer`. Use dark theme grid and tooltip colors.
 
 ```jsx
-const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
 
-const ChartCard = ({ title, data, dataKey, color = '#10b981' }) => (
-  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-    <h3 className="text-sm font-medium text-zinc-400 mb-4">{title}</h3>
+const ChartCard = ({ title, data, dataKey, color = "#10b981" }) => (
+  <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+    <h3 className="text-sm text-zinc-400 mb-4">{title}</h3>
     <div className="h-48">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-          <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} />
-          <YAxis tick={{ fill: '#71717a', fontSize: 12 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
+          <XAxis dataKey="name" stroke="#71717a" fontSize={12} />
+          <YAxis stroke="#71717a" fontSize={12} />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#18181b',
-              border: '1px solid #27272a',
-              borderRadius: '8px',
-              color: '#fafafa',
+              backgroundColor: "#27272a",
+              border: "1px solid #3f3f46",
+              borderRadius: "8px",
+              color: "#fafafa",
             }}
           />
-          <Line
-            type="monotone"
-            dataKey={dataKey}
-            stroke={color}
-            strokeWidth={2}
-            dot={false}
-          />
+          <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -277,16 +282,33 @@ const ChartCard = ({ title, data, dataKey, color = '#10b981' }) => (
 );
 ```
 
-## Empty state
+## Status badge
 
-When a filtered list has no results.
+Small badge with opacity background for status indicators.
 
 ```jsx
-const EmptyState = ({ message = 'No results found' }) => (
+const StatusBadge = ({ status }) => {
+  const styles = {
+    active: "bg-emerald-900/30 text-emerald-400",
+    idle: "bg-zinc-700 text-zinc-300",
+    error: "bg-red-900/30 text-red-400",
+    warning: "bg-amber-900/30 text-amber-400",
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-medium ${styles[status] || styles.idle}`}>
+      {status}
+    </span>
+  );
+};
+```
+
+## Empty state
+
+When a filtered or searched list has no results.
+
+```jsx
+const EmptyState = ({ message = "No results found" }) => (
   <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
-    <svg className="w-12 h-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
     <p className="text-sm">{message}</p>
   </div>
 );
@@ -294,28 +316,28 @@ const EmptyState = ({ message = 'No results found' }) => (
 
 ## Expandable section
 
-Click-to-expand detail panel.
+Click-to-expand detail panel. Uses click, not hover.
 
 ```jsx
+import { ChevronDown } from "lucide-react";
+
 const Expandable = ({ title, children, defaultOpen = false }) => {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="border border-zinc-800 rounded-lg overflow-hidden">
+    <div className="border border-zinc-700 rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 bg-zinc-800 hover:bg-zinc-700/50 transition-colors"
       >
         <span className="text-sm font-medium">{title}</span>
-        <svg
-          className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown
+          size={16}
+          className={`text-zinc-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && (
-        <div className="px-4 py-3 border-t border-zinc-800">
+        <div className="px-4 py-3 border-t border-zinc-700">
           {children}
         </div>
       )}
@@ -324,16 +346,20 @@ const Expandable = ({ title, children, defaultOpen = false }) => {
 };
 ```
 
-## Loading/skeleton
+## Progress bar
 
-For perceived responsiveness during state transitions.
+Horizontal bar with percentage fill. Useful for disk usage, completion tracking.
 
 ```jsx
-const Skeleton = ({ className = '' }) => (
-  <div className={`animate-pulse bg-zinc-800 rounded ${className}`} />
-);
-
-// Usage
-<Skeleton className="h-4 w-32" />
-<Skeleton className="h-8 w-full mt-2" />
+const ProgressBar = ({ value, max, color = "bg-blue-500" }) => {
+  const pct = Math.round((value / max) * 100);
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 bg-zinc-700 rounded-full h-2 overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs text-zinc-400 w-10 text-right">{pct}%</span>
+    </div>
+  );
+};
 ```

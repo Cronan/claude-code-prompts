@@ -1,13 +1,12 @@
 ---
 name: jsx-artifact
 description: |
-  Generate self-contained JSX artifacts -- single-file React components
-  styled with Tailwind CSS, rendered in the browser with no build step.
-  Produces standalone HTML files that work on any platform with a browser,
-  including headless Linux and Raspberry Pi. No Node.js, npm, or toolchain
-  required.
+  Build interactive single-file React artifacts: dashboards, trackers, data
+  visualizations, planners, calculators, or any self-contained UI. Produces
+  a .jsx file styled with Tailwind CSS that renders in a local Vite dev
+  server. Trigger this when the user asks for a dashboard, tracker, chart,
+  tool, widget, visualizer, planner, monitor, or any interactive UI component.
 user-invocable: true
-disable-model-invocation: true
 context: fork
 allowed-tools:
   - Read
@@ -15,238 +14,300 @@ allowed-tools:
   - Edit
   - Glob
   - Grep
+  - Bash
 ---
 
-# Generate a self-contained JSX artifact
+# Build a JSX artifact
 
-You are building a single-file interactive artifact. The output is one HTML file that opens directly in a browser. No build step. No toolchain. No server.
+You build single-file React components. Each artifact is one `.jsx` file that renders in a local Vite+React dev server. The user opens a browser and sees the result. No separate build step.
 
-The file must work on any machine with a modern browser: a developer laptop, a headless Linux box, a Raspberry Pi running Chromium. Do not assume Node.js, npm, or any local tooling exists.
+## File shape
 
-## What you produce
-
-A single `.html` file containing:
-
-1. A `<script>` loading React 18 and ReactDOM from CDN (unpkg or cdnjs)
-2. A `<script>` loading Babel standalone for in-browser JSX transformation
-3. A `<script>` loading Tailwind CSS Play CDN
-4. Optional: Recharts and/or Lucide React icons from CDN, only if needed
-5. A `<script type="text/babel">` block with your component code
-6. A mount point `<div id="root">` and a `ReactDOM.createRoot` call
-
-Everything lives in one file. No imports from local paths. No fetch calls to external APIs. No asset files.
-
-## CDN loading order
-
-Place these in `<head>`, in this order:
-
-```html
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
-```
-
-Add these only when the component uses them:
-
-```html
-<!-- Data visualization -->
-<script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
-
-<!-- Icons -->
-<script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script>
-```
-
-Do not load libraries the component does not use.
-
-## Accessing CDN-loaded libraries
-
-Libraries loaded via CDN expose globals, not ES modules. Access them through their global names:
+Every artifact follows this structure:
 
 ```jsx
-const { useState, useEffect, useRef, useMemo, useCallback } = React;
-const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
-const { Search, Menu, X, ChevronDown } = LucideReact;
-```
+import { useState } from "react";
+// Other imports as needed: recharts, lucide-react, d3, etc.
 
-Do not use `import` statements. They will fail. Destructure from the global object at the top of your script block.
+// ── Data ────────────────────────────────────────────────────
+// Hardcoded mock data at the top. Structured so the user can
+// easily find and edit values.
 
-## Tailwind configuration
+const ITEMS = [
+  { id: 1, name: "Alpha", value: 42 },
+  { id: 2, name: "Beta", value: 87 },
+];
 
-Configure Tailwind in a script block before the component code:
+// ── Helper components ───────────────────────────────────────
 
-```html
-<script>
-  tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        colors: {
-          // custom palette if needed
-        }
-      }
-    }
-  }
-</script>
-```
-
-Add the `dark` class to `<html>` for dark mode (the default):
-
-```html
-<html lang="en" class="dark">
-```
-
-## Component rules
-
-### Structure
-
-Write a single top-level `App` component. Define helper components in the same script block above `App`. Use functional components exclusively. Use hooks for state.
-
-```jsx
 const StatusBadge = ({ status }) => {
-  const colors = {
-    active: 'bg-emerald-500/20 text-emerald-400',
-    idle: 'bg-zinc-500/20 text-zinc-400',
-    error: 'bg-red-500/20 text-red-400',
-  };
-  return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[status] || colors.idle}`}>
-      {status}
-    </span>
-  );
-};
-
-const App = () => {
   // ...
 };
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+// ── Main ────────────────────────────────────────────────────
+
+export default function App() {
+  const [tab, setTab] = useState("overview");
+  // ...
+}
 ```
 
-### Dark theme
+Key points:
+- Standard ES module `import` / `export default` syntax.
+- One default export: the `App` component.
+- Helper components defined above `App` in the same file.
+- Hardcoded data as named constants near the top, clearly separated, easy to edit.
 
-Dark theme is the default. Design for dark first, light second.
+## Output location
 
-Background hierarchy for dark mode:
-- Page: `bg-zinc-950` or `bg-gray-950`
-- Card/panel: `bg-zinc-900` or `bg-gray-900`
-- Elevated surface: `bg-zinc-800` or `bg-gray-800`
-- Input/well: `bg-zinc-800/50`
-- Hover: `bg-zinc-700/50`
+Save artifacts to `~/jsx-renderer/artifacts/` unless the user specifies a different path. On first use, check whether this directory exists. If not, ask the user where their renderer artifacts folder is.
+
+Name files with kebab-case: `fitness-tracker.jsx`, `recipe-planner.jsx`, `system-monitor.jsx`.
+
+## Available libraries
+
+The renderer environment may include these packages. Only import what the artifact actually needs. Not all may be installed -- if a library is missing, the renderer will show an error. Stick to `react`, `recharts`, and `lucide-react` unless the user asks for something specific.
+
+| Package | Use for |
+|---|---|
+| react | Core. Always available. |
+| recharts | Charts: line, bar, area, pie, radar, scatter |
+| lucide-react | Icons. Hundreds available: `Search`, `Menu`, `X`, `ChevronDown`, etc. |
+| d3 | Custom data visualization beyond what Recharts covers |
+| lodash | Utility functions when native JS is awkward |
+| mathjs | Math expressions, unit conversions, matrix operations |
+| papaparse | CSV parsing |
+| xlsx | Excel file reading/writing |
+| three | 3D rendering (Three.js, r128+) |
+| mammoth | .docx to HTML conversion |
+| chart.js | Alternative charting library |
+| tone | Audio synthesis and music |
+
+## Dark theme
+
+Dark theme is the default. Design for dark first.
+
+Background hierarchy:
+- Page: `bg-zinc-900`
+- Card / panel: `bg-zinc-800`
+- Elevated surface: `bg-zinc-700`
+- Input / well: `bg-zinc-800/50`
 
 Text hierarchy:
-- Primary: `text-zinc-100`
+- Primary: `text-white`
+- Body: `text-zinc-300`
 - Secondary: `text-zinc-400`
-- Muted: `text-zinc-500`
-- On accent: `text-white`
+- Muted / labels: `text-zinc-500`
 
-Borders: `border-zinc-800` or `border-zinc-700/50`
+Borders: `border-zinc-700`
 
-Accent colors: use the Tailwind palette. `emerald` for success, `red` for error, `amber` for warning, `blue` or `violet` for primary actions.
+Accent colors:
+- Success / positive: `emerald` -- `bg-emerald-900/30 text-emerald-400`
+- Error / negative: `red` -- `bg-red-900/30 text-red-400`
+- Warning: `amber` -- `bg-amber-900/30 text-amber-400`
+- Primary action: `blue` -- `bg-blue-600 hover:bg-blue-500 text-white`
+- Info / cool: `cyan` -- `bg-cyan-900/30 text-cyan-400`
 
-### Layout
+Use gentle opacity backgrounds (`bg-emerald-900/30`) for status badges and category indicators. Full-strength backgrounds (`bg-blue-600`) for primary action buttons only.
 
-Set the body to fill the viewport:
+## Layout
 
-```html
-<body class="bg-zinc-950 text-zinc-100 min-h-screen">
-  <div id="root"></div>
-</body>
-```
-
-Use flexbox and grid for layout. Common patterns:
-
-- Sidebar + main: `flex min-h-screen` with a fixed-width sidebar and `flex-1` main area
-- Dashboard grid: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`
-- Centered content: `flex items-center justify-center min-h-screen`
-
-### Responsiveness
-
-Design for three breakpoints: mobile (default), tablet (`md:`), desktop (`lg:`). Layouts should not break on a 1024x600 screen (common Raspberry Pi resolution). Test mentally at 800px and 1280px widths.
-
-Avoid fixed widths. Use `max-w-` constraints with `mx-auto` for centered content. Use `overflow-x-auto` on tables and wide content.
-
-### Data
-
-Use hardcoded mock data defined as constants at the top of the script block. Make the data realistic and internally consistent. Name the constants descriptively:
+Standard page shell:
 
 ```jsx
-const SENSOR_READINGS = [
-  { time: '00:00', temp: 21.3, humidity: 45 },
-  { time: '04:00', temp: 19.8, humidity: 52 },
-  // ...
+<div className="min-h-screen bg-zinc-900 text-white">
+  <div className="max-w-5xl mx-auto p-3 md:p-6">
+    <h1 className="text-xl md:text-2xl font-bold mb-6">Title</h1>
+    {/* content */}
+  </div>
+</div>
+```
+
+Use `max-w-5xl` as the default content width. Use `p-3 md:p-6` for mobile-first padding.
+
+Grid patterns:
+- Stats row: `grid grid-cols-2 md:grid-cols-4 gap-3`
+- Two-column: `grid grid-cols-1 md:grid-cols-2 gap-4`
+- Three-column: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`
+
+## Tabs
+
+Use pill-style tabs inside a container:
+
+```jsx
+<div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
+  {tabs.map(t => (
+    <button
+      key={t}
+      onClick={() => setTab(t)}
+      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+        tab === t
+          ? "bg-zinc-700 text-white"
+          : "text-zinc-400 hover:text-zinc-200"
+      }`}
+    >
+      {t}
+    </button>
+  ))}
+</div>
+```
+
+## Cards
+
+```jsx
+<div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+  <h3 className="text-sm text-zinc-400 mb-1">Label</h3>
+  <p className="text-2xl font-bold">Value</p>
+</div>
+```
+
+For stat cards showing trends:
+
+```jsx
+<p className="text-emerald-400 font-medium">+12%</p>
+<p className="text-red-400 font-medium">-3%</p>
+```
+
+## Tables
+
+Wrap in `overflow-x-auto` for small screens:
+
+```jsx
+<div className="overflow-x-auto">
+  <table className="w-full text-sm text-left">
+    <thead>
+      <tr className="border-b border-zinc-700 text-zinc-400">
+        <th className="px-4 py-3 font-medium">Name</th>
+        <th className="px-4 py-3 font-medium">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {data.map(row => (
+        <tr key={row.id} className="border-b border-zinc-700/50 hover:bg-zinc-800/50">
+          <td className="px-4 py-3">{row.name}</td>
+          <td className="px-4 py-3">{row.status}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+```
+
+## Recharts
+
+Always wrap in `ResponsiveContainer`. Match chart colors to the dark theme:
+
+```jsx
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
+<div className="h-64">
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
+      <XAxis dataKey="name" stroke="#71717a" fontSize={12} />
+      <YAxis stroke="#71717a" fontSize={12} />
+      <Tooltip
+        contentStyle={{
+          backgroundColor: "#27272a",
+          border: "1px solid #3f3f46",
+          borderRadius: "8px",
+          color: "#fafafa",
+        }}
+      />
+      <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={false} />
+    </LineChart>
+  </ResponsiveContainer>
+</div>
+```
+
+Chart line colors (Tailwind 500-level hex):
+- emerald: `#10b981`
+- blue: `#3b82f6`
+- violet: `#8b5cf6`
+- amber: `#f59e0b`
+- red: `#ef4444`
+- cyan: `#06b6d4`
+
+## Interactivity
+
+Use `useState` for all interactive state: active tabs, search queries, sort keys, expanded sections, selected items.
+
+Use `useMemo` when filtering or sorting data based on state.
+
+Common patterns:
+- Tabs: `useState` for active tab, conditional rendering per tab
+- Search: controlled input + `useMemo` filtering
+- Sort: `useState` for key and direction, toggle on header click
+- Expandable: `useState` boolean, chevron rotation with `transition-transform`
+
+Never rely on hover-only interactions. Touch devices have no hover state. Pair hover effects with click/tap handlers or visible controls.
+
+No `<form>` tags. Use `onClick` and `onChange` handlers directly.
+
+## Data
+
+All data is hardcoded at the top of the file. Make it realistic and internally consistent. Structure it so the user can easily find and replace values:
+
+```jsx
+// ── Data ────────────────────────────────────────────────────
+// Edit these arrays to change what the dashboard displays.
+
+const SENSORS = [
+  { id: "temp-1", label: "Living Room", value: 21.3, unit: "C" },
+  { id: "temp-2", label: "Garage", value: 14.8, unit: "C" },
 ];
 ```
 
-Do not fetch from external URLs. Do not use `localStorage` or `sessionStorage`. The artifact is stateless across page loads.
-
-State within a session (tab filters, search input, toggled panels) is fine and expected. Use `useState`.
-
-### Images and icons
-
-Do not reference external image URLs. Use inline SVGs for custom graphics. Use Lucide icons when available (load the CDN script). For placeholder images, use colored `<div>` elements with Tailwind backgrounds, not broken `<img>` tags.
-
-### Interactivity
-
-Common interactive patterns that work well in artifacts:
-
-- Tabs and filters: `useState` for active tab, conditional rendering
-- Search/filter: `useState` for query, `useMemo` for filtered results
-- Expandable sections: `useState` for open/closed, height transition with Tailwind
-- Sort controls: `useState` for sort key and direction
-- Hover states: Tailwind `hover:` and `group-hover:` utilities
-
-Avoid patterns that need a backend: form submission, authentication, real-time updates, WebSocket connections.
-
-### Animation
-
-Keep animations minimal. Use Tailwind transitions: `transition-all duration-200`, `transition-colors`, `hover:scale-105`. Avoid layout-thrashing animations. Do not use `requestAnimationFrame` loops unless the component is explicitly a visualization or game.
+Do not fetch from external APIs. Do not use `localStorage` or `sessionStorage`. Session state (tab selection, search query, expanded panels) is fine.
 
 ## What not to do
 
-- Do not use `import` or `export` statements. CDN globals only.
-- Do not use TypeScript syntax. Babel standalone does not transform it by default.
-- Do not call external APIs or fetch remote data.
-- Do not use `localStorage`, `sessionStorage`, or cookies.
-- Do not load images from URLs. Inline SVGs or CSS-only graphics.
-- Do not assume a specific screen resolution. Be responsive.
-- Do not use `class` components. Functional components with hooks only.
-- Do not use CSS-in-JS libraries. Tailwind covers styling.
-- Do not add `<meta charset>` or viewport tags that conflict with the HTML defaults. Include standard ones:
+- No `<artifact>` or `<antartifact>` wrapper tags. Just the JSX.
+- No `<form>` tags.
+- No external API calls or `fetch`.
+- No `localStorage` or `sessionStorage`.
+- No external image URLs. Use Lucide icons, inline SVGs, or CSS-only graphics.
+- No hover-only interactions without a tap/click alternative.
+- No TypeScript syntax unless the renderer is configured for it.
+- No class components. Functional components with hooks only.
 
-```html
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-```
+## Responsiveness
 
-## Platform considerations
+Design mobile-first. Three breakpoints: default (mobile), `md:` (tablet), `lg:` (desktop).
 
-The artifact must render correctly on:
+The artifact must not break on:
+- 1024x600 (common Raspberry Pi display)
+- 375px wide (phone)
+- 1920px wide (desktop)
 
-- Chromium on Raspberry Pi OS (ARM, limited GPU, 1024x600 common)
-- Firefox and Chrome on desktop Linux
-- Safari on macOS
-- Chrome/Edge on Windows
+Use `overflow-x-auto` on tables and wide content. Avoid fixed widths. Use percentage or `max-w-` constraints.
 
-Practical constraints for low-powered hardware:
+## Platform constraints
 
-- Limit DOM node count. Avoid rendering hundreds of list items; paginate or virtualize.
+The artifact runs in a browser on any platform: desktop Linux, Raspberry Pi, macOS, Windows. For low-powered hardware:
+
+- Keep DOM node count low. Paginate or virtualize long lists instead of rendering hundreds of items.
 - Prefer CSS transitions over JavaScript animation.
-- Avoid `box-shadow` stacking and heavy `backdrop-blur` on large surfaces; these are GPU-intensive. Use sparingly.
-- Keep Recharts datasets under 100 points. Large datasets cause visible lag on a Pi.
-- Test your assumptions: if a Pi with 1GB RAM is running Chromium, a page using 200MB of JavaScript will swap.
+- Avoid stacking `box-shadow` and heavy `backdrop-blur` on large surfaces.
+- Keep Recharts datasets under 100 data points.
+- Avoid `requestAnimationFrame` loops unless the artifact is explicitly a visualization or game.
 
-## Offline fallback
+## Quality checklist
 
-If the user asks for an offline-capable artifact, include the library source inline instead of using CDN links. This makes the file larger but removes the network dependency. Use this approach only when requested; CDN links are preferred for file size.
+Before saving the file, verify:
 
-When inlining is not practical (Recharts is 300KB+ minified), note the dependency and suggest the user pre-download the scripts to a local path. Provide the URLs.
+1. The component renders without errors (no missing imports, no undefined references).
+2. All data is hardcoded at the top and clearly structured.
+3. The layout works at mobile, tablet, and desktop widths.
+4. Dark theme tokens are consistent (not mixing `zinc-900` page with `zinc-900` cards).
+5. Interactive elements (tabs, filters, sort) work without requiring hover.
+6. No unused imports.
+7. File is named with kebab-case and `.jsx` extension.
 
 ## Reference files
 
-Before writing complex artifacts, read the reference material in this skill directory:
+Before building complex artifacts, read the reference material in this skill directory:
 
-- For component layout patterns and recurring UI structures, read `references/patterns.md`.
-- For Tailwind dark theme tokens and spacing conventions, read `references/tailwind-guide.md`.
-- For a complete working example, read `examples/example-dashboard.html`.
+- Component layout patterns and recurring structures: `references/patterns.md`
+- Tailwind dark theme tokens and spacing conventions: `references/tailwind-guide.md`
+- Complete working example: `examples/example-dashboard.jsx`
