@@ -66,7 +66,7 @@ Libraries loaded via CDN expose globals, not ES modules. Access them through the
 ```jsx
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
-const { Search, Menu, X, ChevronDown } = lucide;
+const { Search, Menu, X, ChevronDown } = LucideReact;
 ```
 
 Do not use `import` statements. They will fail. Destructure from the global object at the top of your script block.
