@@ -219,11 +219,11 @@ Use gentle opacity backgrounds (`bg-emerald-900/30`) for status badges and categ
 
 ## Light theme
 
-When the user requests a light theme, use these tokens instead. The structure mirrors the dark theme exactly.
+When the user requests a light theme, use these tokens instead.
 
 Background hierarchy:
-- Page: `bg-white` or `bg-zinc-50`
-- Card / panel: `bg-white` (with border) or `bg-zinc-50`
+- Page: `bg-zinc-50`
+- Card / panel: `bg-white`
 - Elevated surface: `bg-white`
 - Input / well: `bg-zinc-100`
 
