@@ -195,15 +195,25 @@ document.addEventListener('alpine:init', () => {
       return this.darkMode ? 'zinc-dark' : 'zinc-light';
     },
 
+    get tc() {
+      const d = this.darkMode;
+      return {
+        text: d ? '#d4d4d8' : '#3f3f46',
+        textStrong: d ? '#f4f4f5' : '#18181b',
+        textMuted: d ? '#a1a1aa' : '#71717a',
+      };
+    },
+
     toggleTheme() {
       this.darkMode = !this.darkMode;
       document.documentElement.classList.toggle('dark', this.darkMode);
-      Object.keys(this.charts).forEach(key => {
-        const el = this.charts[key].getDom();
-        const opt = this.charts[key].getOption();
-        this.charts[key].dispose();
-        this.charts[key] = echarts.init(el, this.currentTheme);
-        this.charts[key].setOption(opt);
+      Object.values(this.charts).forEach(c => c.dispose());
+      this.charts = {};
+      this.$nextTick(() => {
+        this.initCharts();
+        if (this.colorBlindMode) {
+          Object.values(this.charts).forEach(c => c.setOption({ color: this.palette }));
+        }
       });
     },
 
@@ -273,18 +283,7 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    init() {
-      // Hide skeleton
-      const skel = document.getElementById('skeleton');
-      if (skel) skel.style.display = 'none';
-
-      document.documentElement.classList.toggle('dark', this.darkMode);
-
-      // Read URL hash state
-      this.readHash();
-      window.addEventListener('hashchange', () => this.readHash());
-
-      // CPU + Memory linked chart
+    initCharts() {
       this.charts.cpu = echarts.init(this.$refs.cpuChart, this.currentTheme);
       this.charts.cpu.setOption({
         animation: !reduceMotion,
@@ -312,7 +311,7 @@ document.addEventListener('alpine:init', () => {
             markLine: {
               data: [{ yAxis: 80, name: 'Alert' }],
               lineStyle: { type: 'dashed', color: '#ef4444' },
-              label: { color: '#a1a1aa', formatter: 'Alert: 80%' }
+              label: { color: this.tc.textMuted, formatter: 'Alert: 80%' }
             }
           },
           {
@@ -323,27 +322,34 @@ document.addEventListener('alpine:init', () => {
         ]
       });
 
-      // Service CPU bar chart (cross-filtered)
       this.charts.serviceCpu = echarts.init(this.$refs.serviceCpuChart, this.currentTheme);
       this.updateServiceChart();
 
-      // Cross-filter: click a bar to filter by status
       this.charts.serviceCpu.on('click', (params) => {
         const service = this.filtered[params.dataIndex];
         if (service) {
           this.selectedStatus = this.selectedStatus === service.status ? null : service.status;
         }
       });
+    },
 
-      // Resize handler
+    init() {
+      const skel = document.getElementById('skeleton');
+      if (skel) skel.style.display = 'none';
+
+      document.documentElement.classList.toggle('dark', this.darkMode);
+
+      this.readHash();
+      window.addEventListener('hashchange', () => this.readHash());
+
+      this.initCharts();
+
       window.addEventListener('resize', () => {
         Object.values(this.charts).forEach(c => c.resize());
       });
 
-      // Update service chart when filters change
       this.$watch('filtered', () => this.updateServiceChart());
 
-      // Resize charts when tab or fullscreen changes
       this.$watch('tab', () => {
         this.writeHash();
         this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));

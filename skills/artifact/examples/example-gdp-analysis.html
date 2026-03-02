@@ -273,15 +273,28 @@ document.addEventListener('alpine:init', () => {
       return this.darkMode ? 'zinc-dark' : 'zinc-light';
     },
 
+    get tc() {
+      const d = this.darkMode;
+      return {
+        text: d ? '#d4d4d8' : '#3f3f46',
+        textStrong: d ? '#f4f4f5' : '#18181b',
+        textMuted: d ? '#a1a1aa' : '#71717a',
+        textFaint: d ? '#71717a' : '#a1a1aa',
+        border: d ? '#3f3f46' : '#d4d4d8',
+      };
+    },
+
     toggleTheme() {
       this.darkMode = !this.darkMode;
       document.documentElement.classList.toggle('dark', this.darkMode);
-      Object.keys(this.charts).forEach(key => {
-        const el = this.charts[key].getDom();
-        const opt = this.charts[key].getOption();
-        this.charts[key].dispose();
-        this.charts[key] = echarts.init(el, this.currentTheme);
-        this.charts[key].setOption(opt);
+      Object.values(this.charts).forEach(c => c.dispose());
+      this.charts = {};
+      this.initialized = {};
+      this.$nextTick(() => {
+        this.initTab(this.tab);
+        if (this.colorBlindMode) {
+          Object.values(this.charts).forEach(c => c.setOption({ color: this.palette }));
+        }
       });
     },
 
@@ -432,8 +445,8 @@ document.addEventListener('alpine:init', () => {
             itemStyle: { color: (p) => p.value >= 2.5 ? '#10b981' : p.value >= 2.0 ? '#3b82f6' : '#f59e0b' },
             markLine: {
               data: [{ yAxis: 2.43, name: 'Avg' }],
-              lineStyle: { type: 'dashed', color: '#a1a1aa' },
-              label: { color: '#a1a1aa', formatter: 'Avg: 2.4%' }
+              lineStyle: { type: 'dashed', color: this.tc.textMuted },
+              label: { color: this.tc.textMuted, formatter: 'Avg: 2.4%' }
             }
           },
           {
@@ -484,7 +497,7 @@ document.addEventListener('alpine:init', () => {
         yAxis: { type: 'category', data: sortedSectors.map(s => s.name), axisLabel: { fontSize: 11 } },
         series: [{
           type: 'bar', data: sortedSectors.map(s => s.gdp), barWidth: '60%',
-          label: { show: true, position: 'right', formatter: (p) => '$' + p.value + 'B', color: '#a1a1aa', fontSize: 11 }
+          label: { show: true, position: 'right', formatter: (p) => '$' + p.value + 'B', color: this.tc.textMuted, fontSize: 11 }
         }]
       });
 
@@ -514,7 +527,7 @@ document.addEventListener('alpine:init', () => {
           roam: false,
           label: { formatter: (p) => p.name + '\n$' + p.value + 'B', fontSize: 11 },
           breadcrumb: { show: false },
-          levels: [{ itemStyle: { borderColor: '#3f3f46', borderWidth: 2, gapWidth: 2 } }]
+          levels: [{ itemStyle: { borderColor: this.tc.border, borderWidth: 2, gapWidth: 2 } }]
         }]
       });
 
@@ -539,7 +552,7 @@ document.addEventListener('alpine:init', () => {
           data: SECTORS.map(s => [s.growth, s.automation]),
           symbolSize: (_, p) => Math.max(Math.sqrt(SECTORS[p.dataIndex].employment) * 12, 10),
           label: {
-            show: true, position: 'right', fontSize: 10, color: '#a1a1aa',
+            show: true, position: 'right', fontSize: 10, color: this.tc.textMuted,
             formatter: (p) => SECTORS[p.dataIndex].name.split(' ')[0]
           },
           itemStyle: {
@@ -555,7 +568,7 @@ document.addEventListener('alpine:init', () => {
             { xAxis: 2.43, name: 'Avg Growth' },
             { yAxis: 40, name: 'Avg Automation' }
           ],
-          lineStyle: { type: 'dashed', color: '#3f3f46' },
+          lineStyle: { type: 'dashed', color: this.tc.border },
           label: { show: false }
         }
       });
@@ -574,9 +587,9 @@ document.addEventListener('alpine:init', () => {
         radar: {
           indicator: radarSectors.map(s => ({ name: s, max: 100 })),
           shape: 'polygon',
-          axisName: { color: '#a1a1aa', fontSize: 10 },
+          axisName: { color: this.tc.textMuted, fontSize: 10 },
           splitArea: { areaStyle: { color: ['transparent'] } },
-          splitLine: { lineStyle: { color: '#3f3f46' } }
+          splitLine: { lineStyle: { color: this.tc.border } }
         },
         series: [{
           type: 'radar',
@@ -686,7 +699,7 @@ document.addEventListener('alpine:init', () => {
           label: {
             show: true, position: 'right',
             formatter: (p) => tasks[p.dataIndex].time + '% time',
-            color: '#a1a1aa', fontSize: 10
+            color: this.tc.textMuted, fontSize: 10
           }
         }]
       }, { replaceMerge: ['series'] });
@@ -702,12 +715,12 @@ document.addEventListener('alpine:init', () => {
           center: ['50%', '55%'], radius: '85%',
           startAngle: 210, endAngle: -30,
           axisLine: { lineStyle: { width: 12, color: [[0.3, '#10b981'], [0.6, '#f59e0b'], [1, '#ef4444']] } },
-          pointer: { width: 4, length: '55%', itemStyle: { color: '#d4d4d8' } },
-          anchor: { show: true, size: 8, itemStyle: { color: '#d4d4d8' } },
+          pointer: { width: 4, length: '55%', itemStyle: { color: this.tc.text } },
+          anchor: { show: true, size: 8, itemStyle: { color: this.tc.text } },
           axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
           detail: {
             formatter: '{value}%', fontSize: 22, fontWeight: 'bold',
-            color: '#f4f4f5', offsetCenter: [0, '70%']
+            color: this.tc.textStrong, offsetCenter: [0, '70%']
           },
           title: { show: false }
         }]
