@@ -43,13 +43,14 @@ Performance guidance covers DOM limits, animation constraints, and dataset sizes
 
 ## Charts
 
-ECharts provides 15 chart types with complete configuration examples:
+ECharts provides 20 chart types with complete configuration examples:
 
 - **Standard**: line, bar, stacked area, line+bar combo
 - **Part-to-whole**: donut/pie, treemap, funnel, sankey
 - **Statistical**: scatter/bubble, heatmap, radar, boxplot
 - **KPI**: gauge
 - **Financial**: candlestick with volume overlay, waterfall, calendar heatmap
+- **Advanced**: sunburst, graph/network, parallel coordinates, themeriver, polar bar
 
 Interactive features include DataZoom (slider and scroll-wheel zoom), linked tooltips, toolbox (save image, data view, reset), legend toggle, brush selection, markLine thresholds, and markArea regions. Charts can be combined in a single instance (line + bar, candlestick + volume bars, stacked area).
 
@@ -100,6 +101,6 @@ Full specification: [`SKILL.md`](SKILL.md).
 
 | File | Content |
 |---|---|
-| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | 15 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial) with waterfall, calendar heatmap, dark/light toggle, color-blind mode, fullscreen panels, keyboard shortcuts |
+| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | 20 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial, Advanced) with sunburst, graph/network, parallel coordinates, themeriver, polar bar, dark/light toggle, color-blind mode, fullscreen panels, keyboard shortcuts |
 | [`examples/example-dashboard.html`](examples/example-dashboard.html) | System monitor with cross-filtering, dark/light toggle, color-blind mode, CSV export, URL hash state, sortable table, search, filter chips, skeleton loading, print stylesheet |
 | [`examples/example-gdp-analysis.html`](examples/example-gdp-analysis.html) | GDP and labor market analysis: 10 economic sectors, 18 job categories, task-level automation breakdowns. Dark/light toggle, color-blind mode, treemap, scatter/bubble, radar, stacked bar, gauge, sortable tables, cross-filtering |

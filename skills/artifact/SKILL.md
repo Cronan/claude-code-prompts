@@ -496,6 +496,11 @@ Option A is simpler and recommended for most artifacts.
 | Sankey | `'sankey'` | Data is `{ nodes: [...], links: [{ source, target, value }] }`. No axes. Use for flow visualization: budget allocation, traffic sources, energy flow. |
 | Waterfall | `'bar'` | Simulated using stacked bars with a transparent base. Data is `[{ name, value }]` with computed running total. Use for financial statements, variance analysis, bridge charts. |
 | Calendar heatmap | `'heatmap'` + `calendar` | Uses ECharts `calendar` component. Data is `[[date, value], ...]`. Use for activity tracking, contribution graphs, daily patterns over months. |
+| Sunburst | `'sunburst'` | Data is `[{ name, value, children: [...] }]`. No axes. Like treemap but radial; emphasizes hierarchy depth. Click a sector to drill in, click center to zoom out. Use for nested breakdowns: org structures, file system usage, cost allocation by department/team/project. |
+| Graph/Network | `'graph'` | Data is `{ nodes: [{ name, ... }], links: [{ source, target, ... }] }`. No axes. Use `layout: 'force'` for auto-positioned nodes or `layout: 'circular'` for ring layout. Use for dependency maps, architecture diagrams, social networks, knowledge graphs. |
+| Parallel coordinates | `'parallel'` | Each dimension is a vertical axis; each data point is a polyline crossing all axes. Requires a `parallelAxis` array and `parallel` component instead of standard axes. Use for multi-criteria comparison: server benchmarks, product specs, dataset exploration. |
+| ThemeRiver | `'themeRiver'` | Data is `[[date, value, categoryName], ...]`. No axes (uses built-in time axis). A centered streamgraph showing how category volumes evolve over time. Use for topic trends, content category shifts, technology adoption over time. |
+| Polar bar | `'bar'` + `polar` | Uses ECharts `polar`, `radiusAxis`, and `angleAxis` components. A Nightingale rose chart: bars arranged radially. Use for cyclical data patterns: monthly revenue, hourly traffic, seasonal comparisons, wind direction frequencies. |
 
 ### Chart type examples
 
@@ -751,6 +756,175 @@ The transparent base series shifts each bar vertically to create the waterfall s
 ```
 
 Generate calendar data as `[['2024-01-01', 5], ['2024-01-02', 12], ...]`. The `calendar` component handles day-of-week layout, month boundaries, and label positioning. Use `cellSize: ['auto', 14]` for a compact GitHub-style contribution graph; increase to `['auto', 20]` for larger displays.
+
+**Sunburst** -- radial hierarchy with drill-down. Click a sector to zoom into that subtree; click the center circle to zoom back out:
+
+```js
+{
+  series: [{
+    type: 'sunburst',
+    data: [
+      { name: 'Engineering', children: [
+        { name: 'Backend', value: 600000, children: [
+          { name: 'API', value: 300000 },
+          { name: 'Database', value: 200000 },
+          { name: 'Auth', value: 100000 }
+        ]},
+        { name: 'Frontend', value: 400000, children: [
+          { name: 'Web App', value: 250000 },
+          { name: 'Mobile', value: 150000 }
+        ]},
+        { name: 'Infra', value: 200000 }
+      ]},
+      { name: 'Product', children: [
+        { name: 'Design', value: 250000 },
+        { name: 'Research', value: 150000 }
+      ]},
+      { name: 'Operations', children: [
+        { name: 'HR', value: 180000 },
+        { name: 'Finance', value: 120000 }
+      ]}
+    ],
+    radius: ['15%', '90%'],
+    label: { fontSize: 11, color: '#d4d4d8' },
+    itemStyle: { borderRadius: 4, borderWidth: 1, borderColor: '#18181b' },
+    levels: [
+      {},
+      { r0: '15%', r: '40%', label: { fontSize: 12 } },
+      { r0: '40%', r: '65%', label: { fontSize: 11 } },
+      { r0: '65%', r: '90%', label: { fontSize: 10, position: 'outside' } }
+    ]
+  }]
+}
+```
+
+Sunburst differs from treemap in that concentric rings show hierarchy depth at a glance. Use `levels` to control styling per ring. Leaf nodes without `children` must have a `value`; parent node values are auto-summed from children unless explicitly set.
+
+**Graph/Network** -- force-directed node-link diagram. Nodes auto-position based on link weights:
+
+```js
+{
+  series: [{
+    type: 'graph',
+    layout: 'force',
+    roam: true,
+    draggable: true,
+    label: { show: true, color: '#d4d4d8', fontSize: 11 },
+    force: { repulsion: 200, edgeLength: [80, 160], gravity: 0.1 },
+    emphasis: { focus: 'adjacency', lineStyle: { width: 3 } },
+    data: [
+      { name: 'API Gateway', symbolSize: 40, category: 0 },
+      { name: 'Auth Service', symbolSize: 30, category: 1 },
+      { name: 'User Service', symbolSize: 30, category: 1 },
+      { name: 'Order Service', symbolSize: 30, category: 1 },
+      { name: 'PostgreSQL', symbolSize: 25, category: 2 },
+      { name: 'Redis', symbolSize: 25, category: 2 }
+    ],
+    links: [
+      { source: 'API Gateway', target: 'Auth Service', value: 1 },
+      { source: 'API Gateway', target: 'User Service', value: 1 },
+      { source: 'API Gateway', target: 'Order Service', value: 1 },
+      { source: 'User Service', target: 'PostgreSQL', value: 1 },
+      { source: 'Order Service', target: 'PostgreSQL', value: 1 },
+      { source: 'Auth Service', target: 'Redis', value: 1 }
+    ],
+    categories: [
+      { name: 'Gateway' },
+      { name: 'Services' },
+      { name: 'Data Stores' }
+    ],
+    lineStyle: { color: 'source', curveness: 0.1, opacity: 0.6 }
+  }],
+  legend: { data: ['Gateway', 'Services', 'Data Stores'] }
+}
+```
+
+Use `layout: 'force'` for organic positioning or `layout: 'circular'` for a ring layout. Set `roam: true` for pan/zoom and `draggable: true` to let users reposition nodes. Node `symbolSize` should reflect importance (degree, traffic volume). Use `categories` for color grouping and `emphasis.focus: 'adjacency'` to highlight connected nodes on hover.
+
+**Parallel coordinates** -- multi-dimensional comparison. Each vertical axis is a dimension:
+
+```js
+{
+  parallelAxis: [
+    { dim: 0, name: 'CPU Cores', min: 2, max: 64 },
+    { dim: 1, name: 'RAM (GB)', min: 4, max: 256 },
+    { dim: 2, name: 'Storage (TB)', min: 0.5, max: 10 },
+    { dim: 3, name: 'Price ($/mo)', min: 50, max: 2000, inverse: true },
+    { dim: 4, name: 'Benchmark', min: 1000, max: 50000 }
+  ],
+  parallel: { left: '5%', right: '13%', bottom: '10%', top: '8%' },
+  series: [{
+    type: 'parallel',
+    lineStyle: { width: 2, opacity: 0.4 },
+    emphasis: { lineStyle: { width: 3, opacity: 1 } },
+    data: [
+      [4, 16, 0.5, 120, 8500],
+      [8, 32, 1, 280, 18000],
+      [16, 64, 2, 550, 32000],
+      [32, 128, 4, 1100, 42000],
+      [64, 256, 8, 1900, 48000]
+    ]
+  }]
+}
+```
+
+Use `inverse: true` on axes where lower is better (price, latency). Each data row is a polyline crossing all axes. Add `parallelAxis.areaSelectStyle` for brush selection to filter lines interactively. Parallel coordinates work best with 4-8 dimensions and 10-50 data points; beyond that, the lines become unreadable.
+
+**ThemeRiver** -- centered streamgraph showing category volumes over time:
+
+```js
+{
+  tooltip: { trigger: 'axis' },
+  singleAxis: { type: 'time', bottom: 30, top: 50 },
+  series: [{
+    type: 'themeRiver',
+    emphasis: { focus: 'self' },
+    label: { show: true, color: '#d4d4d8', fontSize: 11 },
+    data: [
+      ['2024-01', 850, 'Python'],
+      ['2024-01', 620, 'JavaScript'],
+      ['2024-01', 410, 'TypeScript'],
+      ['2024-01', 280, 'Rust'],
+      ['2024-02', 900, 'Python'],
+      ['2024-02', 580, 'JavaScript'],
+      ['2024-02', 490, 'TypeScript'],
+      ['2024-02', 320, 'Rust'],
+      ['2024-03', 870, 'Python'],
+      ['2024-03', 540, 'JavaScript'],
+      ['2024-03', 560, 'TypeScript'],
+      ['2024-03', 380, 'Rust']
+      // ... continue for each date
+    ]
+  }]
+}
+```
+
+Each data entry is `[date, value, categoryName]`. The river is centered vertically so the overall shape shows total volume while individual streams show category proportions. Use `emphasis.focus: 'self'` to highlight one stream on hover. Best for 3-8 categories over 6+ time points.
+
+**Polar bar (Nightingale rose)** -- radial bar chart for cyclical data:
+
+```js
+{
+  polar: { radius: ['10%', '80%'] },
+  angleAxis: {
+    type: 'category',
+    data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    startAngle: 90
+  },
+  radiusAxis: { show: false },
+  tooltip: { trigger: 'item' },
+  series: [{
+    type: 'bar',
+    coordinateSystem: 'polar',
+    data: [120, 98, 150, 180, 220, 280, 310, 295, 240, 190, 160, 130],
+    itemStyle: { borderRadius: [4, 4, 0, 0] },
+    label: { show: true, position: 'outside', formatter: '{c}', color: '#d4d4d8' }
+  }]
+}
+```
+
+The `angleAxis` maps categories (months, hours, directions) around the circle. The `radiusAxis` maps values outward from center. Set `radiusAxis.show: false` for a cleaner look. Use `startAngle: 90` to place the first category at 12 o'clock. For stacked polar bars, add `stack: 'total'` to each series. The radial layout naturally communicates cyclical patterns that a linear bar chart would not.
 
 ### Combining chart types
 
