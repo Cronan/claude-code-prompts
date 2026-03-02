@@ -1977,6 +1977,315 @@ The deuteranopia-safe palette avoids the red-green pair that is indistinguishabl
 
 -----
 
+## Sticky table header
+
+Pin table column headers while scrolling long tables. Pure CSS, no JavaScript:
+
+```html
+<div class="overflow-auto max-h-[32rem]">
+  <table class="w-full text-sm text-left">
+    <thead class="sticky top-0 z-10 bg-zinc-900">
+      <tr class="border-b border-zinc-700 text-zinc-400">
+        <th class="px-4 py-3 font-medium">Name</th>
+        <th class="px-4 py-3 font-medium">Status</th>
+        <th class="px-4 py-3 font-medium">Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <template x-for="row in sorted" :key="row.id">
+        <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50">
+          <td class="px-4 py-3 text-zinc-300" x-text="row.name"></td>
+          <td class="px-4 py-3 text-zinc-300" x-text="row.status"></td>
+          <td class="px-4 py-3 text-zinc-300" x-text="row.value"></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</div>
+```
+
+The outer `div` sets `overflow-auto` with a `max-h-[32rem]` (or any height that fits the layout). The `thead` uses `sticky top-0 z-10` with a solid background color matching the page. The `z-10` ensures headers stay above row hover backgrounds.
+
+For dark/light toggle dashboards, use `bg-white dark:bg-zinc-900` on the `thead` to match the page background in both modes. If the table is inside a card (`bg-zinc-800`), use that card background on the `thead` instead.
+
+Use sticky headers when the table has more than ~15 rows. For shorter tables, skip it -- the overhead is unnecessary and the sticky behavior can feel odd in small containers.
+
+-----
+
+## Detail panel / drawer
+
+A slide-in side panel for showing item detail when a table row is clicked. More fluid than a modal for list-detail exploration patterns:
+
+```html
+<!-- Table row with click handler -->
+<tr @click="selectedItem = row; drawerOpen = true"
+    class="border-b border-zinc-700/50 hover:bg-zinc-800/50 cursor-pointer">
+  <td class="px-4 py-3 text-zinc-300" x-text="row.name"></td>
+  <td class="px-4 py-3 text-zinc-300" x-text="row.status"></td>
+</tr>
+
+<!-- Drawer overlay -->
+<div x-show="drawerOpen" class="fixed inset-0 z-40"
+     x-transition.opacity>
+  <div class="absolute inset-0 bg-black/50" @click="drawerOpen = false"></div>
+</div>
+
+<!-- Drawer panel -->
+<div :class="drawerOpen ? 'translate-x-0' : 'translate-x-full'"
+     class="fixed top-0 right-0 z-50 h-full w-full max-w-md bg-zinc-800 border-l border-zinc-700
+            shadow-xl transform transition-transform duration-200 overflow-y-auto">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-bold" x-text="selectedItem?.name"></h2>
+      <button @click="drawerOpen = false"
+              class="text-zinc-400 hover:text-zinc-200 p-1"
+              aria-label="Close detail panel">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Detail content -->
+    <template x-if="selectedItem">
+      <div class="space-y-4">
+        <div>
+          <p class="text-xs text-zinc-400 mb-1">Status</p>
+          <p class="text-sm text-zinc-300" x-text="selectedItem.status"></p>
+        </div>
+        <div>
+          <p class="text-xs text-zinc-400 mb-1">Value</p>
+          <p class="text-sm text-zinc-300" x-text="selectedItem.value"></p>
+        </div>
+        <!-- Add more fields, mini-charts, related data -->
+      </div>
+    </template>
+  </div>
+</div>
+```
+
+Alpine state:
+
+```js
+drawerOpen: false,
+selectedItem: null,
+```
+
+Wire Escape to close the drawer alongside other keyboard handlers:
+
+```js
+// In the @keydown.escape.window handler
+drawerOpen = false;
+```
+
+The drawer slides in from the right with a CSS transform transition. The semi-transparent overlay behind it dims the page and closes the drawer on click. Use `max-w-md` (448px) for a standard width; use `max-w-lg` for dashboards with more detail fields.
+
+For dark/light toggle dashboards, add `bg-white dark:bg-zinc-800` on the panel and `border-zinc-200 dark:border-zinc-700` on the border.
+
+-----
+
+## Multi-select filtering
+
+Extend the filter chip pattern to allow selecting multiple values simultaneously. Users can toggle multiple statuses on/off rather than picking one at a time:
+
+```html
+<div class="flex gap-2 flex-wrap">
+  <button @click="activeFilters = []"
+          :class="activeFilters.length === 0
+            ? 'bg-blue-600 text-white'
+            : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:text-zinc-200'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+    All
+  </button>
+  <template x-for="opt in filterOptions" :key="opt">
+    <button @click="toggleFilter(opt)"
+            :class="activeFilters.includes(opt)
+              ? 'bg-blue-600 text-white'
+              : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:text-zinc-200'"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            x-text="opt"></button>
+  </template>
+</div>
+```
+
+Alpine state and methods:
+
+```js
+activeFilters: [],
+filterOptions: ['Active', 'Idle', 'Warning', 'Error'],
+
+toggleFilter(opt) {
+  const idx = this.activeFilters.indexOf(opt);
+  if (idx === -1) {
+    this.activeFilters.push(opt);
+  } else {
+    this.activeFilters.splice(idx, 1);
+  }
+},
+
+get filtered() {
+  return this.items.filter(item => {
+    const matchSearch = item.name.toLowerCase().includes(this.search.toLowerCase());
+    const matchFilter = this.activeFilters.length === 0
+      || this.activeFilters.includes(item.status);
+    return matchSearch && matchFilter;
+  });
+}
+```
+
+The "All" button clears the array. Each option chip toggles its presence in the `activeFilters` array. An empty array means "show everything" (no filter applied). The `filtered` getter checks if `activeFilters` is empty (show all) or if the item's status is in the active set.
+
+For URL hash persistence, serialize as comma-separated: `#status=Active,Warning`. Parse back with `split(',')`.
+
+-----
+
+## Pagination
+
+Page controls for tables with many rows. Prevents rendering hundreds of DOM nodes at once and keeps the interface scannable:
+
+```html
+<!-- Paginated table body -->
+<tbody>
+  <template x-for="row in paged" :key="row.id">
+    <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50">
+      <td class="px-4 py-3 text-zinc-300" x-text="row.name"></td>
+      <td class="px-4 py-3 text-zinc-300" x-text="row.status"></td>
+    </tr>
+  </template>
+</tbody>
+
+<!-- Pagination controls -->
+<div class="flex items-center justify-between mt-4 text-sm">
+  <span class="text-zinc-400"
+        x-text="'Showing ' + (pageStart + 1) + '-' + Math.min(pageStart + pageSize, sorted.length) + ' of ' + sorted.length"></span>
+  <div class="flex items-center gap-1">
+    <button @click="page = Math.max(1, page - 1)"
+            :disabled="page === 1"
+            :class="page === 1 ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-200'"
+            class="px-3 py-1.5 rounded border border-zinc-700 text-xs">
+      Prev
+    </button>
+    <template x-for="p in totalPages" :key="p">
+      <button @click="page = p"
+              :class="page === p ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-zinc-200'"
+              class="px-3 py-1.5 rounded border border-zinc-700 text-xs min-w-[2rem]"
+              x-text="p"></button>
+    </template>
+    <button @click="page = Math.min(totalPages, page + 1)"
+            :disabled="page === totalPages"
+            :class="page === totalPages ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-200'"
+            class="px-3 py-1.5 rounded border border-zinc-700 text-xs">
+      Next
+    </button>
+  </div>
+</div>
+```
+
+Alpine state and computed properties:
+
+```js
+page: 1,
+pageSize: 10,
+
+get pageStart() {
+  return (this.page - 1) * this.pageSize;
+},
+
+get totalPages() {
+  return Math.max(1, Math.ceil(this.sorted.length / this.pageSize));
+},
+
+get paged() {
+  return this.sorted.slice(this.pageStart, this.pageStart + this.pageSize);
+},
+```
+
+Reset page to 1 when filters change to avoid showing an empty page:
+
+```js
+this.$watch('search', () => { this.page = 1; });
+this.$watch('activeFilters', () => { this.page = 1; });
+```
+
+For datasets under ~30 items, skip pagination and render the full list. Pagination adds interaction cost; only use it when the performance or readability benefit justifies it. For very large page counts (20+), show only a window of page numbers around the current page instead of all numbers.
+
+-----
+
+## Toast notifications
+
+Transient feedback messages that auto-dismiss after a timeout. Use after actions like CSV export, clipboard copy, or filter reset:
+
+```html
+<!-- Toast container (fixed to bottom-right) -->
+<div class="fixed bottom-4 right-4 z-50 space-y-2 no-print">
+  <template x-for="toast in toasts" :key="toast.id">
+    <div x-show="toast.visible"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         :class="{
+           'bg-emerald-900/80 border-emerald-700 text-emerald-200': toast.type === 'success',
+           'bg-red-900/80 border-red-700 text-red-200': toast.type === 'error',
+           'bg-zinc-800/90 border-zinc-600 text-zinc-200': toast.type === 'info'
+         }"
+         class="flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm text-sm max-w-sm">
+      <span x-text="toast.message"></span>
+      <button @click="dismissToast(toast.id)"
+              class="text-current opacity-60 hover:opacity-100 ml-auto flex-shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  </template>
+</div>
+```
+
+Alpine state and methods:
+
+```js
+toasts: [],
+_toastId: 0,
+
+showToast(message, type = 'info', duration = 3000) {
+  const id = ++this._toastId;
+  this.toasts.push({ id, message, type, visible: true });
+  setTimeout(() => this.dismissToast(id), duration);
+},
+
+dismissToast(id) {
+  const toast = this.toasts.find(t => t.id === id);
+  if (toast) toast.visible = false;
+  setTimeout(() => {
+    this.toasts = this.toasts.filter(t => t.id !== id);
+  }, 200);
+}
+```
+
+Usage examples:
+
+```js
+// After CSV export
+this.downloadCSV('data.csv', headers, rows);
+this.showToast('CSV exported', 'success');
+
+// After clearing filters
+this.activeFilters = [];
+this.showToast('Filters cleared', 'info');
+
+// On error
+this.showToast('Export failed', 'error', 5000);
+```
+
+Toasts stack vertically from the bottom-right corner. Each auto-dismisses after the specified duration (default 3 seconds). The two-phase dismiss (set `visible: false`, then remove from array after 200ms) allows the leave transition to play before the element is removed from the DOM.
+
+Three types: `success` (green), `error` (red), `info` (neutral zinc). Keep toast messages short (under 40 characters). Do not use toasts for critical information that requires user action -- use an inline alert or modal instead.
+
+-----
+
 ## Quality checklist
 
 Before saving the file, verify:
