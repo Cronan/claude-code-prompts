@@ -3,13 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chart Showcase</title>
-  <style>[x-cloak] { display: none !important; }</style>
+  <title>ECharts Type Showcase</title>
+  <style>
+    [x-cloak] { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+    @media print {
+      body { background: white !important; color: black !important; }
+      .no-print { display: none !important; }
+      .bg-zinc-800, .bg-zinc-900 { background: white !important; border-color: #e4e4e7 !important; }
+      .text-white, .text-zinc-300, .text-zinc-400 { color: black !important; }
+      canvas { max-width: 100% !important; }
+      .break-inside-avoid { break-inside: avoid; }
+    }
+  </style>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: "class" }</script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
 </head>
 <body class="bg-zinc-900 text-white min-h-screen">
+
+<!-- Skeleton loading -->
+<div id="skeleton" class="max-w-7xl mx-auto p-3 md:p-6">
+  <div class="h-8 w-64 bg-zinc-800 rounded animate-pulse mb-2"></div>
+  <div class="h-4 w-96 bg-zinc-800 rounded animate-pulse mb-6"></div>
+  <div class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6 h-10 animate-pulse"></div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="bg-zinc-800 rounded-xl border border-zinc-700 h-80 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl border border-zinc-700 h-80 animate-pulse"></div>
+  </div>
+</div>
 
 <script>
 document.addEventListener('alpine:init', () => {
@@ -38,8 +65,23 @@ document.addEventListener('alpine:init', () => {
       axisTick: { lineStyle: { color: '#3f3f46' } },
       axisLabel: { color: '#a1a1aa' },
       splitLine: { lineStyle: { color: '#27272a' } }
-    }
+    },
+    dataZoom: {
+      backgroundColor: '#18181b',
+      fillerColor: 'rgba(63, 63, 70, 0.3)',
+      borderColor: '#3f3f46',
+      handleStyle: { color: '#71717a' },
+      textStyle: { color: '#a1a1aa' },
+      dataBackground: {
+        lineStyle: { color: '#3f3f46' },
+        areaStyle: { color: '#27272a' }
+      }
+    },
+    toolbox: { iconStyle: { borderColor: '#a1a1aa' } }
   });
+
+  // ── Reduced motion check ─────────────────────────────────
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ── Formatters ──────────────────────────────────────────
   const fmt = {
@@ -198,15 +240,57 @@ document.addEventListener('alpine:init', () => {
     [5, 10, 15, 25, 60]
   ];
 
+  // Stacked area data
+  const STACK_MONTHS = MONTHS;
+  const STACK_SERIES = [
+    { name: 'Organic', data: [320, 332, 301, 334, 390, 430, 410, 442, 480, 520, 540, 580] },
+    { name: 'Direct', data: [120, 132, 101, 134, 90, 230, 210, 182, 191, 234, 260, 250] },
+    { name: 'Referral', data: [220, 182, 191, 234, 290, 330, 310, 328, 350, 380, 400, 420] }
+  ];
+
+  // ── Chart type metadata ─────────────────────────────────
+  const CHART_TYPES = {
+    'Standard': [
+      { key: 'line', label: 'Line', desc: 'Continuous data, trends over time' },
+      { key: 'bar', label: 'Bar', desc: 'Categorical comparisons, discrete values' },
+      { key: 'area', label: 'Stacked Area', desc: 'Composition over time, cumulative trends' },
+      { key: 'combo', label: 'Line + Bar Combo', desc: 'Dual-axis, two metrics with different units' }
+    ],
+    'Part-to-Whole': [
+      { key: 'pie', label: 'Donut / Pie', desc: 'Proportions of a whole (limit to 5-6 slices)' },
+      { key: 'treemap', label: 'Treemap', desc: 'Hierarchical part-to-whole with drill-down' },
+      { key: 'funnel', label: 'Funnel', desc: 'Sequential conversion stages' },
+      { key: 'sankey', label: 'Sankey', desc: 'Flow between nodes, traffic/budget allocation' }
+    ],
+    'Statistical': [
+      { key: 'scatter', label: 'Scatter / Bubble', desc: 'Correlation, 2-3 variable relationships' },
+      { key: 'heatmap', label: 'Heatmap', desc: 'Two-dimensional density, time-of-day patterns' },
+      { key: 'radar', label: 'Radar', desc: 'Multi-dimensional comparison across categories' },
+      { key: 'boxplot', label: 'Boxplot', desc: 'Distribution shape, quartiles, outliers' }
+    ],
+    'KPI': [
+      { key: 'gauge', label: 'Gauge', desc: 'Single-value KPI with threshold bands' }
+    ],
+    'Financial': [
+      { key: 'candle', label: 'Candlestick + Volume', desc: 'OHLC price data with volume overlay' }
+    ]
+  };
+
   // ── Alpine component ───────────────────────────────────
   Alpine.data('showcase', () => ({
-    tab: 'Overview',
-    tabs: ['Overview', 'Breakdown', 'Pipeline', 'Market', 'Analysis'],
+    tab: 'Standard',
+    tabs: ['Standard', 'Part-to-Whole', 'Statistical', 'KPI', 'Financial'],
     charts: {},
     initialized: {},
+    fullscreen: null,
+    chartTypes: CHART_TYPES,
 
     init() {
-      this.initOverview();
+      // Hide skeleton
+      const skel = document.getElementById('skeleton');
+      if (skel) skel.style.display = 'none';
+
+      this.initTab('Standard');
 
       window.addEventListener('resize', () => {
         Object.values(this.charts).forEach(c => c.resize());
@@ -214,68 +298,106 @@ document.addEventListener('alpine:init', () => {
 
       this.$watch('tab', () => {
         this.$nextTick(() => {
-          if (this.tab === 'Breakdown' && !this.initialized.breakdown) this.initBreakdown();
-          if (this.tab === 'Pipeline' && !this.initialized.pipeline) this.initPipeline();
-          if (this.tab === 'Market' && !this.initialized.market) this.initMarket();
-          if (this.tab === 'Analysis' && !this.initialized.analysis) this.initAnalysis();
+          this.initTab(this.tab);
           Object.values(this.charts).forEach(c => c.resize());
         });
       });
+
+      this.$watch('fullscreen', () => {
+        this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+      });
     },
 
-    initOverview() {
-      this.initialized.overview = true;
+    handleKeyboard(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= this.tabs.length) {
+        this.tab = this.tabs[num - 1];
+      }
+    },
 
-      // ── Gauge helper ──
-      const gaugeBase = (el, value, name, min, max, bands) => {
-        const chart = echarts.init(el, 'zinc-dark');
-        chart.setOption({
-          series: [{
-            type: 'gauge',
-            data: [{ value, name }],
-            min, max,
-            center: ['50%', '55%'],
-            radius: '85%',
-            startAngle: 210,
-            endAngle: -30,
-            axisLine: {
-              lineStyle: { width: 12, color: bands }
-            },
-            pointer: { width: 4, length: '55%', itemStyle: { color: '#d4d4d8' } },
-            anchor: { show: true, size: 8, itemStyle: { color: '#d4d4d8' } },
-            axisTick: { show: false },
-            splitLine: { show: false },
-            axisLabel: { show: false },
-            detail: {
-              formatter: '{value}%', fontSize: 22, fontWeight: 'bold',
-              color: '#f4f4f5', offsetCenter: [0, '70%']
-            },
-            title: { show: false }
-          }]
-        });
-        return chart;
+    defaultToolbox() {
+      return {
+        show: window.innerWidth >= 768,
+        feature: { saveAsImage: { pixelRatio: 2 }, restore: {} }
       };
+    },
 
-      const defaultBands = [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']];
+    initTab(name) {
+      if (this.initialized[name]) return;
+      this.initialized[name] = true;
 
-      this.charts.gaugeRevenue = gaugeBase(
-        this.$refs.gaugeRevenue, 78, 'Revenue', 0, 100, defaultBands
-      );
-      this.charts.gaugeSat = gaugeBase(
-        this.$refs.gaugeSat, 92, 'CSAT', 0, 100, defaultBands
-      );
-      this.charts.gaugeUptime = gaugeBase(
-        this.$refs.gaugeUptime, 99.7, 'Uptime', 95, 100,
-        [[0.4, '#ef4444'], [0.7, '#f59e0b'], [1, '#10b981']]
-      );
+      const init = {
+        'Standard': () => this.initStandard(),
+        'Part-to-Whole': () => this.initPartToWhole(),
+        'Statistical': () => this.initStatistical(),
+        'KPI': () => this.initKPI(),
+        'Financial': () => this.initFinancial()
+      };
+      if (init[name]) init[name]();
+    },
+
+    initStandard() {
+      // ── Line chart ──
+      this.charts.line = echarts.init(this.$refs.lineChart, 'zinc-dark');
+      this.charts.line.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'axis', confine: true },
+        toolbox: this.defaultToolbox(),
+        xAxis: { type: 'category', data: MONTHS, boundaryGap: false },
+        yAxis: { type: 'value', name: 'Revenue ($K)',
+          axisLabel: { formatter: (v) => '$' + v + 'K' } },
+        series: [{
+          name: 'Revenue', type: 'line', data: REVENUE,
+          areaStyle: { opacity: 0.15 },
+          markLine: {
+            data: [{ yAxis: 150, name: 'Target' }],
+            lineStyle: { type: 'dashed', color: '#f59e0b' },
+            label: { color: '#a1a1aa', formatter: 'Target: $150K' }
+          }
+        }]
+      });
+
+      // ── Bar chart ──
+      this.charts.bar = echarts.init(this.$refs.barChart, 'zinc-dark');
+      this.charts.bar.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
+        toolbox: this.defaultToolbox(),
+        xAxis: { type: 'category', data: MONTHS },
+        yAxis: { type: 'value', name: 'Revenue ($K)',
+          axisLabel: { formatter: (v) => '$' + v + 'K' } },
+        series: [{
+          name: 'Revenue', type: 'bar', data: REVENUE, barWidth: '50%',
+          markArea: {
+            data: [[{ xAxis: 'Sep' }, { xAxis: 'Dec' }]],
+            itemStyle: { color: 'rgba(16, 185, 129, 0.08)' },
+            label: { show: true, position: 'top', color: '#a1a1aa', formatter: 'Q4' }
+          }
+        }]
+      });
+
+      // ── Stacked area ──
+      this.charts.area = echarts.init(this.$refs.areaChart, 'zinc-dark');
+      this.charts.area.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'axis', confine: true },
+        toolbox: this.defaultToolbox(),
+        legend: { data: STACK_SERIES.map(s => s.name) },
+        xAxis: { type: 'category', data: STACK_MONTHS, boundaryGap: false },
+        yAxis: { type: 'value', name: 'Sessions' },
+        series: STACK_SERIES.map(s => ({
+          name: s.name, type: 'line', stack: 'total', data: s.data,
+          areaStyle: { opacity: 0.3 }
+        }))
+      });
 
       // ── Line + Bar combo (dual axis) ──
-      this.charts.revenueCombo = echarts.init(this.$refs.revenueCombo, 'zinc-dark');
-      this.charts.revenueCombo.setOption({
+      this.charts.combo = echarts.init(this.$refs.comboChart, 'zinc-dark');
+      this.charts.combo.setOption({
+        animation: !reduceMotion,
         tooltip: {
-          trigger: 'axis',
-          axisPointer: { type: 'cross' },
-          confine: true,
+          trigger: 'axis', axisPointer: { type: 'cross' }, confine: true,
           formatter: (params) => {
             let html = params[0].axisValueLabel + '<br/>';
             params.forEach(p => {
@@ -286,6 +408,7 @@ document.addEventListener('alpine:init', () => {
             return html;
           }
         },
+        toolbox: this.defaultToolbox(),
         legend: { data: ['Revenue', 'Growth'] },
         xAxis: { type: 'category', data: MONTHS },
         yAxis: [
@@ -303,18 +426,16 @@ document.addEventListener('alpine:init', () => {
       });
     },
 
-    initBreakdown() {
-      this.initialized.breakdown = true;
-
+    initPartToWhole() {
       // ── Donut pie ──
       this.charts.pie = echarts.init(this.$refs.pieChart, 'zinc-dark');
       this.charts.pie.setOption({
+        animation: !reduceMotion,
         tooltip: { trigger: 'item', formatter: '{b}: ${c}K ({d}%)' },
+        toolbox: this.defaultToolbox(),
         legend: { orient: 'vertical', right: '5%', top: 'center' },
         series: [{
-          type: 'pie',
-          radius: ['40%', '70%'],
-          center: ['40%', '50%'],
+          type: 'pie', radius: ['40%', '70%'], center: ['40%', '50%'],
           data: CATEGORIES,
           label: { show: false },
           emphasis: { label: { show: true, fontSize: 14 } }
@@ -324,18 +445,13 @@ document.addEventListener('alpine:init', () => {
       // ── Treemap ──
       this.charts.treemap = echarts.init(this.$refs.treemapChart, 'zinc-dark');
       this.charts.treemap.setOption({
+        animation: !reduceMotion,
         tooltip: { formatter: (p) => p.name + ': ' + fmt.compact(p.value) },
+        toolbox: this.defaultToolbox(),
         series: [{
-          type: 'treemap',
-          data: BUDGET,
-          roam: false,
-          label: {
-            formatter: (p) => p.name + '\n' + fmt.compact(p.value),
-            fontSize: 12
-          },
-          breadcrumb: {
-            itemStyle: { color: '#3f3f46', textStyle: { color: '#d4d4d8' } }
-          },
+          type: 'treemap', data: BUDGET, roam: false,
+          label: { formatter: (p) => p.name + '\n' + fmt.compact(p.value), fontSize: 12 },
+          breadcrumb: { itemStyle: { color: '#3f3f46', textStyle: { color: '#d4d4d8' } } },
           levels: [
             { itemStyle: { borderColor: '#3f3f46', borderWidth: 2, gapWidth: 2 } },
             { itemStyle: { borderColor: '#27272a', borderWidth: 1, gapWidth: 1 },
@@ -343,97 +459,51 @@ document.addEventListener('alpine:init', () => {
           ]
         }]
       });
-    },
-
-    initPipeline() {
-      this.initialized.pipeline = true;
 
       // ── Funnel ──
       this.charts.funnel = echarts.init(this.$refs.funnelChart, 'zinc-dark');
       this.charts.funnel.setOption({
-        tooltip: {
-          trigger: 'item',
-          formatter: (p) => p.name + ': ' + fmt.num(p.value)
-        },
+        animation: !reduceMotion,
+        tooltip: { trigger: 'item', formatter: (p) => p.name + ': ' + fmt.num(p.value) },
+        toolbox: this.defaultToolbox(),
         series: [{
-          type: 'funnel',
-          data: FUNNEL,
-          left: '10%', width: '80%',
-          top: 20, bottom: 20,
-          label: {
-            formatter: (p) => p.name + ': ' + fmt.num(p.value),
-            position: 'inside', fontSize: 13
-          },
-          gap: 2,
-          itemStyle: { borderColor: '#27272a', borderWidth: 1 }
+          type: 'funnel', data: FUNNEL,
+          left: '10%', width: '80%', top: 20, bottom: 20,
+          label: { formatter: (p) => p.name + ': ' + fmt.num(p.value), position: 'inside', fontSize: 13 },
+          gap: 2, itemStyle: { borderColor: '#27272a', borderWidth: 1 }
         }]
       });
 
       // ── Sankey ──
       this.charts.sankey = echarts.init(this.$refs.sankeyChart, 'zinc-dark');
       this.charts.sankey.setOption({
+        animation: !reduceMotion,
         tooltip: {
           trigger: 'item',
           formatter: (p) => {
-            if (p.dataType === 'edge') {
+            if (p.dataType === 'edge')
               return p.data.source + ' > ' + p.data.target + ': ' + fmt.num(p.data.value);
-            }
             return p.name;
           }
         },
+        toolbox: this.defaultToolbox(),
         series: [{
-          type: 'sankey',
-          data: SANKEY_NODES,
-          links: SANKEY_LINKS,
+          type: 'sankey', data: SANKEY_NODES, links: SANKEY_LINKS,
           emphasis: { focus: 'adjacency' },
           lineStyle: { color: 'source', opacity: 0.4 },
           label: { color: '#d4d4d8', fontSize: 12 },
-          nodeGap: 12,
-          layoutIterations: 32
+          nodeGap: 12, layoutIterations: 32
         }]
       });
     },
 
-    initMarket() {
-      this.initialized.market = true;
-
-      // ── Candlestick + Volume ──
-      this.charts.candle = echarts.init(this.$refs.candleChart, 'zinc-dark');
-      this.charts.candle.setOption({
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: { type: 'cross' },
-          confine: true
-        },
-        legend: { data: ['Price', 'Volume'] },
-        xAxis: { type: 'category', data: TRADE_DATES },
-        yAxis: [
-          { type: 'value', name: 'Price ($)', scale: true,
-            axisLabel: { formatter: '${value}' } },
-          { type: 'value', name: 'Volume',
-            max: (val) => val.max * 3,
-            axisLabel: { show: false },
-            splitLine: { show: false } }
-        ],
-        dataZoom: [{ type: 'slider', height: 20 }, { type: 'inside' }],
-        series: [
-          { name: 'Price', type: 'candlestick', data: OHLC, yAxisIndex: 0,
-            itemStyle: {
-              color: '#10b981', color0: '#ef4444',
-              borderColor: '#10b981', borderColor0: '#ef4444'
-            }
-          },
-          { name: 'Volume', type: 'bar', data: VOLUME, yAxisIndex: 1,
-            itemStyle: { color: 'rgba(59, 130, 246, 0.3)' }, barWidth: '60%' }
-        ]
-      });
-
+    initStatistical() {
       // ── Scatter (bubble) ──
       this.charts.scatter = echarts.init(this.$refs.scatterChart, 'zinc-dark');
       this.charts.scatter.setOption({
+        animation: !reduceMotion,
         tooltip: {
-          trigger: 'item',
-          confine: true,
+          trigger: 'item', confine: true,
           formatter: (p) => {
             const [days, size, prob] = p.data;
             return 'Days to close: ' + days + '<br/>'
@@ -441,13 +511,11 @@ document.addEventListener('alpine:init', () => {
               + 'Probability: ' + fmt.pct(prob * 100);
           }
         },
-        xAxis: { type: 'value', name: 'Days to Close',
-                 axisLabel: { formatter: '{value}d' } },
-        yAxis: { type: 'value', name: 'Deal Size ($)',
-                 axisLabel: { formatter: (v) => fmt.compact(v) } },
+        toolbox: this.defaultToolbox(),
+        xAxis: { type: 'value', name: 'Days to Close', axisLabel: { formatter: '{value}d' } },
+        yAxis: { type: 'value', name: 'Deal Size ($)', axisLabel: { formatter: (v) => fmt.compact(v) } },
         series: [{
-          type: 'scatter',
-          data: DEALS,
+          type: 'scatter', data: DEALS,
           symbolSize: (val) => Math.max(val[2] * 30, 8),
           itemStyle: {
             color: (p) => {
@@ -458,19 +526,16 @@ document.addEventListener('alpine:init', () => {
           }
         }]
       });
-    },
-
-    initAnalysis() {
-      this.initialized.analysis = true;
 
       // ── Heatmap ──
       this.charts.heatmap = echarts.init(this.$refs.heatmapChart, 'zinc-dark');
       this.charts.heatmap.setOption({
+        animation: !reduceMotion,
         tooltip: {
           confine: true,
-          formatter: (p) =>
-            DAYS[p.data[1]] + ' ' + HOURS[p.data[0]] + ': ' + p.data[2] + ' events'
+          formatter: (p) => DAYS[p.data[1]] + ' ' + HOURS[p.data[0]] + ': ' + p.data[2] + ' events'
         },
+        toolbox: this.defaultToolbox(),
         xAxis: { type: 'category', data: HOURS, splitArea: { show: true } },
         yAxis: { type: 'category', data: DAYS, splitArea: { show: true } },
         visualMap: {
@@ -480,12 +545,8 @@ document.addEventListener('alpine:init', () => {
           textStyle: { color: '#a1a1aa' }
         },
         series: [{
-          type: 'heatmap',
-          data: ACTIVITY,
-          label: {
-            show: true, color: '#d4d4d8', fontSize: 10,
-            formatter: (p) => p.data[2]
-          },
+          type: 'heatmap', data: ACTIVITY,
+          label: { show: true, color: '#d4d4d8', fontSize: 10, formatter: (p) => p.data[2] },
           emphasis: { itemStyle: { borderColor: '#fff', borderWidth: 1 } }
         }]
       });
@@ -493,47 +554,93 @@ document.addEventListener('alpine:init', () => {
       // ── Radar ──
       this.charts.radar = echarts.init(this.$refs.radarChart, 'zinc-dark');
       this.charts.radar.setOption({
+        animation: !reduceMotion,
         tooltip: { trigger: 'item' },
+        toolbox: this.defaultToolbox(),
         legend: { data: ['Platform A', 'Platform B'] },
         radar: {
-          indicator: RADAR_INDICATORS,
-          shape: 'polygon',
+          indicator: RADAR_INDICATORS, shape: 'polygon',
           axisName: { color: '#a1a1aa' },
           splitArea: { areaStyle: { color: ['transparent'] } },
           splitLine: { lineStyle: { color: '#3f3f46' } }
         },
-        series: [{
-          type: 'radar',
-          data: RADAR_DATA,
-          areaStyle: { opacity: 0.15 }
-        }]
+        series: [{ type: 'radar', data: RADAR_DATA, areaStyle: { opacity: 0.15 } }]
       });
 
       // ── Boxplot ──
       this.charts.boxplot = echarts.init(this.$refs.boxplotChart, 'zinc-dark');
       this.charts.boxplot.setOption({
+        animation: !reduceMotion,
         tooltip: {
-          trigger: 'item',
-          confine: true,
+          trigger: 'item', confine: true,
           formatter: (p) => {
             if (p.componentSubType !== 'boxplot') return '';
             const d = p.data;
-            return p.name + '<br/>'
-              + 'Min: ' + d[1] + 'ms<br/>'
-              + 'Q1: ' + d[2] + 'ms<br/>'
-              + 'Median: ' + d[3] + 'ms<br/>'
-              + 'Q3: ' + d[4] + 'ms<br/>'
-              + 'Max: ' + d[5] + 'ms';
+            return p.name + '<br/>Min: ' + d[1] + 'ms<br/>Q1: ' + d[2] + 'ms<br/>'
+              + 'Median: ' + d[3] + 'ms<br/>Q3: ' + d[4] + 'ms<br/>Max: ' + d[5] + 'ms';
           }
         },
+        toolbox: this.defaultToolbox(),
         xAxis: { type: 'category', data: BOXPLOT_SERVICES },
-        yAxis: { type: 'value', name: 'Response Time (ms)',
-                 axisLabel: { formatter: '{value}ms' } },
-        series: [{
-          type: 'boxplot',
-          data: BOXPLOT_DATA,
-          itemStyle: { borderColor: '#3b82f6' }
-        }]
+        yAxis: { type: 'value', name: 'Response Time (ms)', axisLabel: { formatter: '{value}ms' } },
+        series: [{ type: 'boxplot', data: BOXPLOT_DATA, itemStyle: { borderColor: '#3b82f6' } }]
+      });
+    },
+
+    initKPI() {
+      const gaugeBase = (el, value, name, min, max, bands) => {
+        const chart = echarts.init(el, 'zinc-dark');
+        chart.setOption({
+          animation: !reduceMotion,
+          toolbox: this.defaultToolbox(),
+          series: [{
+            type: 'gauge', data: [{ value, name }], min, max,
+            center: ['50%', '55%'], radius: '85%',
+            startAngle: 210, endAngle: -30,
+            axisLine: { lineStyle: { width: 12, color: bands } },
+            pointer: { width: 4, length: '55%', itemStyle: { color: '#d4d4d8' } },
+            anchor: { show: true, size: 8, itemStyle: { color: '#d4d4d8' } },
+            axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+            detail: {
+              formatter: '{value}%', fontSize: 22, fontWeight: 'bold',
+              color: '#f4f4f5', offsetCenter: [0, '70%']
+            },
+            title: { show: false }
+          }]
+        });
+        return chart;
+      };
+
+      const bands = [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']];
+      this.charts.gauge1 = gaugeBase(this.$refs.gauge1, 78, 'Revenue', 0, 100, bands);
+      this.charts.gauge2 = gaugeBase(this.$refs.gauge2, 92, 'CSAT', 0, 100, bands);
+      this.charts.gauge3 = gaugeBase(this.$refs.gauge3, 99.7, 'Uptime', 95, 100,
+        [[0.4, '#ef4444'], [0.7, '#f59e0b'], [1, '#10b981']]);
+    },
+
+    initFinancial() {
+      // ── Candlestick + Volume ──
+      this.charts.candle = echarts.init(this.$refs.candleChart, 'zinc-dark');
+      this.charts.candle.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, confine: true },
+        toolbox: this.defaultToolbox(),
+        legend: { data: ['Price', 'Volume'] },
+        xAxis: { type: 'category', data: TRADE_DATES },
+        yAxis: [
+          { type: 'value', name: 'Price ($)', scale: true, axisLabel: { formatter: '${value}' } },
+          { type: 'value', name: 'Volume', max: (val) => val.max * 3,
+            axisLabel: { show: false }, splitLine: { show: false } }
+        ],
+        dataZoom: [{ type: 'slider', height: 20 }, { type: 'inside' }],
+        series: [
+          { name: 'Price', type: 'candlestick', data: OHLC, yAxisIndex: 0,
+            itemStyle: { color: '#10b981', color0: '#ef4444',
+              borderColor: '#10b981', borderColor0: '#ef4444' }
+          },
+          { name: 'Volume', type: 'bar', data: VOLUME, yAxisIndex: 1,
+            itemStyle: { color: 'rgba(59, 130, 246, 0.3)' }, barWidth: '60%' }
+        ]
       });
     }
   }));
@@ -541,132 +648,251 @@ document.addEventListener('alpine:init', () => {
 });
 </script>
 
-<div x-cloak x-data="showcase">
-  <main class="max-w-5xl mx-auto p-3 md:p-6">
+<div x-cloak x-data="showcase"
+     @keydown.escape.window="fullscreen = null"
+     @keydown.window="handleKeyboard($event)">
+  <main class="max-w-7xl mx-auto p-3 md:p-6">
 
     <!-- Header -->
-    <h1 class="text-xl md:text-2xl font-bold mb-1">Chart Showcase</h1>
-    <p class="text-sm text-zinc-400 mb-6">All 13 supported chart types with interactive features</p>
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-6">
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold mb-1">ECharts Type Showcase</h1>
+        <p class="text-sm text-zinc-400">All 13 chart types organized by category. Each panel labels the chart type and its use case.</p>
+      </div>
+      <p class="text-xs text-zinc-400 mt-2 sm:mt-0 no-print">Press 1-5 to switch tabs. Esc to exit fullscreen.</p>
+    </div>
 
     <!-- Tabs -->
-    <div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto">
-      <template x-for="t in tabs" :key="t">
+    <div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
+      <template x-for="(t, i) in tabs" :key="t">
         <button role="tab"
                 :aria-selected="tab === t"
                 @click="tab = t"
                 :class="tab === t
                   ? 'bg-zinc-700 text-white'
                   : 'text-zinc-400 hover:text-zinc-200'"
-                class="px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap"
-                x-text="t"></button>
+                class="px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap">
+          <span x-text="(i+1) + '. ' + t"></span>
+        </button>
       </template>
     </div>
 
-    <!-- Overview: stat cards + gauge x3 + line/bar combo -->
-    <div role="tabpanel" x-show="tab === 'Overview'">
-      <!-- KPI stat cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <p class="text-xs text-zinc-400 mb-1">Annual Revenue</p>
-          <p class="text-xl font-semibold text-white">$1.69M</p>
-          <p class="text-xs text-emerald-400 mt-1">+24.8% YoY</p>
-        </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <p class="text-xs text-zinc-400 mb-1">Monthly Avg</p>
-          <p class="text-xl font-semibold text-white">$140K</p>
-          <p class="text-xs text-emerald-400 mt-1">+7.9% last month</p>
-        </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <p class="text-xs text-zinc-400 mb-1">Best Month</p>
-          <p class="text-xl font-semibold text-white">$205K</p>
-          <p class="text-xs text-zinc-400 mt-1">December</p>
-        </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <p class="text-xs text-zinc-400 mb-1">Avg Growth</p>
-          <p class="text-xl font-semibold text-white">+9.5%</p>
-          <p class="text-xs text-zinc-400 mt-1">per month</p>
-        </div>
+    <!-- ═══ Standard: line, bar, stacked area, line+bar combo ═══ -->
+    <div role="tabpanel" x-show="tab === 'Standard'">
+      <!-- Type index -->
+      <div class="flex flex-wrap gap-2 mb-4">
+        <template x-for="ct in chartTypes['Standard']" :key="ct.key">
+          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          </span>
+        </template>
       </div>
 
-      <!-- Gauges -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-2">Revenue Target</h2>
-          <div x-ref="gaugeRevenue" class="h-48 sm:h-44 w-full"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Line -->
+        <div :class="fullscreen === 'line' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium text-white">Line Chart</h2>
+              <p class="text-xs text-zinc-400 mt-0.5">Trends over time. markLine shows a $150K target threshold.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'line' ? null : 'line'"
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'line' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="lineChart" :class="fullscreen === 'line' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-2">Customer Satisfaction</h2>
-          <div x-ref="gaugeSat" class="h-48 sm:h-44 w-full"></div>
-        </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-2">System Uptime</h2>
-          <div x-ref="gaugeUptime" class="h-48 sm:h-44 w-full"></div>
-        </div>
-      </div>
 
-      <!-- Revenue combo chart -->
-      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-        <h2 class="text-sm text-zinc-400 mb-4">Monthly Revenue + Growth Rate (line + bar, dual axis)</h2>
-        <div x-ref="revenueCombo" class="h-64 sm:h-72 w-full"></div>
+        <!-- Bar -->
+        <div :class="fullscreen === 'bar' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium text-white">Bar Chart</h2>
+              <p class="text-xs text-zinc-400 mt-0.5">Categorical comparison. markArea highlights Q4.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'bar' ? null : 'bar'"
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'bar' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="barChart" :class="fullscreen === 'bar' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+        </div>
+
+        <!-- Stacked Area -->
+        <div :class="fullscreen === 'area' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium text-white">Stacked Area</h2>
+              <p class="text-xs text-zinc-400 mt-0.5">Composition over time. stack: 'total' with areaStyle.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'area' ? null : 'area'"
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'area' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="areaChart" :class="fullscreen === 'area' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+        </div>
+
+        <!-- Line + Bar Combo -->
+        <div :class="fullscreen === 'combo' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium text-white">Line + Bar Combo</h2>
+              <p class="text-xs text-zinc-400 mt-0.5">Dual-axis: revenue (bar, left) and growth rate (line, right).</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'combo' ? null : 'combo'"
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'combo' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="comboChart" :class="fullscreen === 'combo' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Breakdown: pie + treemap -->
-    <div role="tabpanel" x-show="tab === 'Breakdown'">
+    <!-- ═══ Part-to-Whole: pie, treemap, funnel, sankey ═══ -->
+    <div role="tabpanel" x-show="tab === 'Part-to-Whole'">
+      <div class="flex flex-wrap gap-2 mb-4">
+        <template x-for="ct in chartTypes['Part-to-Whole']" :key="ct.key">
+          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          </span>
+        </template>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-4">Revenue by Category (donut pie)</h2>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Donut / Pie</h2>
+          <p class="text-xs text-zinc-400 mb-4">Proportions. radius: ['40%', '70%'] makes the donut hole.</p>
           <div x-ref="pieChart" class="h-72 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-4">Budget Allocation (treemap -- click to drill down)</h2>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Treemap</h2>
+          <p class="text-xs text-zinc-400 mb-4">Hierarchical drill-down. Click a node to zoom in; breadcrumb to zoom out.</p>
           <div x-ref="treemapChart" class="h-72 w-full"></div>
         </div>
-      </div>
-    </div>
-
-    <!-- Pipeline: funnel + sankey -->
-    <div role="tabpanel" x-show="tab === 'Pipeline'">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-4">Sales Conversion (funnel)</h2>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Funnel</h2>
+          <p class="text-xs text-zinc-400 mb-4">Conversion pipeline. Data sorted descending by value.</p>
           <div x-ref="funnelChart" class="h-80 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-4">Traffic Flow (sankey)</h2>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Sankey</h2>
+          <p class="text-xs text-zinc-400 mb-4">Flow between nodes. emphasis: { focus: 'adjacency' } highlights connected paths.</p>
           <div x-ref="sankeyChart" class="h-80 w-full"></div>
         </div>
       </div>
     </div>
 
-    <!-- Market: candlestick + scatter -->
-    <div role="tabpanel" x-show="tab === 'Market'">
-      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 mb-4">
-        <h2 class="text-sm text-zinc-400 mb-4">Price Action (candlestick + volume bars, dual axis, data zoom)</h2>
-        <div x-ref="candleChart" class="h-80 w-full"></div>
+    <!-- ═══ Statistical: scatter, heatmap, radar, boxplot ═══ -->
+    <div role="tabpanel" x-show="tab === 'Statistical'">
+      <div class="flex flex-wrap gap-2 mb-4">
+        <template x-for="ct in chartTypes['Statistical']" :key="ct.key">
+          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          </span>
+        </template>
       </div>
-      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-        <h2 class="text-sm text-zinc-400 mb-4">Deal Pipeline (scatter/bubble -- size = probability, color = risk)</h2>
-        <div x-ref="scatterChart" class="h-72 w-full"></div>
-      </div>
-    </div>
 
-    <!-- Analysis: heatmap + radar + boxplot -->
-    <div role="tabpanel" x-show="tab === 'Analysis'">
-      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 mb-4">
-        <h2 class="text-sm text-zinc-400 mb-4">Activity by Day and Hour (heatmap with visualMap)</h2>
-        <div x-ref="heatmapChart" class="h-72 w-full"></div>
-      </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-4">Platform Comparison (radar)</h2>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Scatter / Bubble</h2>
+          <p class="text-xs text-zinc-400 mb-4">Size = probability, color = risk tier. symbolSize maps the third dimension.</p>
+          <div x-ref="scatterChart" class="h-72 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Heatmap</h2>
+          <p class="text-xs text-zinc-400 mb-4">2D density with visualMap color gradient. Data: [[x, y, value], ...]</p>
+          <div x-ref="heatmapChart" class="h-72 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Radar</h2>
+          <p class="text-xs text-zinc-400 mb-4">Multi-dimensional comparison. Each indicator is an axis spoke.</p>
           <div x-ref="radarChart" class="h-72 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <h2 class="text-sm text-zinc-400 mb-4">Response Time Distribution (boxplot)</h2>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Boxplot</h2>
+          <p class="text-xs text-zinc-400 mb-4">Distribution: [min, Q1, median, Q3, max] per category.</p>
           <div x-ref="boxplotChart" class="h-72 w-full"></div>
         </div>
       </div>
+    </div>
+
+    <!-- ═══ KPI: gauges ═══ -->
+    <div role="tabpanel" x-show="tab === 'KPI'">
+      <div class="flex flex-wrap gap-2 mb-4">
+        <template x-for="ct in chartTypes['KPI']" :key="ct.key">
+          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          </span>
+        </template>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Revenue Target</h2>
+          <p class="text-xs text-zinc-400 mb-2">Gauge with red/amber/green threshold bands at 60/80/100.</p>
+          <div x-ref="gauge1" class="h-48 sm:h-44 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Customer Satisfaction</h2>
+          <p class="text-xs text-zinc-400 mb-2">Same gauge pattern, different KPI value.</p>
+          <div x-ref="gauge2" class="h-48 sm:h-44 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">System Uptime</h2>
+          <p class="text-xs text-zinc-400 mb-2">Narrow range (95-100%). Custom band thresholds.</p>
+          <div x-ref="gauge3" class="h-48 sm:h-44 w-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Financial: candlestick + volume ═══ -->
+    <div role="tabpanel" x-show="tab === 'Financial'">
+      <div class="flex flex-wrap gap-2 mb-4">
+        <template x-for="ct in chartTypes['Financial']" :key="ct.key">
+          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          </span>
+        </template>
+      </div>
+
+      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <h2 class="text-sm font-medium text-white mb-0.5">Candlestick + Volume</h2>
+        <p class="text-xs text-zinc-400 mb-4">OHLC price action with volume bars. Dual y-axis. DataZoom slider below. Green = bullish (close > open), red = bearish.</p>
+        <div x-ref="candleChart" class="h-96 w-full"></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 pt-4 border-t border-zinc-700/50 text-xs text-zinc-400 no-print">
+      <p>Features demonstrated: 13 chart types (line, bar, stacked area, line+bar combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume), markLine thresholds, markArea regions, DataZoom, toolbox (save image, restore), dual-axis, fullscreen panels, keyboard shortcuts, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
     </div>
 
   </main>

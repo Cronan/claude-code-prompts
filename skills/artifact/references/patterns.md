@@ -406,3 +406,138 @@ Horizontal bar with percentage fill. Useful for disk usage, completion tracking.
         x-text="Math.round((item.used / item.total) * 100) + '%'"></span>
 </div>
 ```
+
+## CSV export button
+
+Download table data as CSV. The `downloadCSV` method handles quoting and escaping.
+
+```html
+<button @click="downloadCSV('data.csv',
+    ['Name', 'Status', 'Value'],
+    filtered.map(r => [r.name, r.status, r.value]))"
+  class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-zinc-700 no-print">
+  <span class="flex items-center gap-2">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+    </svg>
+    Export CSV
+  </span>
+</button>
+```
+
+Alpine method:
+
+```js
+downloadCSV(filename, headers, rows) {
+  const escape = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+  const csv = [headers.map(escape).join(',')]
+    .concat(rows.map(r => r.map(escape).join(',')))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+```
+
+## Fullscreen chart panel
+
+Expand a chart card to fill the viewport. Click or press Escape to exit.
+
+```html
+<div :class="fullscreen === 'main' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+     class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm text-zinc-400">Chart Title</h2>
+    <button @click="fullscreen = fullscreen === 'main' ? null : 'main'"
+            class="text-zinc-400 hover:text-zinc-200 no-print"
+            :aria-label="fullscreen === 'main' ? 'Exit fullscreen' : 'Enter fullscreen'">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path x-show="fullscreen !== 'main'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+        <path x-show="fullscreen === 'main'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+  <div x-ref="mainChart" :class="fullscreen === 'main' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+</div>
+```
+
+Alpine data:
+
+```js
+fullscreen: null,
+
+init() {
+  this.$watch('fullscreen', () => {
+    this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+  });
+}
+```
+
+## Skeleton loading
+
+Pulsing placeholder shown while CDN scripts load. Pure HTML/CSS, no JavaScript.
+
+```html
+<!-- Shown until Alpine hydrates -->
+<div id="skeleton" class="max-w-5xl mx-auto p-3 md:p-6">
+  <div class="h-8 w-48 bg-zinc-800 rounded animate-pulse mb-6"></div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-20 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-20 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-20 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-20 animate-pulse"></div>
+  </div>
+  <div class="bg-zinc-800 rounded-xl border border-zinc-700 h-64 animate-pulse"></div>
+</div>
+
+<!-- Real content hidden until Alpine processes x-cloak -->
+<div x-cloak x-data="app"><!-- ... --></div>
+```
+
+Add this CSS rule to auto-hide the skeleton when Alpine initializes:
+
+```css
+:not([x-cloak]) ~ #skeleton { display: none; }
+```
+
+## Print stylesheet
+
+Include in the `<head>` to make dashboards printable. Hides interactive controls and forces readable colors.
+
+```html
+<style>
+  @media print {
+    body { background: white !important; color: black !important; }
+    .no-print { display: none !important; }
+    .bg-zinc-800, .bg-zinc-900 { background: white !important; border-color: #e4e4e7 !important; }
+    .text-white, .text-zinc-300, .text-zinc-400 { color: black !important; }
+    canvas { max-width: 100% !important; }
+    .break-inside-avoid { break-inside: avoid; }
+  }
+</style>
+```
+
+Apply `no-print` to: tab bars, filter inputs, export buttons, toggle buttons. Apply `break-inside-avoid` to chart cards.
+
+## Active filter indicator
+
+Show which cross-filters are applied and let users clear them.
+
+```html
+<div x-show="selectedCategory" class="flex items-center gap-2 mb-4 no-print" x-transition>
+  <span class="text-sm text-zinc-400">Filtered by:</span>
+  <span class="bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-medium" x-text="selectedCategory"></span>
+  <button @click="selectedCategory = null"
+          class="text-zinc-400 hover:text-zinc-200 text-xs ml-1">
+    <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+    </svg>
+    Clear
+  </button>
+</div>
+```

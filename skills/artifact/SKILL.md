@@ -1196,6 +1196,349 @@ The artifact runs in a browser on any platform: desktop Linux, Raspberry Pi, mac
 
 -----
 
+## Accessibility media queries
+
+### Reduced motion
+
+Respect `prefers-reduced-motion` to avoid triggering vestibular disorders. Gate ECharts animation and CSS transitions:
+
+```js
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Use in chart options
+chart.setOption({
+  animation: !prefersReducedMotion,
+  // ...
+});
+```
+
+In CSS, disable transitions for users who prefer reduced motion:
+
+```html
+<style>
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+</style>
+```
+
+### System theme detection
+
+When building artifacts with a dark/light toggle, detect the system preference on load:
+
+```js
+Alpine.data('app', () => ({
+  darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+  // ...
+}));
+```
+
+This sets the initial theme to match the user's OS setting. The toggle button still works to override it.
+
+-----
+
+## Print stylesheet
+
+Add a `@media print` block to make dashboards printable. Force a white background, hide interactive controls, and prevent charts from splitting across pages:
+
+```html
+<style>
+  @media print {
+    body { background: white !important; color: black !important; }
+    .no-print { display: none !important; }
+    .bg-zinc-800, .bg-zinc-900 { background: white !important; border-color: #e4e4e7 !important; }
+    .text-white, .text-zinc-300, .text-zinc-400 { color: black !important; }
+    canvas { max-width: 100% !important; }
+    .break-inside-avoid { break-inside: avoid; }
+  }
+</style>
+```
+
+Apply `no-print` to elements that should not appear in print: tab bars, filter controls, search inputs, toggle buttons. Apply `break-inside-avoid` to chart cards so they don't split across page boundaries.
+
+ECharts renders to `<canvas>` which prints natively. No extra handling needed for chart content.
+
+-----
+
+## Default toolbox
+
+Enable `saveAsImage` and `restore` in every chart's toolbox by default. These cost nothing and users expect them:
+
+```js
+toolbox: {
+  feature: {
+    saveAsImage: { pixelRatio: 2 },
+    restore: {}
+  }
+}
+```
+
+Add `dataZoom` and `dataView` when appropriate for the chart type (time-series, tables of raw data). Hide the toolbox on small screens: `toolbox: { show: window.innerWidth >= 768 }`.
+
+-----
+
+## Synced crosshair across charts
+
+Use `echarts.connect()` to synchronize tooltip position and crosshair across multiple charts that share the same x-axis:
+
+```js
+init() {
+  this.charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
+  this.charts.memory = echarts.init(this.$refs.memChart, 'zinc-dark');
+  this.charts.network = echarts.init(this.$refs.netChart, 'zinc-dark');
+
+  // Sync hover crosshair across all three
+  echarts.connect([this.charts.cpu, this.charts.memory, this.charts.network]);
+}
+```
+
+Only connect charts that share compatible axis types and data ranges. Connecting a time-series chart to a categorical bar chart produces confusing crosshair behavior. Connected charts also sync legend toggles and DataZoom ranges.
+
+-----
+
+## CSV export
+
+Add a `downloadCSV()` utility for exporting table or chart data. Works on any browser without dependencies:
+
+```js
+downloadCSV(filename, headers, rows) {
+  const escape = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+  const csv = [headers.map(escape).join(',')]
+    .concat(rows.map(r => r.map(escape).join(',')))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+```
+
+Wire it to a button:
+
+```html
+<button @click="downloadCSV('services.csv',
+    ['Name', 'Status', 'CPU', 'Memory'],
+    filtered.map(s => [s.name, s.status, s.cpu, s.memory]))"
+  class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-zinc-700 no-print">
+  Export CSV
+</button>
+```
+
+-----
+
+## Fullscreen panel
+
+Let users expand a single chart card to fill the viewport. Uses Alpine state and a fixed overlay:
+
+```html
+<div :class="fullscreen === 'cpu' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+     class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm text-zinc-400">CPU Usage</h2>
+    <button @click="fullscreen = fullscreen === 'cpu' ? null : 'cpu'"
+            class="text-zinc-400 hover:text-zinc-200 no-print"
+            :aria-label="fullscreen === 'cpu' ? 'Exit fullscreen' : 'Enter fullscreen'">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path x-show="fullscreen !== 'cpu'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+        <path x-show="fullscreen === 'cpu'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+  <div x-ref="cpuChart" :class="fullscreen === 'cpu' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+</div>
+```
+
+Alpine state:
+
+```js
+fullscreen: null,
+
+// Watch for fullscreen changes and resize the affected chart
+init() {
+  this.$watch('fullscreen', () => {
+    this.$nextTick(() => {
+      Object.values(this.charts).forEach(c => c.resize());
+    });
+  });
+}
+```
+
+Press `Escape` to exit fullscreen:
+
+```html
+<div @keydown.escape.window="fullscreen = null" x-data="app">
+```
+
+-----
+
+## URL hash state
+
+Encode filter values, active tab, and other UI state in the URL hash so views are shareable and bookmarkable:
+
+```js
+Alpine.data('app', () => ({
+  tab: 'Overview',
+  search: '',
+  statusFilter: 'All',
+
+  init() {
+    // Read state from hash on load
+    this.readHash();
+
+    // Write state to hash on change
+    this.$watch('tab', () => this.writeHash());
+    this.$watch('search', () => this.writeHash());
+    this.$watch('statusFilter', () => this.writeHash());
+
+    // Handle browser back/forward
+    window.addEventListener('hashchange', () => this.readHash());
+  },
+
+  readHash() {
+    const params = new URLSearchParams(location.hash.slice(1));
+    if (params.has('tab')) this.tab = params.get('tab');
+    if (params.has('q')) this.search = params.get('q');
+    if (params.has('status')) this.statusFilter = params.get('status');
+  },
+
+  writeHash() {
+    const params = new URLSearchParams();
+    if (this.tab !== 'Overview') params.set('tab', this.tab);
+    if (this.search) params.set('q', this.search);
+    if (this.statusFilter !== 'All') params.set('status', this.statusFilter);
+    const hash = params.toString();
+    history.replaceState(null, '', hash ? '#' + hash : location.pathname);
+  }
+}));
+```
+
+Use `replaceState` (not `pushState`) to avoid polluting the browser history with every keystroke. The hash is only written for non-default values to keep URLs clean.
+
+-----
+
+## Skeleton loading
+
+Show pulsing placeholder blocks while CDN scripts load and Alpine hydrates. These are pure HTML/CSS with no JavaScript dependency:
+
+```html
+<div id="skeleton" class="max-w-5xl mx-auto p-3 md:p-6">
+  <div class="h-8 w-48 bg-zinc-800 rounded animate-pulse mb-6"></div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-20 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-20 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-20 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-20 animate-pulse"></div>
+  </div>
+  <div class="bg-zinc-800 rounded-xl border border-zinc-700 h-64 animate-pulse"></div>
+</div>
+```
+
+Hide the skeleton once Alpine initializes. The `x-cloak` attribute on the main app container already handles this -- Alpine removes `x-cloak` when it processes the element, so the real content appears. Hide the skeleton with a matching rule:
+
+```html
+<style>
+  [x-cloak] { display: none !important; }
+  [x-cloak] ~ #skeleton { display: block; }
+  :not([x-cloak]) ~ #skeleton { display: none; }
+</style>
+```
+
+Or simpler: place the skeleton inside the `x-data` container and use `x-show="false"` to hide it after Alpine processes.
+
+Use skeletons for dashboards with multiple CDN dependencies where the load delay is noticeable. For simple artifacts with minimal scripts, skip them.
+
+-----
+
+## Cross-filtering
+
+Wire chart click events to Alpine state to filter other charts and tables. This is the pattern that separates a dashboard from a page of independent charts:
+
+```js
+Alpine.data('app', () => ({
+  selectedCategory: null,
+  items: ITEMS,
+
+  get filtered() {
+    if (!this.selectedCategory) return this.items;
+    return this.items.filter(i => i.category === this.selectedCategory);
+  },
+
+  init() {
+    this.charts.pie = echarts.init(this.$refs.pieChart, 'zinc-dark');
+    this.charts.pie.setOption({ /* ... */ });
+
+    // Click a pie slice to filter everything else
+    this.charts.pie.on('click', (params) => {
+      this.selectedCategory = this.selectedCategory === params.name
+        ? null  // click again to clear
+        : params.name;
+    });
+
+    // Update dependent charts when filter changes
+    this.$watch('filtered', () => this.updateBarChart());
+  }
+}));
+```
+
+In the HTML, show the active filter and a clear button:
+
+```html
+<div x-show="selectedCategory" class="flex items-center gap-2 mb-4">
+  <span class="text-sm text-zinc-400">Filtered by:</span>
+  <span class="bg-blue-600 text-white px-2 py-0.5 rounded text-xs" x-text="selectedCategory"></span>
+  <button @click="selectedCategory = null" class="text-zinc-400 hover:text-zinc-200 text-xs">Clear</button>
+</div>
+```
+
+Highlight the selected element in the source chart using ECharts `dispatchAction`:
+
+```js
+this.$watch('selectedCategory', (val) => {
+  this.charts.pie.dispatchAction({
+    type: val ? 'highlight' : 'downplay',
+    name: val
+  });
+});
+```
+
+-----
+
+## Keyboard shortcuts
+
+Add keyboard shortcuts for common actions. Use Alpine's `@keydown.window` directive:
+
+```html
+<div @keydown.escape.window="fullscreen = null; selectedCategory = null"
+     @keydown.window="handleKeyboard($event)"
+     x-data="app">
+```
+
+```js
+handleKeyboard(e) {
+  // Ignore if user is typing in an input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (e.key === '?' && !e.ctrlKey) {
+    this.showHelp = !this.showHelp;
+  }
+  // Tab switching with number keys
+  const num = parseInt(e.key);
+  if (num >= 1 && num <= this.tabs.length) {
+    this.tab = this.tabs[num - 1];
+  }
+}
+```
+
+-----
+
 ## Quality checklist
 
 Before saving the file, verify:
@@ -1210,6 +1553,10 @@ Before saving the file, verify:
 8. `x-cloak` style is present in the head.
 9. Alpine.js script tag is last, with `defer`.
 10. File is named with kebab-case.
+11. `prefers-reduced-motion` is respected for animation.
+12. Print stylesheet hides interactive controls and forces readable colors.
+13. CSV export produces valid, escaped output for all data types.
+14. Fullscreen panels resize charts correctly on enter and exit.
 
 -----
 
@@ -1219,4 +1566,6 @@ Before building complex artifacts, read the reference material in this skill dir
 
 - Component layout patterns and recurring structures: `references/patterns.md`
 - Tailwind dark theme tokens, ECharts theme configuration, and spacing conventions: `references/tailwind-guide.md`
-- Complete working example: `examples/example-dashboard.html`
+- Chart type showcase: `examples/example-chart-showcase.html`
+- Dashboard with features: `examples/example-dashboard.html`
+- Real-world analysis dashboard: `examples/example-gdp-analysis.html`
