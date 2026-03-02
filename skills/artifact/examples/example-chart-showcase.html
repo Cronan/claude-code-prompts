@@ -446,6 +446,30 @@ document.addEventListener('alpine:init', () => {
   const POLAR_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const POLAR_VALUES = [68, 52, 78, 95, 118, 142, 155, 148, 130, 112, 88, 160];
 
+  // ── Bullet chart data ─────────────────────────────────
+  const BULLET_DATA = [
+    { label: 'Revenue',      actual: 275, target: 250, ranges: [200, 300, 350] },
+    { label: 'Profit',       actual: 55,  target: 70,  ranges: [40, 80, 100] },
+    { label: 'Satisfaction',  actual: 88,  target: 90,  ranges: [70, 85, 100] },
+    { label: 'New Customers', actual: 1450, target: 1200, ranges: [800, 1400, 2000] },
+  ];
+
+  // ── Lollipop chart data ────────────────────────────────
+  const LOLLIPOP_LABELS = ['React', 'Vue', 'Angular', 'Svelte', 'Next.js', 'Nuxt', 'Remix', 'Astro'];
+  const LOLLIPOP_VALUES = [94, 82, 68, 65, 58, 42, 38, 35];
+
+  // ── Small multiples data ───────────────────────────────
+  const SM_SERVICES = ['API Gateway', 'Auth', 'Database', 'Cache', 'Queue', 'Search'];
+  const SM_TIMES = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'];
+  const SM_TRENDS = [
+    [12, 10, 14, 22, 18, 15],
+    [8, 6, 9, 14, 12, 10],
+    [35, 32, 38, 45, 42, 40],
+    [5, 4, 6, 8, 5, 4],
+    [15, 12, 18, 25, 20, 16],
+    [20, 18, 22, 30, 25, 21]
+  ];
+
   // ── Chart type metadata ─────────────────────────────────
   const CHART_TYPES = {
     'Standard': [
@@ -480,13 +504,18 @@ document.addEventListener('alpine:init', () => {
       { key: 'parallel', label: 'Parallel Coordinates', desc: 'Multi-dimensional comparison' },
       { key: 'themeriver', label: 'ThemeRiver', desc: 'Centered streamgraph over time' },
       { key: 'polar', label: 'Polar Bar', desc: 'Nightingale rose for cyclical data' }
+    ],
+    'Custom': [
+      { key: 'bullet', label: 'Bullet Chart', desc: 'Actual vs target with qualitative ranges' },
+      { key: 'lollipop', label: 'Lollipop Chart', desc: 'Dot-on-stem for ranked comparisons' },
+      { key: 'smallmult', label: 'Small Multiples', desc: 'Grid of mini-charts, one per category' }
     ]
   };
 
   // ── Alpine component ───────────────────────────────────
   Alpine.data('showcase', () => ({
     tab: 'Standard',
-    tabs: ['Standard', 'Part-to-Whole', 'Statistical', 'KPI', 'Financial', 'Advanced'],
+    tabs: ['Standard', 'Part-to-Whole', 'Statistical', 'KPI', 'Financial', 'Advanced', 'Custom'],
     charts: {},
     initialized: {},
     fullscreen: null,
@@ -604,7 +633,8 @@ document.addEventListener('alpine:init', () => {
         'Statistical': () => this.initStatistical(),
         'KPI': () => this.initKPI(),
         'Financial': () => this.initFinancial(),
-        'Advanced': () => this.initAdvanced()
+        'Advanced': () => this.initAdvanced(),
+        'Custom': () => this.initCustom()
       };
       if (init[name]) init[name]();
     },
@@ -1097,6 +1127,160 @@ document.addEventListener('alpine:init', () => {
           label: { show: false }
         }]
       });
+    },
+
+    // ── Custom tab ────────────────────────────────────────
+    initCustom() {
+      const d = this.darkMode;
+      const textColor = this.tc.text;
+      const mutedColor = this.tc.textMuted;
+
+      // Bullet chart
+      this.charts.bullet = echarts.init(this.$refs.bulletChart, this.currentTheme);
+      const bulletLabels = BULLET_DATA.map(b => b.label);
+      this.charts.bullet.setOption({
+        animation: !reduceMotion,
+        toolbox: this.defaultToolbox(),
+        tooltip: {
+          trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true,
+          formatter: (params) => {
+            const label = params[0].axisValue;
+            const item = BULLET_DATA.find(b => b.label === label);
+            return label + '<br>Actual: <b>' + item.actual + '</b><br>Target: ' + item.target;
+          }
+        },
+        grid: { left: '18%', right: '8%', top: '6%', bottom: '8%' },
+        yAxis: { type: 'category', data: bulletLabels, inverse: true,
+          axisLabel: { color: textColor, fontSize: 12 },
+          axisLine: { show: false }, axisTick: { show: false } },
+        xAxis: { type: 'value', show: false },
+        series: [
+          // Good range (widest)
+          { type: 'bar', barWidth: 28, barGap: '-100%', z: 1, silent: true,
+            itemStyle: { color: d ? 'rgba(16, 185, 129, 0.10)' : 'rgba(16, 185, 129, 0.12)' },
+            data: BULLET_DATA.map(b => b.ranges[2]) },
+          // Satisfactory range
+          { type: 'bar', barWidth: 28, barGap: '-100%', z: 2, silent: true,
+            itemStyle: { color: d ? 'rgba(16, 185, 129, 0.20)' : 'rgba(16, 185, 129, 0.22)' },
+            data: BULLET_DATA.map(b => b.ranges[1]) },
+          // Poor range
+          { type: 'bar', barWidth: 28, barGap: '-100%', z: 3, silent: true,
+            itemStyle: { color: d ? 'rgba(16, 185, 129, 0.32)' : 'rgba(16, 185, 129, 0.35)' },
+            data: BULLET_DATA.map(b => b.ranges[0]) },
+          // Actual value (narrow bar)
+          { type: 'bar', barWidth: 10, barGap: '-100%', z: 4,
+            itemStyle: { color: '#10b981', borderRadius: 2 },
+            data: BULLET_DATA.map(b => b.actual),
+            label: { show: true, position: 'right', color: textColor,
+              formatter: (p) => p.value } },
+          // Target marker (vertical line)
+          { type: 'custom', z: 5,
+            renderItem: (params, api) => {
+              const catIndex = api.value(0);
+              const targetVal = api.value(1);
+              const point = api.coord([targetVal, catIndex]);
+              const half = 16;
+              return {
+                type: 'line',
+                shape: { x1: point[0], y1: point[1] - half, x2: point[0], y2: point[1] + half },
+                style: { stroke: d ? '#f4f4f5' : '#18181b', lineWidth: 2.5 }
+              };
+            },
+            data: BULLET_DATA.map((b, i) => [i, b.target]) }
+        ]
+      });
+
+      // Lollipop chart
+      this.charts.lollipop = echarts.init(this.$refs.lollipopChart, this.currentTheme);
+      this.charts.lollipop.setOption({
+        animation: !reduceMotion,
+        toolbox: this.defaultToolbox(),
+        tooltip: {
+          trigger: 'axis', confine: true,
+          formatter: (params) => params[0].name + ': ' + params[0].value[1] + '%'
+        },
+        grid: { left: '14%', right: '10%', top: '6%', bottom: '8%' },
+        yAxis: { type: 'category', data: LOLLIPOP_LABELS, inverse: true,
+          axisLabel: { color: textColor, fontSize: 12 },
+          axisLine: { lineStyle: { color: this.tc.border } },
+          axisTick: { show: false } },
+        xAxis: { type: 'value', name: 'Satisfaction %', nameLocation: 'middle', nameGap: 28,
+          axisLabel: { color: mutedColor },
+          splitLine: { lineStyle: { color: this.tc.border } } },
+        series: [{
+          type: 'custom',
+          renderItem: (params, api) => {
+            const y = api.coord([0, api.value(0)])[1];
+            const x = api.coord([api.value(1), 0])[0];
+            const baseX = api.coord([0, 0])[0];
+            return {
+              type: 'group',
+              children: [
+                { type: 'line',
+                  shape: { x1: baseX, y1: y, x2: x, y2: y },
+                  style: { stroke: '#3b82f6', lineWidth: 2 } },
+                { type: 'circle',
+                  shape: { cx: x, cy: y, r: 6 },
+                  style: { fill: '#3b82f6' } }
+              ]
+            };
+          },
+          data: LOLLIPOP_LABELS.map((_, i) => [i, LOLLIPOP_VALUES[i]]),
+          label: {
+            show: true, position: 'right', color: textColor,
+            formatter: (p) => p.value[1] + '%'
+          }
+        }]
+      });
+
+      // Small multiples
+      this.charts.smallmult = echarts.init(this.$refs.smallmultChart, this.currentTheme);
+      const cols = 3, rows = 2;
+      const cellW = 100 / cols, cellH = 100 / rows;
+      const pad = { left: 7, right: 2, top: 6, bottom: 4 };
+
+      const grid = [], xAxisArr = [], yAxisArr = [], seriesArr = [];
+      SM_SERVICES.forEach((name, i) => {
+        const col = i % cols, row = Math.floor(i / cols);
+        grid.push({
+          left: (col * cellW + pad.left) + '%',
+          top: (row * cellH + pad.top) + '%',
+          width: (cellW - pad.left - pad.right) + '%',
+          height: (cellH - pad.top - pad.bottom) + '%'
+        });
+        xAxisArr.push({
+          type: 'category', data: SM_TIMES, gridIndex: i,
+          show: row === rows - 1,
+          axisLabel: { color: mutedColor, fontSize: 10 },
+          axisLine: { lineStyle: { color: this.tc.border } },
+          axisTick: { show: false }
+        });
+        yAxisArr.push({
+          type: 'value', gridIndex: i,
+          show: col === 0,
+          name: name, nameLocation: 'middle', nameGap: 32,
+          nameTextStyle: { color: textColor, fontSize: 11 },
+          axisLabel: { color: mutedColor, fontSize: 10 },
+          splitLine: { lineStyle: { color: this.tc.border } }
+        });
+        seriesArr.push({
+          type: 'line', data: SM_TRENDS[i],
+          xAxisIndex: i, yAxisIndex: i,
+          smooth: true, symbol: 'none',
+          lineStyle: { width: 2 },
+          areaStyle: { opacity: 0.15 }
+        });
+      });
+
+      this.charts.smallmult.setOption({
+        animation: !reduceMotion,
+        color: this.palette,
+        grid: grid,
+        xAxis: xAxisArr,
+        yAxis: yAxisArr,
+        series: seriesArr,
+        tooltip: { trigger: 'axis', confine: true }
+      });
     }
   }));
 
@@ -1484,9 +1668,74 @@ document.addEventListener('alpine:init', () => {
       </div>
     </div>
 
+    <!-- Custom tab -->
+    <div role="tabpanel" x-show="tab === 'Custom'">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Bullet chart -->
+        <div :class="fullscreen === 'bullet' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">Bullet Chart</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Actual vs target with qualitative range bands. Compact KPI comparison.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'bullet' ? null : 'bullet'"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'bullet' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="bulletChart" :class="fullscreen === 'bullet' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-64'" class="w-full"></div>
+        </div>
+
+        <!-- Lollipop chart -->
+        <div :class="fullscreen === 'lollipop' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">Lollipop Chart</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Dot-on-stem ranking. Higher data-ink ratio than bar charts.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'lollipop' ? null : 'lollipop'"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'lollipop' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="lollipopChart" :class="fullscreen === 'lollipop' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-64'" class="w-full"></div>
+        </div>
+
+        <!-- Small multiples -->
+        <div :class="fullscreen === 'smallmult' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 md:col-span-2 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">Small Multiples</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Grid of mini-charts, one per service. Same scale for direct comparison.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'smallmult' ? null : 'smallmult'"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'smallmult' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="smallmultChart" :class="fullscreen === 'smallmult' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-72'" class="w-full"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Footer -->
     <div class="mt-8 pt-4 border-t border-zinc-300 dark:border-zinc-700/50 text-xs text-zinc-500 dark:text-zinc-400 no-print">
-      <p>20 chart types: line, bar, stacked area, line+bar combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume, waterfall, calendar heatmap, sunburst, graph/network, parallel coordinates, themeriver, polar bar. Features: markLine, markArea, DataZoom, toolbox, dual-axis, fullscreen, keyboard shortcuts, dark/light toggle, color-blind mode, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
+      <p>23 chart types: line, bar, stacked area, line+bar combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume, waterfall, calendar heatmap, sunburst, graph/network, parallel coordinates, themeriver, polar bar, bullet, lollipop, small multiples. Features: custom renderItem, markLine, markArea, DataZoom, toolbox, dual-axis, fullscreen, keyboard shortcuts, dark/light toggle, color-blind mode, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
     </div>
 
   </main>

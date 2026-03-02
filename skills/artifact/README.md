@@ -43,7 +43,7 @@ Performance guidance covers DOM limits, animation constraints, and dataset sizes
 
 ## Charts
 
-ECharts provides 20 chart types with complete configuration examples:
+ECharts provides 23 chart types with complete configuration examples:
 
 - **Standard**: line, bar, stacked area, line+bar combo
 - **Part-to-whole**: donut/pie, treemap, funnel, sankey
@@ -51,6 +51,7 @@ ECharts provides 20 chart types with complete configuration examples:
 - **KPI**: gauge
 - **Financial**: candlestick with volume overlay, waterfall, calendar heatmap
 - **Advanced**: sunburst, graph/network, parallel coordinates, themeriver, polar bar
+- **Custom renderItem**: bullet chart (actual vs target), lollipop chart (dot-on-stem ranking), small multiples (grid of mini-charts)
 
 Interactive features include DataZoom (slider and scroll-wheel zoom), linked tooltips, toolbox (save image, data view, reset), legend toggle, brush selection, markLine thresholds, and markArea regions. Charts can be combined in a single instance (line + bar, candlestick + volume bars, stacked area).
 
@@ -100,7 +101,7 @@ Full specification: [`SKILL.md`](SKILL.md).
 
 | File | Content |
 |---|---|
-| [`references/patterns.md`](references/patterns.md) | Component skeletons: sidebar, cards, tables, tabs, search, charts, sparklines, badges, progress bars, CSV export, fullscreen panels, skeleton loading, print stylesheet, dark/light toggle, view-as-table toggle, color-blind palette toggle |
+| [`references/patterns.md`](references/patterns.md) | Component skeletons: sidebar, cards, tables, tabs, search, charts, sparklines, bullet chart, lollipop chart, small multiples, badges, progress bars, CSV export, fullscreen panels, skeleton loading, print stylesheet, dark/light toggle, view-as-table toggle, color-blind palette toggle |
 | [`references/tailwind-guide.md`](references/tailwind-guide.md) | Dark theme tokens, ECharts theme config, spacing scale, typography |
 
 ## Examples
@@ -109,6 +110,6 @@ Full specification: [`SKILL.md`](SKILL.md).
 
 | File | Content |
 |---|---|
-| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | 20 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial, Advanced) with sunburst, graph/network, parallel coordinates, themeriver, polar bar, gradient area fill, dark/light toggle, color-blind mode, fullscreen panels, keyboard shortcuts |
+| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | 23 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial, Advanced, Custom) with bullet chart, lollipop chart, small multiples, custom renderItem, sunburst, graph/network, parallel coordinates, themeriver, polar bar, gradient area fill, dark/light toggle, color-blind mode, fullscreen panels, keyboard shortcuts |
 | [`examples/example-dashboard.html`](examples/example-dashboard.html) | System monitor with cross-filtering, dark/light toggle, color-blind mode, CSV export, URL hash state, sortable table with sparklines, search, filter chips, skeleton loading, print stylesheet |
 | [`examples/example-gdp-analysis.html`](examples/example-gdp-analysis.html) | GDP and labor market analysis: 10 economic sectors, 18 job categories, task-level automation breakdowns. Dark/light toggle, color-blind mode, treemap, scatter/bubble, radar, stacked bar, gauge, sortable tables, cross-filtering |
