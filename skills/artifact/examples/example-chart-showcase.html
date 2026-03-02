@@ -284,9 +284,10 @@ document.addEventListener('alpine:init', () => {
   ];
 
   // Waterfall data
-  const WATERFALL_LABELS = ['Q1 Revenue', 'COGS', 'Gross Profit', 'OpEx', 'Tax', 'Net Income'];
-  const WATERFALL_VALUES = [12000, -4000, 8000, -1200, -1000, 5800]; // in thousands
-  const WATERFALL_BASE = [0, 8000, 0, 5800, 4800, 0]; // transparent base
+  const WATERFALL_LABELS = ['Revenue', 'COGS', 'Gross Profit', 'Sales', 'R&D', 'G&A', 'EBITDA', 'D&A', 'Interest', 'Tax', 'Net Income'];
+  const WATERFALL_VALUES = [24500, -8200, 16300, -4100, -3800, -1900, 6500, -800, -200, -1375, 4125];
+  const WATERFALL_SUBTOTALS = new Set([2, 6, 10]);
+  const WATERFALL_BASE = [0, 16300, 0, 12200, 8400, 6500, 0, 5700, 5500, 4125, 0];
 
   // Calendar heatmap data (2024)
   const CALENDAR_DATA = [];
@@ -354,6 +355,21 @@ document.addEventListener('alpine:init', () => {
       return this.darkMode ? 'zinc-dark' : 'zinc-light';
     },
 
+    get tc() {
+      const d = this.darkMode;
+      return {
+        text: d ? '#d4d4d8' : '#3f3f46',
+        textStrong: d ? '#f4f4f5' : '#18181b',
+        textMuted: d ? '#a1a1aa' : '#71717a',
+        textFaint: d ? '#71717a' : '#a1a1aa',
+        border: d ? '#3f3f46' : '#d4d4d8',
+        borderLight: d ? '#27272a' : '#f4f4f5',
+        bgSubtle: d ? '#27272a' : '#f4f4f5',
+        bgDeep: d ? '#18181b' : '#e4e4e7',
+        heatLow: d ? '#27272a' : '#e4e4e7',
+      };
+    },
+
     init() {
       const skel = document.getElementById('skeleton');
       if (skel) skel.style.display = 'none';
@@ -381,12 +397,14 @@ document.addEventListener('alpine:init', () => {
     toggleTheme() {
       this.darkMode = !this.darkMode;
       document.documentElement.classList.toggle('dark', this.darkMode);
-      Object.keys(this.charts).forEach(key => {
-        const el = this.charts[key].getDom();
-        const opt = this.charts[key].getOption();
-        this.charts[key].dispose();
-        this.charts[key] = echarts.init(el, this.currentTheme);
-        this.charts[key].setOption(opt);
+      Object.values(this.charts).forEach(c => c.dispose());
+      this.charts = {};
+      this.initialized = {};
+      this.$nextTick(() => {
+        this.initTab(this.tab);
+        if (this.colorBlindMode) {
+          Object.values(this.charts).forEach(c => c.setOption({ color: this.palette }));
+        }
       });
     },
 
@@ -441,7 +459,7 @@ document.addEventListener('alpine:init', () => {
           markLine: {
             data: [{ yAxis: 150, name: 'Target' }],
             lineStyle: { type: 'dashed', color: '#f59e0b' },
-            label: { color: '#a1a1aa', formatter: 'Target: $150K' }
+            label: { color: this.tc.textMuted, formatter: 'Target: $150K' }
           }
         }]
       });
@@ -459,7 +477,7 @@ document.addEventListener('alpine:init', () => {
           markArea: {
             data: [[{ xAxis: 'Sep' }, { xAxis: 'Dec' }]],
             itemStyle: { color: 'rgba(16, 185, 129, 0.08)' },
-            label: { show: true, position: 'top', color: '#a1a1aa', formatter: 'Q4' }
+            label: { show: true, position: 'top', color: this.tc.textMuted, formatter: 'Q4' }
           }
         }]
       });
@@ -534,10 +552,10 @@ document.addEventListener('alpine:init', () => {
         series: [{
           type: 'treemap', data: BUDGET, roam: false,
           label: { formatter: (p) => p.name + '\n' + fmt.compact(p.value), fontSize: 12 },
-          breadcrumb: { itemStyle: { color: '#3f3f46', textStyle: { color: '#d4d4d8' } } },
+          breadcrumb: { itemStyle: { color: this.tc.border, textStyle: { color: this.tc.text } } },
           levels: [
-            { itemStyle: { borderColor: '#3f3f46', borderWidth: 2, gapWidth: 2 } },
-            { itemStyle: { borderColor: '#27272a', borderWidth: 1, gapWidth: 1 },
+            { itemStyle: { borderColor: this.tc.border, borderWidth: 2, gapWidth: 2 } },
+            { itemStyle: { borderColor: this.tc.borderLight, borderWidth: 1, gapWidth: 1 },
               colorSaturation: [0.3, 0.6] }
           ]
         }]
@@ -552,7 +570,7 @@ document.addEventListener('alpine:init', () => {
           type: 'funnel', data: FUNNEL,
           left: '10%', width: '80%', top: 20, bottom: 20,
           label: { formatter: (p) => p.name + ': ' + fmt.num(p.value), position: 'inside', fontSize: 13 },
-          gap: 2, itemStyle: { borderColor: '#27272a', borderWidth: 1 }
+          gap: 2, itemStyle: { borderColor: this.tc.borderLight, borderWidth: 1 }
         }]
       });
 
@@ -572,7 +590,7 @@ document.addEventListener('alpine:init', () => {
           type: 'sankey', data: SANKEY_NODES, links: SANKEY_LINKS,
           emphasis: { focus: 'adjacency' },
           lineStyle: { color: 'source', opacity: 0.4 },
-          label: { color: '#d4d4d8', fontSize: 12 },
+          label: { color: this.tc.text, fontSize: 12 },
           nodeGap: 12, layoutIterations: 32
         }]
       });
@@ -620,12 +638,12 @@ document.addEventListener('alpine:init', () => {
         visualMap: {
           min: 0, max: 120, calculable: true,
           orient: 'horizontal', left: 'center', bottom: 0,
-          inRange: { color: ['#27272a', '#3b82f6', '#10b981'] },
-          textStyle: { color: '#a1a1aa' }
+          inRange: { color: [this.tc.heatLow, '#3b82f6', '#10b981'] },
+          textStyle: { color: this.tc.textMuted }
         },
         series: [{
           type: 'heatmap', data: ACTIVITY,
-          label: { show: true, color: '#d4d4d8', fontSize: 10, formatter: (p) => p.data[2] },
+          label: { show: true, color: this.tc.text, fontSize: 10, formatter: (p) => p.data[2] },
           emphasis: { itemStyle: { borderColor: '#fff', borderWidth: 1 } }
         }]
       });
@@ -638,9 +656,9 @@ document.addEventListener('alpine:init', () => {
         legend: { data: ['Platform A', 'Platform B'] },
         radar: {
           indicator: RADAR_INDICATORS, shape: 'polygon',
-          axisName: { color: '#a1a1aa' },
+          axisName: { color: this.tc.textMuted },
           splitArea: { areaStyle: { color: ['transparent'] } },
-          splitLine: { lineStyle: { color: '#3f3f46' } }
+          splitLine: { lineStyle: { color: this.tc.border } }
         },
         series: [{ type: 'radar', data: RADAR_DATA, areaStyle: { opacity: 0.15 } }]
       });
@@ -675,12 +693,12 @@ document.addEventListener('alpine:init', () => {
             center: ['50%', '55%'], radius: '85%',
             startAngle: 210, endAngle: -30,
             axisLine: { lineStyle: { width: 12, color: bands } },
-            pointer: { width: 4, length: '55%', itemStyle: { color: '#d4d4d8' } },
-            anchor: { show: true, size: 8, itemStyle: { color: '#d4d4d8' } },
+            pointer: { width: 4, length: '55%', itemStyle: { color: this.tc.text } },
+            anchor: { show: true, size: 8, itemStyle: { color: this.tc.text } },
             axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
             detail: {
               formatter: '{value}%', fontSize: 22, fontWeight: 'bold',
-              color: '#f4f4f5', offsetCenter: [0, '70%']
+              color: this.tc.textStrong, offsetCenter: [0, '70%']
             },
             title: { show: false }
           }]
@@ -748,7 +766,7 @@ document.addEventListener('alpine:init', () => {
             data: WATERFALL_VALUES.map((v, i) => ({
               value: Math.abs(v),
               itemStyle: {
-                color: (i === 2 || i === 5) ? '#3b82f6'
+                color: WATERFALL_SUBTOTALS.has(i) ? '#3b82f6'
                   : v >= 0 ? '#10b981' : '#ef4444'
               }
             })),
@@ -774,17 +792,17 @@ document.addEventListener('alpine:init', () => {
         visualMap: {
           min: 0, max: 15, calculable: true, show: true,
           orient: 'horizontal', left: 'center', bottom: 0,
-          inRange: { color: ['#27272a', '#3b82f6', '#10b981'] },
-          textStyle: { color: '#a1a1aa' }
+          inRange: { color: [this.tc.heatLow, '#3b82f6', '#10b981'] },
+          textStyle: { color: this.tc.textMuted }
         },
         calendar: {
           range: '2024', top: 30, left: 40, right: 20,
           cellSize: ['auto', 14],
-          itemStyle: { borderWidth: 2, borderColor: '#18181b' },
-          yearLabel: { color: '#a1a1aa' },
-          monthLabel: { color: '#a1a1aa' },
-          dayLabel: { color: '#71717a', firstDay: 1 },
-          splitLine: { lineStyle: { color: '#3f3f46' } }
+          itemStyle: { borderWidth: 2, borderColor: this.tc.bgDeep },
+          yearLabel: { color: this.tc.textMuted },
+          monthLabel: { color: this.tc.textMuted },
+          dayLabel: { color: this.tc.textFaint, firstDay: 1 },
+          splitLine: { lineStyle: { color: this.tc.border } }
         },
         series: [{
           type: 'heatmap',
