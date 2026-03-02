@@ -684,3 +684,223 @@ toggleColorBlind() {
 ```
 
 The deuteranopia-safe palette avoids the red-green pair. All charts update immediately via `setOption` merge.
+
+## Sticky table header
+
+Keep column headers visible while scrolling long tables. Pure CSS.
+
+```html
+<div class="overflow-auto max-h-[32rem]">
+  <table class="w-full text-sm text-left">
+    <thead class="sticky top-0 z-10 bg-zinc-900">
+      <tr class="border-b border-zinc-700 text-zinc-400">
+        <th class="px-4 py-3 font-medium">Name</th>
+        <th class="px-4 py-3 font-medium">Status</th>
+        <th class="px-4 py-3 font-medium text-right">Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <template x-for="row in sorted" :key="row.id">
+        <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50">
+          <td class="px-4 py-3 text-zinc-300" x-text="row.name"></td>
+          <td class="px-4 py-3 text-zinc-300" x-text="row.status"></td>
+          <td class="px-4 py-3 text-zinc-300 text-right" x-text="row.value"></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</div>
+```
+
+The outer `div` sets `overflow-auto` with a max height. The `thead` uses `sticky top-0 z-10` with a solid background matching the page. Match the background to the parent: `bg-zinc-900` for page-level tables, `bg-zinc-800` for tables inside cards.
+
+## Detail panel / drawer
+
+Side panel that slides in from the right when a table row is clicked.
+
+```html
+<!-- Overlay -->
+<div x-show="drawerOpen" class="fixed inset-0 z-40" x-transition.opacity>
+  <div class="absolute inset-0 bg-black/50" @click="drawerOpen = false"></div>
+</div>
+
+<!-- Panel -->
+<div :class="drawerOpen ? 'translate-x-0' : 'translate-x-full'"
+     class="fixed top-0 right-0 z-50 h-full w-full max-w-md bg-zinc-800 border-l border-zinc-700
+            shadow-xl transform transition-transform duration-200 overflow-y-auto">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-bold" x-text="selectedItem?.name"></h2>
+      <button @click="drawerOpen = false" class="text-zinc-400 hover:text-zinc-200 p-1"
+              aria-label="Close detail panel">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <template x-if="selectedItem">
+      <div class="space-y-4">
+        <div>
+          <p class="text-xs text-zinc-400 mb-1">Status</p>
+          <p class="text-sm text-zinc-300" x-text="selectedItem.status"></p>
+        </div>
+        <!-- more detail fields -->
+      </div>
+    </template>
+  </div>
+</div>
+```
+
+Alpine data:
+
+```js
+drawerOpen: false,
+selectedItem: null,
+```
+
+Open the drawer from a table row click: `@click="selectedItem = row; drawerOpen = true"`. Close with Escape: add `drawerOpen = false` to the `@keydown.escape.window` handler.
+
+## Multi-select filter chips
+
+Filter chips that allow toggling multiple values simultaneously.
+
+```html
+<div class="flex gap-2 flex-wrap">
+  <button @click="activeFilters = []"
+          :class="activeFilters.length === 0
+            ? 'bg-blue-600 text-white'
+            : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:text-zinc-200'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+    All
+  </button>
+  <template x-for="opt in filterOptions" :key="opt">
+    <button @click="toggleFilter(opt)"
+            :class="activeFilters.includes(opt)
+              ? 'bg-blue-600 text-white'
+              : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:text-zinc-200'"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            x-text="opt"></button>
+  </template>
+</div>
+```
+
+Alpine data:
+
+```js
+activeFilters: [],
+filterOptions: ['Active', 'Idle', 'Warning', 'Error'],
+
+toggleFilter(opt) {
+  const idx = this.activeFilters.indexOf(opt);
+  if (idx === -1) {
+    this.activeFilters.push(opt);
+  } else {
+    this.activeFilters.splice(idx, 1);
+  }
+},
+
+get filtered() {
+  return this.items.filter(item => {
+    const matchSearch = item.name.toLowerCase().includes(this.search.toLowerCase());
+    const matchFilter = this.activeFilters.length === 0
+      || this.activeFilters.includes(item.status);
+    return matchSearch && matchFilter;
+  });
+}
+```
+
+Empty `activeFilters` means show everything. "All" button clears the array.
+
+## Pagination
+
+Page controls for large tables. Slices the sorted array by page.
+
+```html
+<div class="flex items-center justify-between mt-4 text-sm">
+  <span class="text-zinc-400"
+        x-text="'Showing ' + (pageStart + 1) + '-' + Math.min(pageStart + pageSize, sorted.length) + ' of ' + sorted.length"></span>
+  <div class="flex items-center gap-1">
+    <button @click="page = Math.max(1, page - 1)"
+            :disabled="page === 1"
+            :class="page === 1 ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-200'"
+            class="px-3 py-1.5 rounded border border-zinc-700 text-xs">Prev</button>
+    <template x-for="p in totalPages" :key="p">
+      <button @click="page = p"
+              :class="page === p ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-zinc-200'"
+              class="px-3 py-1.5 rounded border border-zinc-700 text-xs min-w-[2rem]"
+              x-text="p"></button>
+    </template>
+    <button @click="page = Math.min(totalPages, page + 1)"
+            :disabled="page === totalPages"
+            :class="page === totalPages ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-200'"
+            class="px-3 py-1.5 rounded border border-zinc-700 text-xs">Next</button>
+  </div>
+</div>
+```
+
+Alpine data:
+
+```js
+page: 1,
+pageSize: 10,
+
+get pageStart() { return (this.page - 1) * this.pageSize; },
+get totalPages() { return Math.max(1, Math.ceil(this.sorted.length / this.pageSize)); },
+get paged() { return this.sorted.slice(this.pageStart, this.pageStart + this.pageSize); },
+```
+
+Reset `page` to 1 when search or filters change: `this.$watch('search', () => { this.page = 1; })`.
+
+## Toast notifications
+
+Transient feedback messages that auto-dismiss. Fixed to bottom-right.
+
+```html
+<div class="fixed bottom-4 right-4 z-50 space-y-2 no-print">
+  <template x-for="toast in toasts" :key="toast.id">
+    <div x-show="toast.visible"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         :class="{
+           'bg-emerald-900/80 border-emerald-700 text-emerald-200': toast.type === 'success',
+           'bg-red-900/80 border-red-700 text-red-200': toast.type === 'error',
+           'bg-zinc-800/90 border-zinc-600 text-zinc-200': toast.type === 'info'
+         }"
+         class="flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm text-sm max-w-sm">
+      <span x-text="toast.message"></span>
+      <button @click="dismissToast(toast.id)" class="text-current opacity-60 hover:opacity-100 ml-auto">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  </template>
+</div>
+```
+
+Alpine data:
+
+```js
+toasts: [],
+_toastId: 0,
+
+showToast(message, type = 'info', duration = 3000) {
+  const id = ++this._toastId;
+  this.toasts.push({ id, message, type, visible: true });
+  setTimeout(() => this.dismissToast(id), duration);
+},
+
+dismissToast(id) {
+  const toast = this.toasts.find(t => t.id === id);
+  if (toast) toast.visible = false;
+  setTimeout(() => {
+    this.toasts = this.toasts.filter(t => t.id !== id);
+  }, 200);
+}
+```
+
+Usage: `this.showToast('CSV exported', 'success')`. Three types: `success`, `error`, `info`. Default 3-second auto-dismiss.

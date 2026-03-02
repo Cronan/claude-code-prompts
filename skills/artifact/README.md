@@ -71,6 +71,11 @@ Beyond charting, artifacts support production-grade dashboard patterns:
 - **Print stylesheet** -- white background, hidden controls, page-break-safe cards
 - **Synced crosshair** -- linked tooltips across charts via `echarts.connect()`
 - **Sortable tables** -- keyboard-accessible headers with ARIA sort attributes
+- **Sticky table headers** -- pinned column headers while scrolling long tables
+- **Detail panel / drawer** -- slide-in side panel for item detail on row click
+- **Multi-select filtering** -- toggle multiple filter values simultaneously
+- **Pagination** -- page controls for large tables with configurable page size
+- **Toast notifications** -- transient auto-dismissing feedback messages after actions
 - **View-as-table toggle** -- swap between chart and data table for accessibility
 - **Responsive legend** -- ECharts `media` option for automatic legend repositioning
 - **Inline JSON data blocks** -- separate large datasets from chart logic
