@@ -620,7 +620,12 @@ document.addEventListener('alpine:init', () => {
           axisLabel: { formatter: (v) => '$' + v + 'K' } },
         series: [{
           name: 'Revenue', type: 'line', data: REVENUE,
-          areaStyle: { opacity: 0.15 },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(16, 185, 129, 0.35)' },
+              { offset: 1, color: 'rgba(16, 185, 129, 0.02)' }
+            ])
+          },
           markLine: {
             data: [{ yAxis: 150, name: 'Target' }],
             lineStyle: { type: 'dashed', color: '#f59e0b' },
@@ -1164,7 +1169,7 @@ document.addEventListener('alpine:init', () => {
           <div class="flex items-center justify-between mb-4">
             <div>
               <h2 class="text-sm font-medium">Line Chart</h2>
-              <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Trends over time. markLine shows a $150K target threshold.</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Trends over time. Gradient area fill via LinearGradient. markLine shows a $150K target.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'line' ? null : 'line'"
                     class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
