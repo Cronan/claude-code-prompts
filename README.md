@@ -12,10 +12,7 @@ cp -r skills/deep-init/ your-repo/.claude/skills/deep-init/
 |---|---|
 | [`/deep-init`](skills/deep-init/) | Mine repo history (PRs, tickets, wiki) to produce a CLAUDE.md grounded in what the team actually learned, not just what the code looks like |
 | [`/stet`](skills/stet/) | Strip the 27 patterns that make AI-assisted writing monotonous, vague, and generic -- an editorial tool, not a humanizer |
-
-## Writing
-
-For background on the pattern taxonomy behind `/stet` and why editorial correction differs from detection evasion, see [The 27 ways AI overwrites your voice](docs/ai-writing-patterns.md).
+| [`/artifact`](skills/artifact/) | Build single-file HTML dashboards, trackers, and visualizations with Alpine.js, ECharts, and Tailwind -- opens directly in any browser |
 
 ## Contributing
 

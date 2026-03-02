@@ -1,0 +1,72 @@
+# /artifact
+
+Build interactive single-file HTML artifacts: dashboards, trackers, data visualizations, planners, calculators, or any self-contained UI.
+
+## How it works
+
+The skill produces a single `.html` file that opens directly in any browser. No Node.js, npm, or build step required.
+
+The stack:
+
+- **Alpine.js** -- reactive UI state (tabs, search, filters, sorting) in ~15 KB
+- **ECharts** -- interactive charts with zoom, brush, linked tooltips, and a toolbox
+- **Tailwind CSS** -- dark theme styling, responsive layout
+
+All three load from CDN. Data is hardcoded in the file and structured for easy editing.
+
+## Install
+
+```
+cp -r skills/artifact/ your-repo/.claude/skills/artifact/
+```
+
+## Usage
+
+```
+/artifact
+```
+
+Describe what you want and Claude Code produces an artifact file. The skill also auto-triggers when you ask for dashboards, trackers, charts, tools, widgets, or similar interactive UI.
+
+## Platform targets
+
+Artifacts render on:
+
+- Chromium on Raspberry Pi OS (ARM, 1024x600)
+- Firefox and Chrome on desktop Linux
+- Safari on macOS
+- Chrome/Edge on Windows
+
+Performance guidance covers DOM limits, animation constraints, and dataset sizes for low-powered hardware. ECharts supports SVG rendering for memory-constrained devices.
+
+## Charts
+
+ECharts provides 13 chart types with complete configuration examples:
+
+- **Standard**: line, bar, area, pie, radar, scatter
+- **Financial**: candlestick (with volume overlay), gauge, funnel
+- **Analytical**: heatmap, treemap, boxplot, sankey
+
+Interactive features include DataZoom (slider and scroll-wheel zoom), linked tooltips, toolbox (save image, data view, reset), legend toggle, and brush selection. Charts can be combined in a single instance (line + bar, candlestick + volume bars, stacked area).
+
+Charts use a custom `zinc-dark` theme that matches the Tailwind dark theme tokens.
+
+Full specification: [`SKILL.md`](SKILL.md).
+
+## Constraints
+
+- Single file. One page per artifact.
+- No external API calls. Data is hardcoded, structured for easy editing.
+- No `localStorage` or `sessionStorage`.
+- Dark theme by default (`bg-zinc-900` page, `bg-zinc-800` cards, `border-zinc-700`).
+- No `<form>` tags. Use `@click` and `x-model` directly.
+- No hover-only interactions. Touch devices must work.
+
+## Reference files
+
+| File | Content |
+|---|---|
+| [`references/patterns.md`](references/patterns.md) | Component skeletons: sidebar, cards, tables, tabs, search, charts, badges, progress bars |
+| [`references/tailwind-guide.md`](references/tailwind-guide.md) | Dark theme tokens, ECharts theme config, spacing scale, typography |
+| [`examples/example-dashboard.html`](examples/example-dashboard.html) | Complete example: system monitor with linked charts, sortable table, search, filtering, tabs |
+| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | All 13 chart types across 5 tabs: gauge, line+bar combo, pie, treemap, funnel, sankey, candlestick+volume, scatter/bubble, heatmap, radar, boxplot |

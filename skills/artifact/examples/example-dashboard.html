@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Monitor</title>
+  <style>[x-cloak] { display: none !important; }</style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: "class" }</script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+</head>
+<body class="bg-zinc-900 text-white min-h-screen">
+
+<!-- bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400
+     bg-amber-900/30 text-amber-400 bg-zinc-700 text-zinc-300 -->
+
+<script>
+document.addEventListener('alpine:init', () => {
+
+  // ── ECharts theme ───────────────────────────────────────
+  echarts.registerTheme('zinc-dark', {
+    darkMode: true,
+    backgroundColor: 'transparent',
+    color: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4'],
+    textStyle: { color: '#d4d4d8' },
+    title: { textStyle: { color: '#f4f4f5' }, subtextStyle: { color: '#a1a1aa' } },
+    legend: { textStyle: { color: '#a1a1aa' } },
+    tooltip: {
+      backgroundColor: '#27272a',
+      borderColor: '#3f3f46',
+      textStyle: { color: '#d4d4d8' }
+    },
+    categoryAxis: {
+      axisLine: { lineStyle: { color: '#3f3f46' } },
+      axisTick: { lineStyle: { color: '#3f3f46' } },
+      axisLabel: { color: '#a1a1aa' },
+      splitLine: { lineStyle: { color: '#27272a' } }
+    },
+    valueAxis: {
+      axisLine: { lineStyle: { color: '#3f3f46' } },
+      axisTick: { lineStyle: { color: '#3f3f46' } },
+      axisLabel: { color: '#a1a1aa' },
+      splitLine: { lineStyle: { color: '#27272a' } }
+    }
+  });
+
+  // ── Data ────────────────────────────────────────────────
+  // Edit these arrays to change what the dashboard displays.
+
+  const CPU_HISTORY = [
+    { time: '00:00', value: 23 }, { time: '00:05', value: 28 },
+    { time: '00:10', value: 45 }, { time: '00:15', value: 52 },
+    { time: '00:20', value: 38 }, { time: '00:25', value: 41 },
+    { time: '00:30', value: 67 }, { time: '00:35', value: 72 },
+    { time: '00:40', value: 58 }, { time: '00:45', value: 43 },
+    { time: '00:50', value: 39 }, { time: '00:55', value: 35 },
+  ];
+
+  const MEMORY_HISTORY = [
+    { time: '00:00', value: 61 }, { time: '00:05', value: 62 },
+    { time: '00:10', value: 64 }, { time: '00:15', value: 68 },
+    { time: '00:20', value: 65 }, { time: '00:25', value: 63 },
+    { time: '00:30', value: 71 }, { time: '00:35', value: 74 },
+    { time: '00:40', value: 70 }, { time: '00:45', value: 67 },
+    { time: '00:50', value: 65 }, { time: '00:55', value: 63 },
+  ];
+
+  const SERVICES = [
+    { id: 1, name: 'API Gateway',   status: 'active',  cpu: 12, memory: 256, uptime: '14d 3h' },
+    { id: 2, name: 'Auth Service',  status: 'active',  cpu: 8,  memory: 128, uptime: '14d 3h' },
+    { id: 3, name: 'Database',      status: 'warning', cpu: 45, memory: 1024,uptime: '7d 12h' },
+    { id: 4, name: 'Cache Layer',   status: 'active',  cpu: 5,  memory: 512, uptime: '14d 3h' },
+    { id: 5, name: 'Queue Worker',  status: 'active',  cpu: 15, memory: 384, uptime: '3d 8h'  },
+    { id: 6, name: 'File Storage',  status: 'error',   cpu: 0,  memory: 0,   uptime: '0h'     },
+    { id: 7, name: 'Search Index',  status: 'active',  cpu: 22, memory: 768, uptime: '10d 1h' },
+    { id: 8, name: 'Mail Sender',   status: 'active',  cpu: 3,  memory: 96,  uptime: '14d 3h' },
+    { id: 9, name: 'Scheduler',     status: 'active',  cpu: 7,  memory: 192, uptime: '14d 3h' },
+    { id: 10,name: 'Log Collector', status: 'warning', cpu: 38, memory: 640, uptime: '2d 5h'  },
+  ];
+
+  const DISK_USAGE = [
+    { mount: '/',     used: 42, total: 100, label: 'Root' },
+    { mount: '/data', used: 187,total: 250, label: 'Data' },
+    { mount: '/logs', used: 8,  total: 50,  label: 'Logs' },
+  ];
+
+  // ── Alpine component ───────────────────────────────────
+  Alpine.data('dashboard', () => ({
+    tab: 'Overview',
+    tabs: ['Overview', 'Services', 'Storage'],
+    search: '',
+    statusFilter: 'All',
+    filterOptions: ['All', 'Active', 'Warning', 'Error'],
+    sortKey: 'name',
+    sortDir: 'asc',
+    services: SERVICES,
+    disk: DISK_USAGE,
+    charts: {},
+
+    get stats() {
+      const active = this.services.filter(s => s.status === 'active').length;
+      const total = this.services.length;
+      const avgCpu = Math.round(this.services.reduce((sum, s) => sum + s.cpu, 0) / total);
+      const totalMem = this.services.reduce((sum, s) => sum + s.memory, 0);
+      return [
+        { label: 'Services', value: total, change: null, trend: null },
+        { label: 'Active', value: active, change: ((active / total) * 100).toFixed(0) + '%', trend: 'up' },
+        { label: 'Avg CPU', value: avgCpu + '%', change: null, trend: null },
+        { label: 'Total Memory', value: (totalMem / 1024).toFixed(1) + ' GB', change: null, trend: null },
+      ];
+    },
+
+    get filtered() {
+      return this.services.filter(s => {
+        const matchSearch = s.name.toLowerCase().includes(this.search.toLowerCase());
+        const matchStatus = this.statusFilter === 'All' || s.status === this.statusFilter.toLowerCase();
+        return matchSearch && matchStatus;
+      });
+    },
+
+    get sorted() {
+      return [...this.filtered].sort((a, b) => {
+        const av = a[this.sortKey], bv = b[this.sortKey];
+        const cmp = av > bv ? 1 : av < bv ? -1 : 0;
+        return this.sortDir === 'asc' ? cmp : -cmp;
+      });
+    },
+
+    toggleSort(key) {
+      if (this.sortKey === key) {
+        this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.sortKey = key;
+        this.sortDir = 'asc';
+      }
+    },
+
+    init() {
+      // CPU chart
+      this.charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
+      this.charts.cpu.setOption({
+        animation: false,
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        legend: { data: ['CPU', 'Memory'] },
+        toolbox: {
+          feature: {
+            saveAsImage: { pixelRatio: 2 },
+            dataZoom: { yAxisIndex: 'none' },
+            restore: {}
+          }
+        },
+        dataZoom: [
+          { type: 'inside' }
+        ],
+        xAxis: {
+          type: 'category',
+          boundaryGap: false,
+          data: CPU_HISTORY.map(d => d.time)
+        },
+        yAxis: { type: 'value', max: 100, name: '%' },
+        series: [
+          {
+            name: 'CPU',
+            type: 'line',
+            data: CPU_HISTORY.map(d => d.value),
+            areaStyle: { opacity: 0.2 },
+            smooth: true
+          },
+          {
+            name: 'Memory',
+            type: 'line',
+            data: MEMORY_HISTORY.map(d => d.value),
+            areaStyle: { opacity: 0.2 },
+            smooth: true
+          }
+        ]
+      });
+
+      // Service CPU bar chart
+      this.charts.serviceCpu = echarts.init(this.$refs.serviceCpuChart, 'zinc-dark');
+      this.updateServiceChart();
+
+      // Resize handler
+      window.addEventListener('resize', () => {
+        Object.values(this.charts).forEach(c => c.resize());
+      });
+
+      // Update service chart when filters change
+      this.$watch('filtered', () => this.updateServiceChart());
+
+      // Resize charts when tab changes (hidden charts have zero dimensions)
+      this.$watch('tab', () => {
+        this.$nextTick(() => {
+          Object.values(this.charts).forEach(c => c.resize());
+        });
+      });
+    },
+
+    updateServiceChart() {
+      this.charts.serviceCpu.setOption({
+        animation: false,
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        xAxis: {
+          type: 'category',
+          data: this.filtered.map(s => s.name),
+          axisLabel: { rotate: 30, fontSize: 11 }
+        },
+        yAxis: { type: 'value', name: 'CPU %' },
+        series: [{
+          type: 'bar',
+          data: this.filtered.map(s => ({
+            value: s.cpu,
+            itemStyle: {
+              color: s.status === 'error' ? '#ef4444'
+                   : s.status === 'warning' ? '#f59e0b'
+                   : '#10b981'
+            }
+          })),
+          barWidth: '50%'
+        }]
+      }, { replaceMerge: ['series'] });
+    }
+  }));
+
+});
+</script>
+
+<div x-cloak x-data="dashboard">
+  <main class="max-w-5xl mx-auto p-3 md:p-6">
+
+    <!-- Header -->
+    <h1 class="text-xl md:text-2xl font-bold mb-6">System Monitor</h1>
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <template x-for="stat in stats" :key="stat.label">
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <p class="text-sm text-zinc-400" x-text="stat.label"></p>
+          <p class="text-2xl font-bold mt-1" x-text="stat.value"></p>
+          <p x-show="stat.change"
+             :class="stat.trend === 'up' ? 'text-emerald-400' : 'text-red-400'"
+             class="text-sm font-medium mt-1"
+             x-text="stat.change"></p>
+        </div>
+      </template>
+    </div>
+
+    <!-- Tabs -->
+    <div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6">
+      <template x-for="t in tabs" :key="t">
+        <button role="tab"
+                :aria-selected="tab === t"
+                :aria-controls="'panel-' + t.toLowerCase()"
+                @click="tab = t"
+                :class="tab === t
+                  ? 'bg-zinc-700 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'"
+                class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                x-text="t"></button>
+      </template>
+    </div>
+
+    <!-- Overview tab -->
+    <div role="tabpanel" id="panel-overview" x-show="tab === 'Overview'">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- CPU / Memory chart -->
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-4">CPU and Memory (last hour)</h2>
+          <div x-ref="cpuChart" class="h-64 w-full"></div>
+        </div>
+        <!-- Service CPU chart -->
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-4">CPU by Service</h2>
+          <div x-ref="serviceCpuChart" class="h-64 w-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Services tab -->
+    <div role="tabpanel" id="panel-services" x-show="tab === 'Services'">
+      <!-- Controls -->
+      <div class="flex flex-col md:flex-row gap-3 mb-4">
+        <div class="relative flex-1">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
+               fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input type="text" x-model="search" placeholder="Search services..."
+                 aria-label="Search services"
+                 class="w-full pl-10 pr-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500">
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <template x-for="opt in filterOptions" :key="opt">
+            <button @click="statusFilter = opt"
+                    :class="statusFilter === opt
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:text-zinc-200'"
+                    class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                    x-text="opt"></button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Results count -->
+      <p class="text-xs text-zinc-400 mb-3" aria-live="polite"
+         x-text="filtered.length + ' of ' + services.length + ' services'"></p>
+
+      <!-- Table -->
+      <div class="bg-zinc-800 rounded-xl border border-zinc-700 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="border-b border-zinc-700 text-zinc-400">
+                <th @click="toggleSort('name')" @keydown.enter="toggleSort('name')"
+                    tabindex="0"
+                    :aria-sort="sortKey === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
+                  Name
+                  <span x-show="sortKey === 'name'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
+                </th>
+                <th @click="toggleSort('status')" @keydown.enter="toggleSort('status')"
+                    tabindex="0"
+                    :aria-sort="sortKey === 'status' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
+                  Status
+                  <span x-show="sortKey === 'status'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
+                </th>
+                <th @click="toggleSort('cpu')" @keydown.enter="toggleSort('cpu')"
+                    tabindex="0"
+                    :aria-sort="sortKey === 'cpu' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
+                  CPU %
+                  <span x-show="sortKey === 'cpu'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
+                </th>
+                <th @click="toggleSort('memory')" @keydown.enter="toggleSort('memory')"
+                    tabindex="0"
+                    :aria-sort="sortKey === 'memory' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
+                  Memory
+                  <span x-show="sortKey === 'memory'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
+                </th>
+                <th class="px-4 py-3 font-medium">Uptime</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="row in sorted" :key="row.id">
+                <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50">
+                  <td class="px-4 py-3 text-white font-medium" x-text="row.name"></td>
+                  <td class="px-4 py-3">
+                    <span :class="{
+                            'bg-emerald-900/30 text-emerald-400': row.status === 'active',
+                            'bg-amber-900/30 text-amber-400': row.status === 'warning',
+                            'bg-red-900/30 text-red-400': row.status === 'error'
+                          }"
+                          class="px-2 py-0.5 rounded text-xs font-medium"
+                          x-text="row.status"></span>
+                  </td>
+                  <td class="px-4 py-3 text-zinc-300" x-text="row.cpu + '%'"></td>
+                  <td class="px-4 py-3 text-zinc-300" x-text="row.memory + ' MB'"></td>
+                  <td class="px-4 py-3 text-zinc-300" x-text="row.uptime"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty state -->
+        <div x-show="filtered.length === 0"
+             class="flex flex-col items-center justify-center py-12 text-zinc-400">
+          <p class="text-sm">No services match your search</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Storage tab -->
+    <div role="tabpanel" id="panel-storage" x-show="tab === 'Storage'">
+      <div class="space-y-4">
+        <template x-for="d in disk" :key="d.mount">
+          <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <p class="text-sm font-medium" x-text="d.label"></p>
+                <p class="text-xs text-zinc-400" x-text="d.mount"></p>
+              </div>
+              <p class="text-sm text-zinc-300"
+                 x-text="d.used + ' / ' + d.total + ' GB'"></p>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex-1 bg-zinc-700 rounded-full h-2 overflow-hidden"
+                   role="progressbar"
+                   :aria-valuenow="Math.round((d.used / d.total) * 100)"
+                   aria-valuemin="0" aria-valuemax="100"
+                   :aria-label="d.label + ' disk usage'">
+                <div :class="(d.used / d.total) > 0.85 ? 'bg-red-500'
+                           : (d.used / d.total) > 0.7 ? 'bg-amber-500'
+                           : 'bg-blue-500'"
+                     class="h-full rounded-full transition-all duration-300"
+                     :style="'width: ' + Math.round((d.used / d.total) * 100) + '%'"></div>
+              </div>
+              <span class="text-xs text-zinc-400 w-10 text-right"
+                    x-text="Math.round((d.used / d.total) * 100) + '%'"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+</body>
+</html>

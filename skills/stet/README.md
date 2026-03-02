@@ -64,9 +64,9 @@ Organized by how much they degrade the writing -- from structural problems that 
 
 Each pattern includes diagnostics, before/after examples, and fix guidance. Full specification: [`SKILL.md`](SKILL.md).
 
-For the research behind the pattern list and why this approach differs from humanizer tools, see the [companion article](../../docs/ai-writing-patterns.md).
+**Important:** When stet adds specific details (pattern 26) or temporal anchoring (pattern 27), it uses details already present in the text or clearly plausible from context. It does not invent statistics, dates, or anecdotes. Where the text lacks specifics, stet flags the gap for you to fill.
 
-## Usage
+## Install
 
 Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Copy the skill into your repo:
 
