@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chart Showcase</title>
+  <style>[x-cloak] { display: none !important; }</style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: "class" }</script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+</head>
+<body class="bg-zinc-900 text-white min-h-screen">
+
+<script>
+document.addEventListener('alpine:init', () => {
+
+  // ── ECharts theme ───────────────────────────────────────
+  echarts.registerTheme('zinc-dark', {
+    darkMode: true,
+    backgroundColor: 'transparent',
+    color: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4'],
+    textStyle: { color: '#d4d4d8' },
+    title: { textStyle: { color: '#f4f4f5' }, subtextStyle: { color: '#a1a1aa' } },
+    legend: { textStyle: { color: '#a1a1aa' } },
+    tooltip: {
+      backgroundColor: '#27272a',
+      borderColor: '#3f3f46',
+      textStyle: { color: '#d4d4d8' }
+    },
+    categoryAxis: {
+      axisLine: { lineStyle: { color: '#3f3f46' } },
+      axisTick: { lineStyle: { color: '#3f3f46' } },
+      axisLabel: { color: '#a1a1aa' },
+      splitLine: { lineStyle: { color: '#27272a' } }
+    },
+    valueAxis: {
+      axisLine: { lineStyle: { color: '#3f3f46' } },
+      axisTick: { lineStyle: { color: '#3f3f46' } },
+      axisLabel: { color: '#a1a1aa' },
+      splitLine: { lineStyle: { color: '#27272a' } }
+    }
+  });
+
+  // ── Formatters ──────────────────────────────────────────
+  const fmt = {
+    currency: (v, d = 0) => '$' + Math.abs(v).toLocaleString('en-US', {
+      minimumFractionDigits: d, maximumFractionDigits: d
+    }),
+    pct: (v, d = 1) => v.toFixed(d) + '%',
+    num: (v) => v.toLocaleString('en-US'),
+    compact: (v) => {
+      if (Math.abs(v) >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+      if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+      if (Math.abs(v) >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+      return '$' + v.toFixed(0);
+    }
+  };
+
+  // ── Data ────────────────────────────────────────────────
+  // Edit these arrays to change what the charts display.
+
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const REVENUE = [82, 95, 110, 98, 125, 142, 138, 155, 167, 178, 190, 205];
+  const GROWTH = [null, 15.9, 15.8, -10.9, 27.6, 13.6, -2.8, 12.3, 7.7, 6.6, 6.7, 7.9];
+
+  const CATEGORIES = [
+    { name: 'SaaS', value: 840 },
+    { name: 'Services', value: 420 },
+    { name: 'Licenses', value: 310 },
+    { name: 'Hardware', value: 180 },
+    { name: 'Other', value: 95 }
+  ];
+
+  const BUDGET = [
+    { name: 'Engineering', value: 2400000, children: [
+      { name: 'Backend', value: 1000000 },
+      { name: 'Frontend', value: 700000 },
+      { name: 'Infrastructure', value: 500000 },
+      { name: 'QA', value: 200000 }
+    ]},
+    { name: 'Product', value: 800000, children: [
+      { name: 'Design', value: 400000 },
+      { name: 'Research', value: 250000 },
+      { name: 'Analytics', value: 150000 }
+    ]},
+    { name: 'Sales', value: 1200000, children: [
+      { name: 'Enterprise', value: 600000 },
+      { name: 'SMB', value: 400000 },
+      { name: 'Marketing', value: 200000 }
+    ]},
+    { name: 'Operations', value: 600000, children: [
+      { name: 'HR', value: 250000 },
+      { name: 'Finance', value: 200000 },
+      { name: 'Legal', value: 150000 }
+    ]}
+  ];
+
+  const FUNNEL = [
+    { value: 12000, name: 'Visitors' },
+    { value: 5200, name: 'Leads' },
+    { value: 2800, name: 'Qualified' },
+    { value: 1200, name: 'Proposals' },
+    { value: 480, name: 'Closed' }
+  ];
+
+  const SANKEY_NODES = [
+    { name: 'Organic' }, { name: 'Paid' }, { name: 'Referral' }, { name: 'Direct' },
+    { name: 'Blog' }, { name: 'Pricing' }, { name: 'Docs' }, { name: 'Demo' },
+    { name: 'Signup' }, { name: 'Bounce' }
+  ];
+  const SANKEY_LINKS = [
+    { source: 'Organic', target: 'Blog', value: 3200 },
+    { source: 'Organic', target: 'Docs', value: 1800 },
+    { source: 'Paid', target: 'Pricing', value: 2600 },
+    { source: 'Paid', target: 'Demo', value: 1400 },
+    { source: 'Referral', target: 'Pricing', value: 900 },
+    { source: 'Referral', target: 'Blog', value: 600 },
+    { source: 'Direct', target: 'Pricing', value: 1200 },
+    { source: 'Direct', target: 'Docs', value: 800 },
+    { source: 'Blog', target: 'Signup', value: 2100 },
+    { source: 'Blog', target: 'Bounce', value: 1700 },
+    { source: 'Pricing', target: 'Signup', value: 3200 },
+    { source: 'Pricing', target: 'Bounce', value: 1500 },
+    { source: 'Docs', target: 'Signup', value: 1600 },
+    { source: 'Docs', target: 'Bounce', value: 1000 },
+    { source: 'Demo', target: 'Signup', value: 1100 },
+    { source: 'Demo', target: 'Bounce', value: 300 }
+  ];
+
+  // OHLC data: 20 trading days
+  const TRADE_DATES = [
+    'Jan 15', 'Jan 16', 'Jan 17', 'Jan 18', 'Jan 19',
+    'Jan 22', 'Jan 23', 'Jan 24', 'Jan 25', 'Jan 26',
+    'Jan 29', 'Jan 30', 'Jan 31', 'Feb 1', 'Feb 2',
+    'Feb 5', 'Feb 6', 'Feb 7', 'Feb 8', 'Feb 9'
+  ];
+  const OHLC = [
+    [142.5, 145.2, 141.8, 146.0], [145.2, 143.8, 142.5, 146.1],
+    [143.8, 147.5, 143.0, 148.2], [147.5, 149.1, 146.8, 150.0],
+    [149.1, 148.3, 147.0, 150.5], [148.3, 151.2, 147.8, 152.0],
+    [151.2, 150.5, 149.5, 152.8], [150.5, 153.8, 150.0, 154.5],
+    [153.8, 152.1, 151.0, 154.8], [152.1, 155.0, 151.5, 155.8],
+    [155.0, 153.5, 152.8, 156.0], [153.5, 156.2, 153.0, 157.0],
+    [156.2, 154.8, 153.5, 157.2], [154.8, 158.0, 154.0, 158.5],
+    [158.0, 157.2, 156.0, 159.0], [157.2, 160.5, 156.8, 161.0],
+    [160.5, 159.0, 158.0, 161.5], [159.0, 162.3, 158.5, 163.0],
+    [162.3, 161.5, 160.0, 163.5], [161.5, 164.0, 161.0, 165.2]
+  ];
+  const VOLUME = [
+    3200, 2800, 4100, 5200, 3800, 4500, 3100, 5800, 4200, 6100,
+    3500, 4800, 3200, 5500, 4100, 6800, 3900, 5200, 4600, 7200
+  ].map(v => v * 1000);
+
+  // Scatter: [days to close, deal size, probability]
+  const DEALS = [
+    [12, 15000, 0.9], [25, 42000, 0.7], [8, 8500, 0.95],
+    [45, 120000, 0.5], [18, 28000, 0.8], [35, 85000, 0.6],
+    [5, 5200, 0.98], [60, 250000, 0.3], [22, 35000, 0.75],
+    [30, 68000, 0.65], [15, 22000, 0.85], [40, 95000, 0.55],
+    [10, 12000, 0.92], [55, 180000, 0.4], [20, 30000, 0.78],
+    [28, 52000, 0.7], [7, 6800, 0.96], [48, 140000, 0.45],
+    [32, 72000, 0.62], [14, 18000, 0.88]
+  ];
+
+  // Heatmap: activity by hour x day (deterministic)
+  const HOURS = ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm'];
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const ACTIVITY = [];
+  const _jitter = [7, 3, 8, 2, 9, 4, 6, 1, 5];
+  for (let h = 0; h < HOURS.length; h++) {
+    for (let d = 0; d < DAYS.length; d++) {
+      const base = d < 5 ? 55 : 12;
+      const peak = (h >= 2 && h <= 4) ? 25 : 0;
+      ACTIVITY.push([h, d, base + peak + _jitter[(h * 7 + d) % 9] * 3]);
+    }
+  }
+
+  const RADAR_INDICATORS = [
+    { name: 'Performance', max: 100 },
+    { name: 'Reliability', max: 100 },
+    { name: 'Security', max: 100 },
+    { name: 'Usability', max: 100 },
+    { name: 'Scalability', max: 100 },
+    { name: 'Cost Efficiency', max: 100 }
+  ];
+  const RADAR_DATA = [
+    { value: [92, 88, 78, 65, 90, 72], name: 'Platform A' },
+    { value: [75, 82, 91, 88, 60, 85], name: 'Platform B' }
+  ];
+
+  const BOXPLOT_SERVICES = ['API', 'Web App', 'Mobile', 'Batch Jobs', 'Streaming'];
+  const BOXPLOT_DATA = [
+    [8, 15, 22, 35, 120],
+    [12, 25, 38, 55, 180],
+    [20, 45, 65, 95, 250],
+    [50, 120, 180, 300, 800],
+    [5, 10, 15, 25, 60]
+  ];
+
+  // ── Alpine component ───────────────────────────────────
+  Alpine.data('showcase', () => ({
+    tab: 'Overview',
+    tabs: ['Overview', 'Breakdown', 'Pipeline', 'Market', 'Analysis'],
+    charts: {},
+    initialized: {},
+
+    init() {
+      this.initOverview();
+
+      window.addEventListener('resize', () => {
+        Object.values(this.charts).forEach(c => c.resize());
+      });
+
+      this.$watch('tab', () => {
+        this.$nextTick(() => {
+          if (this.tab === 'Breakdown' && !this.initialized.breakdown) this.initBreakdown();
+          if (this.tab === 'Pipeline' && !this.initialized.pipeline) this.initPipeline();
+          if (this.tab === 'Market' && !this.initialized.market) this.initMarket();
+          if (this.tab === 'Analysis' && !this.initialized.analysis) this.initAnalysis();
+          Object.values(this.charts).forEach(c => c.resize());
+        });
+      });
+    },
+
+    initOverview() {
+      this.initialized.overview = true;
+
+      // ── Gauge: Revenue target ──
+      this.charts.gaugeRevenue = echarts.init(this.$refs.gaugeRevenue, 'zinc-dark');
+      this.charts.gaugeRevenue.setOption({
+        series: [{
+          type: 'gauge',
+          data: [{ value: 78, name: 'Revenue' }],
+          min: 0, max: 100,
+          radius: '90%',
+          axisLine: {
+            lineStyle: {
+              width: 10,
+              color: [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']]
+            }
+          },
+          pointer: { width: 4, length: '60%' },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: { show: false },
+          detail: {
+            formatter: '{value}%', fontSize: 18,
+            color: '#f4f4f5', offsetCenter: [0, '65%']
+          },
+          title: { offsetCenter: [0, '85%'], color: '#a1a1aa', fontSize: 12 }
+        }]
+      });
+
+      // ── Gauge: CSAT ──
+      this.charts.gaugeSat = echarts.init(this.$refs.gaugeSat, 'zinc-dark');
+      this.charts.gaugeSat.setOption({
+        series: [{
+          type: 'gauge',
+          data: [{ value: 92, name: 'CSAT' }],
+          min: 0, max: 100,
+          radius: '90%',
+          axisLine: {
+            lineStyle: {
+              width: 10,
+              color: [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']]
+            }
+          },
+          pointer: { width: 4, length: '60%' },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: { show: false },
+          detail: {
+            formatter: '{value}%', fontSize: 18,
+            color: '#f4f4f5', offsetCenter: [0, '65%']
+          },
+          title: { offsetCenter: [0, '85%'], color: '#a1a1aa', fontSize: 12 }
+        }]
+      });
+
+      // ── Gauge: Uptime ──
+      this.charts.gaugeUptime = echarts.init(this.$refs.gaugeUptime, 'zinc-dark');
+      this.charts.gaugeUptime.setOption({
+        series: [{
+          type: 'gauge',
+          data: [{ value: 99.7, name: 'Uptime' }],
+          min: 95, max: 100,
+          radius: '90%',
+          axisLine: {
+            lineStyle: {
+              width: 10,
+              color: [[0.4, '#ef4444'], [0.7, '#f59e0b'], [1, '#10b981']]
+            }
+          },
+          pointer: { width: 4, length: '60%' },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: { show: false },
+          detail: {
+            formatter: '{value}%', fontSize: 18,
+            color: '#f4f4f5', offsetCenter: [0, '65%']
+          },
+          title: { offsetCenter: [0, '85%'], color: '#a1a1aa', fontSize: 12 }
+        }]
+      });
+
+      // ── Line + Bar combo (dual axis) ──
+      this.charts.revenueCombo = echarts.init(this.$refs.revenueCombo, 'zinc-dark');
+      this.charts.revenueCombo.setOption({
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'cross' },
+          confine: true,
+          formatter: (params) => {
+            let html = params[0].axisValueLabel + '<br/>';
+            params.forEach(p => {
+              const val = p.seriesName === 'Revenue'
+                ? fmt.compact(p.value * 1000) : fmt.pct(p.value);
+              html += p.marker + ' ' + p.seriesName + ': ' + val + '<br/>';
+            });
+            return html;
+          }
+        },
+        legend: { data: ['Revenue', 'Growth'] },
+        xAxis: { type: 'category', data: MONTHS },
+        yAxis: [
+          { type: 'value', name: 'Revenue ($K)',
+            axisLabel: { formatter: (v) => '$' + v + 'K' } },
+          { type: 'value', name: 'Growth %',
+            axisLabel: { formatter: '{value}%' },
+            splitLine: { show: false } }
+        ],
+        series: [
+          { name: 'Revenue', type: 'bar', data: REVENUE, barWidth: '50%' },
+          { name: 'Growth', type: 'line', data: GROWTH, yAxisIndex: 1,
+            smooth: true, connectNulls: true }
+        ]
+      });
+    },
+
+    initBreakdown() {
+      this.initialized.breakdown = true;
+
+      // ── Donut pie ──
+      this.charts.pie = echarts.init(this.$refs.pieChart, 'zinc-dark');
+      this.charts.pie.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: ${c}K ({d}%)' },
+        legend: { orient: 'vertical', right: '5%', top: 'center' },
+        series: [{
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['40%', '50%'],
+          data: CATEGORIES,
+          label: { show: false },
+          emphasis: { label: { show: true, fontSize: 14 } }
+        }]
+      });
+
+      // ── Treemap ──
+      this.charts.treemap = echarts.init(this.$refs.treemapChart, 'zinc-dark');
+      this.charts.treemap.setOption({
+        tooltip: { formatter: (p) => p.name + ': ' + fmt.compact(p.value) },
+        series: [{
+          type: 'treemap',
+          data: BUDGET,
+          roam: false,
+          label: {
+            formatter: (p) => p.name + '\n' + fmt.compact(p.value),
+            fontSize: 12
+          },
+          breadcrumb: {
+            itemStyle: { color: '#3f3f46', textStyle: { color: '#d4d4d8' } }
+          },
+          levels: [
+            { itemStyle: { borderColor: '#3f3f46', borderWidth: 2, gapWidth: 2 } },
+            { itemStyle: { borderColor: '#27272a', borderWidth: 1, gapWidth: 1 },
+              colorSaturation: [0.3, 0.6] }
+          ]
+        }]
+      });
+    },
+
+    initPipeline() {
+      this.initialized.pipeline = true;
+
+      // ── Funnel ──
+      this.charts.funnel = echarts.init(this.$refs.funnelChart, 'zinc-dark');
+      this.charts.funnel.setOption({
+        tooltip: {
+          trigger: 'item',
+          formatter: (p) => p.name + ': ' + fmt.num(p.value)
+        },
+        series: [{
+          type: 'funnel',
+          data: FUNNEL,
+          left: '10%', width: '80%',
+          top: 20, bottom: 20,
+          label: {
+            formatter: (p) => p.name + ': ' + fmt.num(p.value),
+            position: 'inside', fontSize: 13
+          },
+          gap: 2,
+          itemStyle: { borderColor: '#27272a', borderWidth: 1 }
+        }]
+      });
+
+      // ── Sankey ──
+      this.charts.sankey = echarts.init(this.$refs.sankeyChart, 'zinc-dark');
+      this.charts.sankey.setOption({
+        tooltip: {
+          trigger: 'item',
+          formatter: (p) => {
+            if (p.dataType === 'edge') {
+              return p.data.source + ' > ' + p.data.target + ': ' + fmt.num(p.data.value);
+            }
+            return p.name;
+          }
+        },
+        series: [{
+          type: 'sankey',
+          data: SANKEY_NODES,
+          links: SANKEY_LINKS,
+          emphasis: { focus: 'adjacency' },
+          lineStyle: { color: 'source', opacity: 0.4 },
+          label: { color: '#d4d4d8', fontSize: 12 },
+          nodeGap: 12,
+          layoutIterations: 32
+        }]
+      });
+    },
+
+    initMarket() {
+      this.initialized.market = true;
+
+      // ── Candlestick + Volume ──
+      this.charts.candle = echarts.init(this.$refs.candleChart, 'zinc-dark');
+      this.charts.candle.setOption({
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'cross' },
+          confine: true
+        },
+        legend: { data: ['Price', 'Volume'] },
+        xAxis: { type: 'category', data: TRADE_DATES },
+        yAxis: [
+          { type: 'value', name: 'Price ($)', scale: true,
+            axisLabel: { formatter: '${value}' } },
+          { type: 'value', name: 'Volume',
+            max: (val) => val.max * 3,
+            axisLabel: { show: false },
+            splitLine: { show: false } }
+        ],
+        dataZoom: [{ type: 'slider', height: 20 }, { type: 'inside' }],
+        series: [
+          { name: 'Price', type: 'candlestick', data: OHLC, yAxisIndex: 0,
+            itemStyle: {
+              color: '#10b981', color0: '#ef4444',
+              borderColor: '#10b981', borderColor0: '#ef4444'
+            }
+          },
+          { name: 'Volume', type: 'bar', data: VOLUME, yAxisIndex: 1,
+            itemStyle: { color: 'rgba(59, 130, 246, 0.3)' }, barWidth: '60%' }
+        ]
+      });
+
+      // ── Scatter (bubble) ──
+      this.charts.scatter = echarts.init(this.$refs.scatterChart, 'zinc-dark');
+      this.charts.scatter.setOption({
+        tooltip: {
+          trigger: 'item',
+          confine: true,
+          formatter: (p) => {
+            const [days, size, prob] = p.data;
+            return 'Days to close: ' + days + '<br/>'
+              + 'Deal size: ' + fmt.compact(size) + '<br/>'
+              + 'Probability: ' + fmt.pct(prob * 100);
+          }
+        },
+        xAxis: { type: 'value', name: 'Days to Close',
+                 axisLabel: { formatter: '{value}d' } },
+        yAxis: { type: 'value', name: 'Deal Size ($)',
+                 axisLabel: { formatter: (v) => fmt.compact(v) } },
+        series: [{
+          type: 'scatter',
+          data: DEALS,
+          symbolSize: (val) => Math.max(val[2] * 30, 8),
+          itemStyle: {
+            color: (p) => {
+              const prob = p.data[2];
+              return prob > 0.8 ? '#10b981' : prob > 0.5 ? '#f59e0b' : '#ef4444';
+            },
+            opacity: 0.8
+          }
+        }]
+      });
+    },
+
+    initAnalysis() {
+      this.initialized.analysis = true;
+
+      // ── Heatmap ──
+      this.charts.heatmap = echarts.init(this.$refs.heatmapChart, 'zinc-dark');
+      this.charts.heatmap.setOption({
+        tooltip: {
+          confine: true,
+          formatter: (p) =>
+            DAYS[p.data[1]] + ' ' + HOURS[p.data[0]] + ': ' + p.data[2] + ' events'
+        },
+        xAxis: { type: 'category', data: HOURS, splitArea: { show: true } },
+        yAxis: { type: 'category', data: DAYS, splitArea: { show: true } },
+        visualMap: {
+          min: 0, max: 120, calculable: true,
+          orient: 'horizontal', left: 'center', bottom: 0,
+          inRange: { color: ['#27272a', '#3b82f6', '#10b981'] },
+          textStyle: { color: '#a1a1aa' }
+        },
+        series: [{
+          type: 'heatmap',
+          data: ACTIVITY,
+          label: {
+            show: true, color: '#d4d4d8', fontSize: 10,
+            formatter: (p) => p.data[2]
+          },
+          emphasis: { itemStyle: { borderColor: '#fff', borderWidth: 1 } }
+        }]
+      });
+
+      // ── Radar ──
+      this.charts.radar = echarts.init(this.$refs.radarChart, 'zinc-dark');
+      this.charts.radar.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { data: ['Platform A', 'Platform B'] },
+        radar: {
+          indicator: RADAR_INDICATORS,
+          shape: 'polygon',
+          axisName: { color: '#a1a1aa' },
+          splitArea: { areaStyle: { color: ['transparent'] } },
+          splitLine: { lineStyle: { color: '#3f3f46' } }
+        },
+        series: [{
+          type: 'radar',
+          data: RADAR_DATA,
+          areaStyle: { opacity: 0.15 }
+        }]
+      });
+
+      // ── Boxplot ──
+      this.charts.boxplot = echarts.init(this.$refs.boxplotChart, 'zinc-dark');
+      this.charts.boxplot.setOption({
+        tooltip: {
+          trigger: 'item',
+          confine: true,
+          formatter: (p) => {
+            if (p.componentSubType !== 'boxplot') return '';
+            const d = p.data;
+            return p.name + '<br/>'
+              + 'Min: ' + d[1] + 'ms<br/>'
+              + 'Q1: ' + d[2] + 'ms<br/>'
+              + 'Median: ' + d[3] + 'ms<br/>'
+              + 'Q3: ' + d[4] + 'ms<br/>'
+              + 'Max: ' + d[5] + 'ms';
+          }
+        },
+        xAxis: { type: 'category', data: BOXPLOT_SERVICES },
+        yAxis: { type: 'value', name: 'Response Time (ms)',
+                 axisLabel: { formatter: '{value}ms' } },
+        series: [{
+          type: 'boxplot',
+          data: BOXPLOT_DATA,
+          itemStyle: { borderColor: '#3b82f6' }
+        }]
+      });
+    }
+  }));
+
+});
+</script>
+
+<div x-cloak x-data="showcase">
+  <main class="max-w-5xl mx-auto p-3 md:p-6">
+
+    <!-- Header -->
+    <h1 class="text-xl md:text-2xl font-bold mb-1">Chart Showcase</h1>
+    <p class="text-sm text-zinc-400 mb-6">All 13 supported chart types with interactive features</p>
+
+    <!-- Tabs -->
+    <div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto">
+      <template x-for="t in tabs" :key="t">
+        <button role="tab"
+                :aria-selected="tab === t"
+                @click="tab = t"
+                :class="tab === t
+                  ? 'bg-zinc-700 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'"
+                class="px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap"
+                x-text="t"></button>
+      </template>
+    </div>
+
+    <!-- Overview: gauge x3 + line/bar combo -->
+    <div role="tabpanel" x-show="tab === 'Overview'">
+      <div class="grid grid-cols-3 gap-4 mb-4">
+        <div class="bg-zinc-800 rounded-xl p-3 border border-zinc-700">
+          <div x-ref="gaugeRevenue" class="h-40 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-3 border border-zinc-700">
+          <div x-ref="gaugeSat" class="h-40 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-3 border border-zinc-700">
+          <div x-ref="gaugeUptime" class="h-40 w-full"></div>
+        </div>
+      </div>
+      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+        <h2 class="text-sm text-zinc-400 mb-4">Monthly Revenue + Growth Rate (line + bar, dual axis)</h2>
+        <div x-ref="revenueCombo" class="h-72 w-full"></div>
+      </div>
+    </div>
+
+    <!-- Breakdown: pie + treemap -->
+    <div role="tabpanel" x-show="tab === 'Breakdown'">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-4">Revenue by Category (donut pie)</h2>
+          <div x-ref="pieChart" class="h-72 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-4">Budget Allocation (treemap -- click to drill down)</h2>
+          <div x-ref="treemapChart" class="h-72 w-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline: funnel + sankey -->
+    <div role="tabpanel" x-show="tab === 'Pipeline'">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-4">Sales Conversion (funnel)</h2>
+          <div x-ref="funnelChart" class="h-80 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-4">Traffic Flow (sankey)</h2>
+          <div x-ref="sankeyChart" class="h-80 w-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Market: candlestick + scatter -->
+    <div role="tabpanel" x-show="tab === 'Market'">
+      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 mb-4">
+        <h2 class="text-sm text-zinc-400 mb-4">Price Action (candlestick + volume bars, dual axis, data zoom)</h2>
+        <div x-ref="candleChart" class="h-80 w-full"></div>
+      </div>
+      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+        <h2 class="text-sm text-zinc-400 mb-4">Deal Pipeline (scatter/bubble -- size = probability, color = risk)</h2>
+        <div x-ref="scatterChart" class="h-72 w-full"></div>
+      </div>
+    </div>
+
+    <!-- Analysis: heatmap + radar + boxplot -->
+    <div role="tabpanel" x-show="tab === 'Analysis'">
+      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 mb-4">
+        <h2 class="text-sm text-zinc-400 mb-4">Activity by Day and Hour (heatmap with visualMap)</h2>
+        <div x-ref="heatmapChart" class="h-72 w-full"></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-4">Platform Comparison (radar)</h2>
+          <div x-ref="radarChart" class="h-72 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-4">Response Time Distribution (boxplot)</h2>
+          <div x-ref="boxplotChart" class="h-72 w-full"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+</body>
+</html>

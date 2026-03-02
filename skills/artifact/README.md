@@ -69,3 +69,4 @@ Full specification: [`SKILL.md`](SKILL.md).
 | [`references/patterns.md`](references/patterns.md) | Component skeletons: sidebar, cards, tables, tabs, search, charts, badges, progress bars |
 | [`references/tailwind-guide.md`](references/tailwind-guide.md) | Dark theme tokens, ECharts theme config, spacing scale, typography |
 | [`examples/example-dashboard.html`](examples/example-dashboard.html) | Complete example: system monitor with linked charts, sortable table, search, filtering, tabs |
+| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | All 13 chart types across 5 tabs: gauge, line+bar combo, pie, treemap, funnel, sankey, candlestick+volume, scatter/bubble, heatmap, radar, boxplot |
