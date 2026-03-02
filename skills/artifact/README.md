@@ -72,6 +72,7 @@ Beyond charting, artifacts support production-grade dashboard patterns:
 - **Skeleton loading** -- pulsing placeholders while CDN scripts load
 - **Print stylesheet** -- white background, hidden controls, page-break-safe cards
 - **Synced crosshair** -- linked tooltips across charts via `echarts.connect()`
+- **Sparklines** -- tiny inline charts in table cells showing data trends
 - **Sortable tables** -- keyboard-accessible headers with ARIA sort attributes
 - **Sticky table headers** -- pinned column headers while scrolling long tables
 - **Detail panel / drawer** -- slide-in side panel for item detail on row click
@@ -99,7 +100,7 @@ Full specification: [`SKILL.md`](SKILL.md).
 
 | File | Content |
 |---|---|
-| [`references/patterns.md`](references/patterns.md) | Component skeletons: sidebar, cards, tables, tabs, search, charts, badges, progress bars, CSV export, fullscreen panels, skeleton loading, print stylesheet, dark/light toggle, view-as-table toggle, color-blind palette toggle |
+| [`references/patterns.md`](references/patterns.md) | Component skeletons: sidebar, cards, tables, tabs, search, charts, sparklines, badges, progress bars, CSV export, fullscreen panels, skeleton loading, print stylesheet, dark/light toggle, view-as-table toggle, color-blind palette toggle |
 | [`references/tailwind-guide.md`](references/tailwind-guide.md) | Dark theme tokens, ECharts theme config, spacing scale, typography |
 
 ## Examples
@@ -109,5 +110,5 @@ Full specification: [`SKILL.md`](SKILL.md).
 | File | Content |
 |---|---|
 | [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | 20 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial, Advanced) with sunburst, graph/network, parallel coordinates, themeriver, polar bar, gradient area fill, dark/light toggle, color-blind mode, fullscreen panels, keyboard shortcuts |
-| [`examples/example-dashboard.html`](examples/example-dashboard.html) | System monitor with cross-filtering, dark/light toggle, color-blind mode, CSV export, URL hash state, sortable table, search, filter chips, skeleton loading, print stylesheet |
+| [`examples/example-dashboard.html`](examples/example-dashboard.html) | System monitor with cross-filtering, dark/light toggle, color-blind mode, CSV export, URL hash state, sortable table with sparklines, search, filter chips, skeleton loading, print stylesheet |
 | [`examples/example-gdp-analysis.html`](examples/example-gdp-analysis.html) | GDP and labor market analysis: 10 economic sectors, 18 job categories, task-level automation breakdowns. Dark/light toggle, color-blind mode, treemap, scatter/bubble, radar, stacked bar, gauge, sortable tables, cross-filtering |

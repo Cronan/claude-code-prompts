@@ -334,6 +334,65 @@ init() {
 }
 ```
 
+## Sparkline (inline table chart)
+
+A tiny chart inside a table cell showing a data trend. No axes, no labels, no chrome.
+
+Data (add a `trend` array to each row):
+
+```js
+const ITEMS = [
+  { id: 1, name: 'Service A', value: 42, trend: [8, 10, 9, 14, 11, 10, 13, 15, 12, 11, 13, 12] },
+  // ...
+];
+```
+
+HTML (inside a `<template x-for>` table row):
+
+```html
+<td class="px-4 py-3">
+  <div x-init="$nextTick(() => initSparkline($el, row))"
+       style="width:80px;height:24px"></div>
+</td>
+```
+
+Alpine methods:
+
+```js
+_sparklines: {},
+
+initSparkline(el, row) {
+  const key = 'spark-' + row.id;
+  if (this._sparklines[key]) this._sparklines[key].dispose();
+  const chart = echarts.init(el, this.currentTheme, { width: 80, height: 24 });
+  chart.setOption({
+    animation: false,
+    grid: { left: 0, right: 0, top: 0, bottom: 0 },
+    xAxis: { show: false, type: 'category' },
+    yAxis: { show: false, type: 'value', min: 0 },
+    tooltip: { show: false },
+    series: [{
+      type: 'line', data: row.trend, smooth: true, symbol: 'none',
+      lineStyle: { width: 1.5, color: '#10b981' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
+          { offset: 1, color: 'transparent' }
+        ])
+      }
+    }]
+  });
+  this._sparklines[key] = chart;
+},
+
+disposeSparklines() {
+  Object.values(this._sparklines).forEach(c => c.dispose());
+  this._sparklines = {};
+}
+```
+
+Call `disposeSparklines()` in `toggleTheme()` before re-initializing charts. Alpine's `x-init` on each `x-for` row re-creates sparklines when the list changes.
+
 ## Status badge
 
 Small badge with opacity background for status indicators.
