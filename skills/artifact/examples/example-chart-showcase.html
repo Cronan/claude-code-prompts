@@ -366,6 +366,7 @@ document.addEventListener('alpine:init', () => {
     chartTypes: CHART_TYPES,
     darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
     colorBlindMode: false,
+    pieMode: 'donut',
 
     get palette() {
       return this.colorBlindMode
@@ -440,6 +441,15 @@ document.addEventListener('alpine:init', () => {
       Object.values(this.charts).forEach(c => {
         c.setOption({ color: this.palette });
       });
+    },
+
+    togglePieMode() {
+      this.pieMode = this.pieMode === 'donut' ? 'pie' : 'donut';
+      if (this.charts.pie) {
+        this.charts.pie.setOption({
+          series: [{ radius: this.pieMode === 'donut' ? ['40%', '70%'] : [0, '70%'] }]
+        });
+      }
     },
 
     handleKeyboard(e) {
@@ -577,7 +587,7 @@ document.addEventListener('alpine:init', () => {
         tooltip: { formatter: (p) => p.name + ': ' + fmt.compact(p.value) },
         toolbox: this.defaultToolbox(),
         series: [{
-          type: 'treemap', data: BUDGET, roam: false,
+          type: 'treemap', data: BUDGET, roam: false, leafDepth: 1,
           label: { formatter: (p) => p.name + '\n' + fmt.compact(p.value), fontSize: 12 },
           breadcrumb: { itemStyle: { color: this.tc.border, textStyle: { color: this.tc.text } } },
           levels: [
@@ -996,8 +1006,11 @@ document.addEventListener('alpine:init', () => {
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium mb-0.5">Donut / Pie</h2>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Proportions. radius: ['40%', '70%'] makes the donut hole.</p>
+          <div class="flex items-center justify-between mb-0.5">
+            <h2 class="text-sm font-medium" x-text="pieMode === 'donut' ? 'Donut' : 'Pie'"></h2>
+            <button @click="togglePieMode()" class="text-xs px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors" x-text="pieMode === 'donut' ? 'Pie' : 'Donut'"></button>
+          </div>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4" x-text="pieMode === 'donut' ? 'Proportions. radius: [\'40%\', \'70%\'] makes the donut hole.' : 'Proportions. radius: [0, \'70%\'] fills the center.'"></p>
           <div x-ref="pieChart" class="h-80 md:h-72 w-full"></div>
         </div>
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
