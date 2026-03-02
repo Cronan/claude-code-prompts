@@ -477,6 +477,47 @@ init() {
 
 Option A is simpler and recommended for most artifacts.
 
+### Choosing visualizations
+
+Before picking a chart type, identify what the user's data answers. The analytical question determines the chart family; the data shape narrows the specific type.
+
+**Question type to chart family:**
+
+| Analytical question | Chart family | Typical types |
+|---|---|---|
+| How does X change over time? | Trend | Line, area, stacked area, candlestick, themeRiver |
+| How does X compare to Y? | Comparison | Bar (grouped), lollipop, bullet, radar, parallel coordinates |
+| What are the parts of the whole? | Composition | Pie/donut (5-6 categories max), treemap, sunburst, stacked bar, waterfall |
+| How is X distributed? | Distribution | Boxplot, scatter, heatmap, histogram (custom bar) |
+| How are X and Y related? | Relationship | Scatter, bubble (scatter + symbolSize), heatmap (correlation matrix) |
+| Where does X flow? | Flow | Sankey, funnel |
+| What is the current value of X? | Status | Gauge, stat card, bullet chart, progress bar |
+| How does X break down by category over time? | Composition + Trend | Stacked area, themeRiver, small multiples |
+| How do items rank? | Ranking | Horizontal bar, lollipop, sorted table |
+
+**Data shape routing:**
+
+- **Time series + 1-3 series**: line or area chart. Use stacked area if parts of a whole.
+- **Time series + 4+ series**: small multiples (one mini-chart per series). Overlapping lines become unreadable past 4.
+- **Categories + values**: bar chart (vertical for <8 categories, horizontal for more). Lollipop for ranked lists where exact values matter.
+- **Categories + values summing to whole**: pie/donut (5-6 categories max), treemap (7+), or stacked bar.
+- **Hierarchical data**: treemap (flat comparison of leaf sizes), sunburst (emphasis on nesting depth).
+- **Two continuous variables**: scatter. Add third variable via bubble size. Add fourth via color.
+- **Matrix of values (x-category, y-category, value)**: heatmap.
+- **Source-to-target flows**: sankey.
+- **Sequential stages with dropoff**: funnel.
+- **Cyclical categories (months, hours, weekdays)**: polar bar.
+- **Multi-dimensional comparison (4-8 dimensions)**: radar (2-3 items) or parallel coordinates (many items).
+- **Single KPI value**: stat card for text, gauge for visual, bullet chart for value-vs-target.
+
+**When not to chart:**
+
+- Fewer than 4 data points: use a stat card or formatted table. Charts with 2-3 bars are wasteful.
+- Exact values matter more than visual patterns: use a sortable table with optional sparklines.
+- User will export the data: lead with a table and CSV export; add charts as supplementary.
+
+For deeper guidance on dashboard composition patterns and analytical rationale, see `references/chart-selection.md`.
+
 ### Chart types
 
 | Type | `series.type` | Notes |
@@ -2687,6 +2728,7 @@ Before saving the file, verify:
 Before building complex artifacts, read the reference material in this skill directory:
 
 - Component layout patterns and recurring structures: `references/patterns.md`
+- Chart selection reasoning, dashboard composition patterns, and visualization anti-patterns: `references/chart-selection.md`
 - Tailwind dark theme tokens, ECharts theme configuration, and spacing conventions: `references/tailwind-guide.md`
 - Chart type showcase: `examples/example-chart-showcase.html`
 - Dashboard with features: `examples/example-dashboard.html`
