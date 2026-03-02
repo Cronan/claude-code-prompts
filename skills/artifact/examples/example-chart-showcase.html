@@ -409,34 +409,36 @@ document.addEventListener('alpine:init', () => {
     { dim: 5, name: 'Bench\nScore', min: 1000, max: 50000 }
   ];
   const PARALLEL_DATA = [
-    [4, 16, 0.5, 1, 85, 6200],
-    [4, 32, 1, 5, 160, 9800],
-    [8, 32, 1, 5, 240, 15200],
-    [8, 64, 2, 10, 420, 22500],
-    [16, 64, 2, 10, 580, 28000],
-    [16, 128, 4, 10, 850, 35200],
-    [32, 128, 4, 25, 1100, 39500],
-    [32, 256, 8, 25, 1450, 43800],
-    [64, 256, 8, 25, 1800, 47200],
-    [64, 256, 10, 25, 1950, 49500]
+    [4, 16, 0.5, 1, 85, 6200],   [4, 32, 0.5, 1, 120, 7800],
+    [4, 32, 1, 5, 160, 9800],    [8, 16, 0.5, 5, 180, 12500],
+    [8, 32, 1, 5, 240, 15200],   [8, 64, 1, 5, 310, 18400],
+    [8, 64, 2, 10, 420, 22500],  [16, 32, 1, 10, 350, 20100],
+    [16, 64, 2, 10, 580, 28000], [16, 128, 2, 10, 720, 31500],
+    [16, 128, 4, 10, 850, 35200],[32, 64, 2, 25, 680, 30200],
+    [32, 128, 4, 25, 1100, 39500],[32, 256, 4, 25, 1280, 41800],
+    [32, 256, 8, 25, 1450, 43800],[64, 128, 4, 25, 1200, 40200],
+    [64, 256, 8, 25, 1800, 47200],[64, 256, 10, 25, 1950, 49500],
+    [4, 64, 2, 10, 200, 11200],  [16, 256, 8, 25, 980, 37800]
   ];
 
-  // ThemeRiver: programming language popularity
-  const THEME_RIVER_DATES = [
-    '2019', '2020', '2021', '2022', '2023', '2024'
-  ];
+  // ThemeRiver: programming language popularity (quarterly for smooth streams)
   const THEME_RIVER_LANGS = ['Python', 'JavaScript', 'TypeScript', 'Rust', 'Go'];
   const THEME_RIVER_DATA = [];
-  const _trValues = {
-    'Python':     [680, 750, 830, 890, 950, 1020],
-    'JavaScript': [820, 780, 740, 700, 660, 620],
-    'TypeScript': [180, 280, 400, 520, 640, 760],
-    'Rust':       [60,  95,  140, 200, 280, 370],
-    'Go':         [240, 270, 310, 340, 360, 380]
+  const _trBase = {
+    'Python':     [680, 700, 720, 750, 770, 795, 815, 830, 848, 865, 880, 890, 910, 925, 938, 950, 968, 982, 995, 1020],
+    'JavaScript': [820, 810, 798, 780, 770, 758, 750, 740, 728, 718, 710, 700, 690, 680, 672, 660, 650, 640, 630, 620],
+    'TypeScript': [180, 210, 245, 280, 320, 355, 380, 400, 435, 468, 495, 520, 555, 588, 615, 640, 680, 712, 738, 760],
+    'Rust':       [60,  68,  80,  95,  108, 120, 132, 140, 155, 172, 188, 200, 220, 242, 262, 280, 308, 332, 352, 370],
+    'Go':         [240, 248, 258, 270, 280, 290, 300, 310, 318, 328, 335, 340, 348, 352, 358, 360, 365, 370, 375, 380]
   };
-  THEME_RIVER_DATES.forEach((date, i) => {
+  const _trQuarters = [
+    '2019Q1', '2019Q2', '2019Q3', '2019Q4', '2020Q1', '2020Q2', '2020Q3', '2020Q4',
+    '2021Q1', '2021Q2', '2021Q3', '2021Q4', '2022Q1', '2022Q2', '2022Q3', '2022Q4',
+    '2023Q1', '2023Q2', '2023Q3', '2023Q4'
+  ];
+  _trQuarters.forEach((date, i) => {
     THEME_RIVER_LANGS.forEach(lang => {
-      THEME_RIVER_DATA.push([date, _trValues[lang][i], lang]);
+      THEME_RIVER_DATA.push([date, _trBase[lang][i], lang]);
     });
   });
 
@@ -981,7 +983,8 @@ document.addEventListener('alpine:init', () => {
       this.charts.sunburst = echarts.init(this.$refs.sunburstChart, this.currentTheme);
       this.charts.sunburst.setOption({
         animation: !reduceMotion,
-        tooltip: { trigger: 'item', formatter: (p) => p.name + ': ' + (p.value || '') },
+        toolbox: this.defaultToolbox(),
+        tooltip: { trigger: 'item', formatter: (p) => p.name + (p.value != null ? ': ' + p.value : '') },
         series: [{
           type: 'sunburst',
           data: SUNBURST_DATA,
@@ -1003,6 +1006,7 @@ document.addEventListener('alpine:init', () => {
       this.charts.graph = echarts.init(this.$refs.graphChart, this.currentTheme);
       this.charts.graph.setOption({
         animation: !reduceMotion,
+        toolbox: this.defaultToolbox(),
         tooltip: { formatter: (p) => p.dataType === 'node' ? p.name : p.data.source + ' → ' + p.data.target },
         legend: { data: GRAPH_CATEGORIES.map(c => c.name), textStyle: { color: this.tc.textMuted } },
         series: [{
@@ -1024,7 +1028,7 @@ document.addEventListener('alpine:init', () => {
       this.charts.parallel = echarts.init(this.$refs.parallelChart, this.currentTheme);
       this.charts.parallel.setOption({
         animation: !reduceMotion,
-        tooltip: { trigger: 'item' },
+        toolbox: this.defaultToolbox(),
         parallelAxis: PARALLEL_DIMS.map(d => ({
           ...d,
           nameTextStyle: { color: this.tc.textMuted, fontSize: 10 },
@@ -1048,6 +1052,7 @@ document.addEventListener('alpine:init', () => {
       this.charts.themeriver = echarts.init(this.$refs.themeriverChart, this.currentTheme);
       this.charts.themeriver.setOption({
         animation: !reduceMotion,
+        toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'axis', confine: true },
         singleAxis: {
           type: 'category', bottom: 30, top: 50,
@@ -1067,6 +1072,7 @@ document.addEventListener('alpine:init', () => {
       this.charts.polar = echarts.init(this.$refs.polarChart, this.currentTheme);
       this.charts.polar.setOption({
         animation: !reduceMotion,
+        toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'item', formatter: (p) => p.name + ': $' + p.value + 'K' },
         polar: { radius: ['8%', '80%'] },
         angleAxis: {
@@ -1082,7 +1088,7 @@ document.addEventListener('alpine:init', () => {
           type: 'bar',
           coordinateSystem: 'polar',
           data: POLAR_VALUES,
-          itemStyle: { borderRadius: [3, 3, 0, 0] },
+          itemStyle: { borderRadius: 4 },
           label: { show: false }
         }]
       });
@@ -1380,30 +1386,95 @@ document.addEventListener('alpine:init', () => {
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium mb-0.5">Sunburst</h2>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Radial hierarchy. Click a sector to drill in; click center to zoom out. Concentric rings show depth.</p>
-          <div x-ref="sunburstChart" class="h-80 md:h-72 w-full"></div>
+        <div :class="fullscreen === 'sunburst' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">Sunburst</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Radial hierarchy. Click a sector to drill in; click center to zoom out.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'sunburst' ? null : 'sunburst'"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'sunburst' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="sunburstChart" :class="fullscreen === 'sunburst' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-72'" class="w-full"></div>
         </div>
-        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium mb-0.5">Graph / Network</h2>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Force-directed layout. Drag nodes, pan/zoom. Hover highlights connected neighbors.</p>
-          <div x-ref="graphChart" class="h-80 md:h-72 w-full"></div>
+        <div :class="fullscreen === 'graph' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">Graph / Network</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Force-directed layout. Drag nodes, pan/zoom. Hover highlights connected neighbors.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'graph' ? null : 'graph'"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'graph' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="graphChart" :class="fullscreen === 'graph' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-72'" class="w-full"></div>
         </div>
-        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium mb-0.5">Parallel Coordinates</h2>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Each vertical axis is a dimension. Each line is a server config. Price axis inverted (lower is better).</p>
-          <div x-ref="parallelChart" class="h-80 md:h-72 w-full"></div>
+        <div :class="fullscreen === 'parallel' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">Parallel Coordinates</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Each vertical axis is a dimension. Each line is a server config. Price inverted.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'parallel' ? null : 'parallel'"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'parallel' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="parallelChart" :class="fullscreen === 'parallel' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-72'" class="w-full"></div>
         </div>
-        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium mb-0.5">ThemeRiver</h2>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Centered streamgraph. Width shows category volume over time. Hover isolates one stream.</p>
-          <div x-ref="themeriverChart" class="h-80 md:h-72 w-full"></div>
+        <div :class="fullscreen === 'themeriver' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">ThemeRiver</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Centered streamgraph. Width shows category volume over time.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'themeriver' ? null : 'themeriver'"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'themeriver' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="themeriverChart" :class="fullscreen === 'themeriver' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-72'" class="w-full"></div>
         </div>
-        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 md:col-span-2 break-inside-avoid">
-          <h2 class="text-sm font-medium mb-0.5">Polar Bar (Nightingale Rose)</h2>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Radial bar chart for cyclical data. Monthly revenue arranged around a circle. The radial layout signals periodicity.</p>
-          <div x-ref="polarChart" class="h-80 md:h-72 w-full"></div>
+        <div :class="fullscreen === 'polar' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 md:col-span-2 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">Polar Bar (Nightingale Rose)</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Radial bar chart for cyclical data. Monthly revenue around a circle.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'polar' ? null : 'polar'"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'polar' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="polarChart" :class="fullscreen === 'polar' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-72'" class="w-full"></div>
         </div>
       </div>
     </div>

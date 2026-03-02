@@ -692,7 +692,7 @@ Keep column headers visible while scrolling long tables. Pure CSS.
 ```html
 <div class="overflow-auto max-h-[32rem]">
   <table class="w-full text-sm text-left">
-    <thead class="sticky top-0 z-10 bg-zinc-900">
+    <thead class="sticky top-0 z-10 bg-zinc-900 shadow-[0_1px_0_0_theme(colors.zinc.700)]">
       <tr class="border-b border-zinc-700 text-zinc-400">
         <th class="px-4 py-3 font-medium">Name</th>
         <th class="px-4 py-3 font-medium">Status</th>
@@ -726,6 +726,8 @@ Side panel that slides in from the right when a table row is clicked.
 
 <!-- Panel -->
 <div :class="drawerOpen ? 'translate-x-0' : 'translate-x-full'"
+     @keydown.escape.window="drawerOpen = false"
+     role="dialog" aria-modal="true"
      class="fixed top-0 right-0 z-50 h-full w-full max-w-md bg-zinc-800 border-l border-zinc-700
             shadow-xl transform transition-transform duration-200 overflow-y-auto">
   <div class="p-6">
@@ -847,16 +849,21 @@ pageSize: 10,
 get pageStart() { return (this.page - 1) * this.pageSize; },
 get totalPages() { return Math.max(1, Math.ceil(this.sorted.length / this.pageSize)); },
 get paged() { return this.sorted.slice(this.pageStart, this.pageStart + this.pageSize); },
+
+init() {
+  this.$watch('search', () => { this.page = 1; });
+  this.$watch('activeFilters', () => { this.page = 1; });
+}
 ```
 
-Reset `page` to 1 when search or filters change: `this.$watch('search', () => { this.page = 1; })`.
+The `$watch` calls reset `page` to 1 when search or filters change, preventing empty pages after narrowing results.
 
 ## Toast notifications
 
 Transient feedback messages that auto-dismiss. Fixed to bottom-right.
 
 ```html
-<div class="fixed bottom-4 right-4 z-50 space-y-2 no-print">
+<div class="fixed bottom-4 right-4 z-50 space-y-2 no-print" aria-live="polite">
   <template x-for="toast in toasts" :key="toast.id">
     <div x-show="toast.visible"
          x-transition:enter="transition ease-out duration-200"
