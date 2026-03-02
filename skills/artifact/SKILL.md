@@ -522,6 +522,10 @@ Option A is simpler and recommended for most artifacts.
 | Parallel coordinates | `'parallel'` | Each dimension is a vertical axis; each data point is a polyline crossing all axes. Requires a `parallelAxis` array and `parallel` component instead of standard axes. Use for multi-criteria comparison: server benchmarks, product specs, dataset exploration. |
 | ThemeRiver | `'themeRiver'` | Data is `[[date, value, categoryName], ...]`. No axes (uses built-in time axis). A centered streamgraph showing how category volumes evolve over time. Use for topic trends, content category shifts, technology adoption over time. |
 | Polar bar | `'bar'` + `polar` | Uses ECharts `polar`, `radiusAxis`, and `angleAxis` components. A Nightingale rose chart: bars arranged radially. Use for cyclical data patterns: monthly revenue, hourly traffic, seasonal comparisons, wind direction frequencies. |
+| Custom | `'custom'` | Fully custom rendering via a `renderItem` callback. Each data point returns a graphic element (rect, circle, line, group, etc.). Use for chart types ECharts does not have natively: bullet charts, lollipop charts, range bars, dumbbell charts. |
+| Bullet | `'custom'` | Horizontal bar with qualitative range bands and a target marker. Data is `[actual, target, poor, satisfactory, good]`. Use for KPI vs target: revenue vs quota, response time vs SLA, utilization vs capacity. |
+| Lollipop | `'custom'` | Dot on a stem -- a bar chart with less ink. Data is `[{ name, value }]`. Use for ranked lists, survey results, benchmark comparisons where the exact value matters more than the bar area. |
+| Small multiples | multiple instances | Grid of identical mini-charts, one per category. Use ECharts `grid` array with one x/y axis pair per cell, or multiple ECharts instances in a CSS grid. Use for per-service metrics, per-region trends, cohort comparisons. |
 
 ### Chart type examples
 
@@ -946,6 +950,178 @@ Each data entry is `[date, value, categoryName]`. The river is centered vertical
 ```
 
 The `angleAxis` maps categories (months, hours, directions) around the circle. The `radiusAxis` maps values outward from center. Set `radiusAxis.show: false` for a cleaner look. Use `startAngle: 90` to place the first category at 12 o'clock. For stacked polar bars, add `stack: 'total'` to each series. The radial layout naturally communicates cyclical patterns that a linear bar chart would not.
+
+**Custom series (renderItem)** -- the foundation for chart types ECharts does not provide natively. The `renderItem` callback receives each data point and returns graphic elements to draw:
+
+```js
+{
+  xAxis: { type: 'category', data: categories },
+  yAxis: { type: 'value' },
+  series: [{
+    type: 'custom',
+    renderItem: (params, api) => {
+      // api.value(dimIndex) reads data dimensions
+      // api.coord([x, y]) converts data values to pixel coordinates
+      // api.size([dataWidth, dataHeight]) converts data units to pixel sizes
+      const x = api.coord([api.value(0), 0])[0];
+      const y = api.coord([0, api.value(1)])[1];
+      const baseY = api.coord([0, 0])[1];
+      const width = api.size([0, 1])[0] * 0.4;
+      return {
+        type: 'rect',
+        shape: { x: x - width / 2, y, width, height: baseY - y },
+        style: api.style({ fill: '#10b981' })
+      };
+    },
+    data: values
+  }]
+}
+```
+
+The `renderItem` function runs once per data point. Return types: `'rect'`, `'circle'`, `'line'`, `'arc'`, `'polygon'`, `'polyline'`, `'text'`, `'image'`, or `'group'` (containing children). Use `'group'` to combine multiple elements for a single data point. The `api.style()` call inherits series color, opacity, and emphasis state from ECharts configuration.
+
+**Bullet chart** -- horizontal bar showing actual vs target with qualitative range bands. A compact alternative to gauges for KPI dashboards:
+
+```js
+{
+  yAxis: {
+    type: 'category',
+    data: ['Revenue', 'Profit', 'Satisfaction'],
+    inverse: true
+  },
+  xAxis: { type: 'value', show: false },
+  series: [
+    // Qualitative ranges (background bands, widest first)
+    {
+      type: 'bar', barWidth: 30, barGap: '-100%', z: 1, silent: true,
+      itemStyle: { color: 'rgba(16, 185, 129, 0.12)' },
+      data: [150, 120, 100]   // "good" range max
+    },
+    {
+      type: 'bar', barWidth: 30, barGap: '-100%', z: 2, silent: true,
+      itemStyle: { color: 'rgba(16, 185, 129, 0.25)' },
+      data: [120, 90, 80]     // "satisfactory" range max
+    },
+    // Actual value (narrow bar on top)
+    {
+      type: 'bar', barWidth: 12, barGap: '-100%', z: 3,
+      itemStyle: { color: '#10b981' },
+      data: [95, 78, 88],
+      label: { show: true, position: 'right', color: '#d4d4d8', formatter: '{c}' }
+    },
+    // Target marker (vertical line via custom series)
+    {
+      type: 'custom', z: 4,
+      renderItem: (params, api) => {
+        const categoryIndex = api.value(0);
+        const targetVal = api.value(1);
+        const point = api.coord([targetVal, categoryIndex]);
+        const halfHeight = 18;
+        return {
+          type: 'line',
+          shape: { x1: point[0], y1: point[1] - halfHeight, x2: point[0], y2: point[1] + halfHeight },
+          style: { stroke: '#f4f4f5', lineWidth: 2.5 }
+        };
+      },
+      data: [[0, 100], [1, 85], [2, 90]]  // [categoryIndex, targetValue]
+    }
+  ]
+}
+```
+
+Stack three `'bar'` series with `barGap: '-100%'` to overlay range bands. The narrower actual-value bar sits on top (higher `z`). The target marker uses a `'custom'` series that renders a short vertical line at the target position. Bullet charts are horizontally oriented by convention -- categories on the y-axis, values on the x-axis.
+
+**Lollipop chart** -- dot on a stem, a bar chart with less visual weight. Effective for ranked lists where the exact value matters:
+
+```js
+{
+  yAxis: {
+    type: 'category',
+    data: ['Team A', 'Team B', 'Team C', 'Team D', 'Team E'],
+    inverse: true
+  },
+  xAxis: { type: 'value', name: 'Score' },
+  series: [{
+    type: 'custom',
+    renderItem: (params, api) => {
+      const y = api.coord([0, api.value(0)])[1];
+      const x = api.coord([api.value(1), 0])[0];
+      const baseX = api.coord([0, 0])[0];
+      return {
+        type: 'group',
+        children: [
+          // Stem
+          {
+            type: 'line',
+            shape: { x1: baseX, y1: y, x2: x, y2: y },
+            style: { stroke: '#10b981', lineWidth: 2 }
+          },
+          // Dot
+          {
+            type: 'circle',
+            shape: { cx: x, cy: y, r: 6 },
+            style: { fill: '#10b981' }
+          }
+        ]
+      };
+    },
+    data: [[0, 92], [1, 85], [2, 78], [3, 71], [4, 65]],  // [categoryIndex, value]
+    label: {
+      show: true, position: 'right', color: '#d4d4d8',
+      formatter: (params) => params.value[1]
+    }
+  }],
+  tooltip: {
+    trigger: 'axis',
+    formatter: (params) => params[0].name + ': ' + params[0].value[1]
+  }
+}
+```
+
+The `renderItem` returns a `'group'` with two children: a horizontal line (stem) from the axis baseline to the data point, and a circle (dot) at the data position. Horizontal orientation (categories on y-axis, values on x-axis) reads naturally for ranked lists. Set `inverse: true` on the y-axis so the highest-ranked item is at the top.
+
+**Small multiples** -- a grid of identical mini-charts, one per category. Uses multiple ECharts `grid` components with paired axes in a single instance:
+
+```js
+// Data: one series per service
+const services = ['API', 'Auth', 'DB', 'Cache', 'Queue', 'Search'];
+const times = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'];
+const trends = [
+  [12, 10, 14, 22, 18, 15],
+  [8, 6, 9, 14, 12, 10],
+  [35, 32, 38, 45, 42, 40],
+  [5, 4, 6, 8, 5, 4],
+  [15, 12, 18, 25, 20, 16],
+  [20, 18, 22, 30, 25, 21]
+];
+
+const cols = 3, rows = 2;
+const cellW = 100 / cols, cellH = 100 / rows;
+const pad = { left: 6, right: 2, top: 5, bottom: 5 };
+
+const grid = [], xAxis = [], yAxis = [], series = [];
+services.forEach((name, i) => {
+  const col = i % cols, row = Math.floor(i / cols);
+  grid.push({
+    left: (col * cellW + pad.left) + '%',
+    top: (row * cellH + pad.top) + '%',
+    width: (cellW - pad.left - pad.right) + '%',
+    height: (cellH - pad.top - pad.bottom) + '%'
+  });
+  xAxis.push({ type: 'category', data: times, gridIndex: i, show: row === rows - 1 });
+  yAxis.push({ type: 'value', gridIndex: i, show: col === 0, name: name, nameLocation: 'middle', nameGap: 30 });
+  series.push({
+    type: 'line', data: trends[i], xAxisIndex: i, yAxisIndex: i,
+    smooth: true, symbol: 'none',
+    areaStyle: { opacity: 0.2 }
+  });
+});
+
+// Pass to setOption:
+{ grid, xAxis, yAxis, series, tooltip: { trigger: 'axis' } }
+```
+
+Each cell gets its own `grid`, `xAxis`, and `yAxis` with matching `gridIndex`. Only show axis labels on the left column and bottom row to avoid clutter. The `grid` array positions each mini-chart using percentage-based coordinates. This pattern scales to 4, 6, 9, or 12 cells -- beyond that, use a scrollable container or paginate.
 
 ### Combining chart types
 

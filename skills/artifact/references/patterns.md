@@ -393,6 +393,95 @@ disposeSparklines() {
 
 Call `disposeSparklines()` in `toggleTheme()` before re-initializing charts. Alpine's `x-init` on each `x-for` row re-creates sparklines when the list changes.
 
+## Bullet chart
+
+Horizontal bar with qualitative range bands and a target marker. Three stacked `'bar'` series overlaid with `barGap: '-100%'` plus a `'custom'` series for the target line.
+
+```js
+series: [
+  // Background range bands (widest first, ascending z)
+  { type: 'bar', barWidth: 30, barGap: '-100%', z: 1, silent: true,
+    itemStyle: { color: 'rgba(16, 185, 129, 0.12)' }, data: [150] },
+  { type: 'bar', barWidth: 30, barGap: '-100%', z: 2, silent: true,
+    itemStyle: { color: 'rgba(16, 185, 129, 0.25)' }, data: [120] },
+  // Actual value (narrow bar)
+  { type: 'bar', barWidth: 12, barGap: '-100%', z: 3,
+    itemStyle: { color: '#10b981' }, data: [95] },
+  // Target marker (vertical line)
+  { type: 'custom', z: 4,
+    renderItem: (params, api) => {
+      const point = api.coord([api.value(1), api.value(0)]);
+      return {
+        type: 'line',
+        shape: { x1: point[0], y1: point[1] - 18, x2: point[0], y2: point[1] + 18 },
+        style: { stroke: '#f4f4f5', lineWidth: 2.5 }
+      };
+    },
+    data: [[0, 100]]
+  }
+]
+```
+
+Axes: `yAxis: { type: 'category' }`, `xAxis: { type: 'value', show: false }`.
+
+## Lollipop chart
+
+Dot on a stem -- less ink than a bar chart. Uses `'custom'` series with a `'group'` return containing a line (stem) and circle (dot).
+
+```js
+series: [{
+  type: 'custom',
+  renderItem: (params, api) => {
+    const y = api.coord([0, api.value(0)])[1];
+    const x = api.coord([api.value(1), 0])[0];
+    const baseX = api.coord([0, 0])[0];
+    return {
+      type: 'group',
+      children: [
+        { type: 'line', shape: { x1: baseX, y1: y, x2: x, y2: y },
+          style: { stroke: '#10b981', lineWidth: 2 } },
+        { type: 'circle', shape: { cx: x, cy: y, r: 6 },
+          style: { fill: '#10b981' } }
+      ]
+    };
+  },
+  data: [[0, 92], [1, 85], [2, 78]],
+  label: { show: true, position: 'right', color: '#d4d4d8',
+    formatter: (params) => params.value[1] }
+}]
+```
+
+Axes: `yAxis: { type: 'category', inverse: true }`, `xAxis: { type: 'value' }`.
+
+## Small multiples
+
+Grid of identical mini-charts, one per category. Uses ECharts `grid` array with paired axes.
+
+```js
+const cols = 3, rows = 2;
+const cellW = 100 / cols, cellH = 100 / rows;
+const pad = { left: 6, right: 2, top: 5, bottom: 5 };
+
+const grid = [], xAxis = [], yAxis = [], series = [];
+categories.forEach((name, i) => {
+  const col = i % cols, row = Math.floor(i / cols);
+  grid.push({
+    left: (col * cellW + pad.left) + '%',
+    top: (row * cellH + pad.top) + '%',
+    width: (cellW - pad.left - pad.right) + '%',
+    height: (cellH - pad.top - pad.bottom) + '%'
+  });
+  xAxis.push({ type: 'category', data: times, gridIndex: i, show: row === rows - 1 });
+  yAxis.push({ type: 'value', gridIndex: i, show: col === 0, name, nameLocation: 'middle' });
+  series.push({
+    type: 'line', data: datasets[i], xAxisIndex: i, yAxisIndex: i,
+    smooth: true, symbol: 'none', areaStyle: { opacity: 0.2 }
+  });
+});
+```
+
+Show axis labels only on the left column (`col === 0`) and bottom row (`row === rows - 1`). Scales to 4-12 cells.
+
 ## Status badge
 
 Small badge with opacity background for status indicators.
