@@ -226,83 +226,48 @@ document.addEventListener('alpine:init', () => {
     initOverview() {
       this.initialized.overview = true;
 
-      // ── Gauge: Revenue target ──
-      this.charts.gaugeRevenue = echarts.init(this.$refs.gaugeRevenue, 'zinc-dark');
-      this.charts.gaugeRevenue.setOption({
-        series: [{
-          type: 'gauge',
-          data: [{ value: 78, name: 'Revenue' }],
-          min: 0, max: 100,
-          radius: '90%',
-          axisLine: {
-            lineStyle: {
-              width: 10,
-              color: [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']]
-            }
-          },
-          pointer: { width: 4, length: '60%' },
-          axisTick: { show: false },
-          splitLine: { show: false },
-          axisLabel: { show: false },
-          detail: {
-            formatter: '{value}%', fontSize: 18,
-            color: '#f4f4f5', offsetCenter: [0, '65%']
-          },
-          title: { offsetCenter: [0, '85%'], color: '#a1a1aa', fontSize: 12 }
-        }]
-      });
+      // ── Gauge helper ──
+      const gaugeBase = (el, value, name, min, max, bands) => {
+        const chart = echarts.init(el, 'zinc-dark');
+        chart.setOption({
+          series: [{
+            type: 'gauge',
+            data: [{ value, name }],
+            min, max,
+            center: ['50%', '55%'],
+            radius: '85%',
+            startAngle: 210,
+            endAngle: -30,
+            axisLine: {
+              lineStyle: { width: 12, color: bands }
+            },
+            pointer: { width: 4, length: '55%', itemStyle: { color: '#d4d4d8' } },
+            anchor: { show: true, size: 8, itemStyle: { color: '#d4d4d8' } },
+            axisTick: { show: false },
+            splitLine: { show: false },
+            axisLabel: { show: false },
+            detail: {
+              formatter: '{value}%', fontSize: 22, fontWeight: 'bold',
+              color: '#f4f4f5', offsetCenter: [0, '70%']
+            },
+            title: { show: false }
+          }]
+        });
+        return chart;
+      };
 
-      // ── Gauge: CSAT ──
-      this.charts.gaugeSat = echarts.init(this.$refs.gaugeSat, 'zinc-dark');
-      this.charts.gaugeSat.setOption({
-        series: [{
-          type: 'gauge',
-          data: [{ value: 92, name: 'CSAT' }],
-          min: 0, max: 100,
-          radius: '90%',
-          axisLine: {
-            lineStyle: {
-              width: 10,
-              color: [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']]
-            }
-          },
-          pointer: { width: 4, length: '60%' },
-          axisTick: { show: false },
-          splitLine: { show: false },
-          axisLabel: { show: false },
-          detail: {
-            formatter: '{value}%', fontSize: 18,
-            color: '#f4f4f5', offsetCenter: [0, '65%']
-          },
-          title: { offsetCenter: [0, '85%'], color: '#a1a1aa', fontSize: 12 }
-        }]
-      });
+      const defaultBands = [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']];
 
-      // ── Gauge: Uptime ──
-      this.charts.gaugeUptime = echarts.init(this.$refs.gaugeUptime, 'zinc-dark');
-      this.charts.gaugeUptime.setOption({
-        series: [{
-          type: 'gauge',
-          data: [{ value: 99.7, name: 'Uptime' }],
-          min: 95, max: 100,
-          radius: '90%',
-          axisLine: {
-            lineStyle: {
-              width: 10,
-              color: [[0.4, '#ef4444'], [0.7, '#f59e0b'], [1, '#10b981']]
-            }
-          },
-          pointer: { width: 4, length: '60%' },
-          axisTick: { show: false },
-          splitLine: { show: false },
-          axisLabel: { show: false },
-          detail: {
-            formatter: '{value}%', fontSize: 18,
-            color: '#f4f4f5', offsetCenter: [0, '65%']
-          },
-          title: { offsetCenter: [0, '85%'], color: '#a1a1aa', fontSize: 12 }
-        }]
-      });
+      this.charts.gaugeRevenue = gaugeBase(
+        this.$refs.gaugeRevenue, 78, 'Revenue', 0, 100, defaultBands
+      );
+      this.charts.gaugeSat = gaugeBase(
+        this.$refs.gaugeSat, 92, 'CSAT', 0, 100, defaultBands
+      );
+      this.charts.gaugeUptime = gaugeBase(
+        this.$refs.gaugeUptime, 99.7, 'Uptime', 95, 100,
+        [[0.4, '#ef4444'], [0.7, '#f59e0b'], [1, '#10b981']]
+      );
 
       // ── Line + Bar combo (dual axis) ──
       this.charts.revenueCombo = echarts.init(this.$refs.revenueCombo, 'zinc-dark');
@@ -597,22 +562,52 @@ document.addEventListener('alpine:init', () => {
       </template>
     </div>
 
-    <!-- Overview: gauge x3 + line/bar combo -->
+    <!-- Overview: stat cards + gauge x3 + line/bar combo -->
     <div role="tabpanel" x-show="tab === 'Overview'">
-      <div class="grid grid-cols-3 gap-4 mb-4">
-        <div class="bg-zinc-800 rounded-xl p-3 border border-zinc-700">
-          <div x-ref="gaugeRevenue" class="h-40 w-full"></div>
+      <!-- KPI stat cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <p class="text-xs text-zinc-400 mb-1">Annual Revenue</p>
+          <p class="text-xl font-semibold text-white">$1.69M</p>
+          <p class="text-xs text-emerald-400 mt-1">+24.8% YoY</p>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-3 border border-zinc-700">
-          <div x-ref="gaugeSat" class="h-40 w-full"></div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <p class="text-xs text-zinc-400 mb-1">Monthly Avg</p>
+          <p class="text-xl font-semibold text-white">$140K</p>
+          <p class="text-xs text-emerald-400 mt-1">+7.9% last month</p>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-3 border border-zinc-700">
-          <div x-ref="gaugeUptime" class="h-40 w-full"></div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <p class="text-xs text-zinc-400 mb-1">Best Month</p>
+          <p class="text-xl font-semibold text-white">$205K</p>
+          <p class="text-xs text-zinc-400 mt-1">December</p>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <p class="text-xs text-zinc-400 mb-1">Avg Growth</p>
+          <p class="text-xl font-semibold text-white">+9.5%</p>
+          <p class="text-xs text-zinc-400 mt-1">per month</p>
         </div>
       </div>
+
+      <!-- Gauges -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-2">Revenue Target</h2>
+          <div x-ref="gaugeRevenue" class="h-48 sm:h-44 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-2">Customer Satisfaction</h2>
+          <div x-ref="gaugeSat" class="h-48 sm:h-44 w-full"></div>
+        </div>
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <h2 class="text-sm text-zinc-400 mb-2">System Uptime</h2>
+          <div x-ref="gaugeUptime" class="h-48 sm:h-44 w-full"></div>
+        </div>
+      </div>
+
+      <!-- Revenue combo chart -->
       <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
         <h2 class="text-sm text-zinc-400 mb-4">Monthly Revenue + Growth Rate (line + bar, dual axis)</h2>
-        <div x-ref="revenueCombo" class="h-72 w-full"></div>
+        <div x-ref="revenueCombo" class="h-64 sm:h-72 w-full"></div>
       </div>
     </div>
 
