@@ -110,15 +110,23 @@ document.addEventListener('alpine:init', () => {
     },
 
     init() {
-      this.charts.main = echarts.init(this.$refs.mainChart, 'zinc-dark');
-      this.charts.main.setOption({ /* ... */ });
+      this.$nextTick(() => {
+        this.initCharts();
+        requestAnimationFrame(() => {
+          Object.values(this.charts).forEach(c => c.resize());
+        });
+      });
 
       this.$watch('filtered', () => this.updateCharts());
 
-      const resizeAll = () => {
+      window.addEventListener('resize', () => {
         Object.values(this.charts).forEach(c => c.resize());
-      };
-      window.addEventListener('resize', resizeAll);
+      });
+    },
+
+    initCharts() {
+      this.charts.main = echarts.init(this.$refs.mainChart, 'zinc-dark');
+      this.charts.main.setOption({ /* ... */ });
     },
 
     updateCharts() {
@@ -414,10 +422,25 @@ Important: `<template x-for>` must be inside `<tbody>`, not `<table>` directly. 
 
 ### Initialization
 
-Initialize charts in the Alpine `init()` method using `$refs`:
+Initialize charts in the Alpine `init()` method using `$refs`. Wrap the init calls in `$nextTick` so the DOM has settled after Alpine removes `x-cloak` -- without this, `echarts.init()` can run on a zero-size container and charts render blank on first load (especially on mobile):
 
 ```js
 init() {
+  this.$nextTick(() => {
+    this.initCharts();
+    // One extra resize after the first paint to catch any remaining
+    // layout shifts (mobile orientation, late font load, etc.)
+    requestAnimationFrame(() => {
+      Object.values(this.charts).forEach(c => c.resize());
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    Object.values(this.charts).forEach(c => c.resize());
+  });
+},
+
+initCharts() {
   this.charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
   this.charts.cpu.setOption({
     tooltip: { trigger: 'axis' },
@@ -425,12 +448,10 @@ init() {
     yAxis: { type: 'value' },
     series: [{ name: 'CPU', type: 'line', data: values, areaStyle: { opacity: 0.2 } }]
   });
-
-  window.addEventListener('resize', () => {
-    Object.values(this.charts).forEach(c => c.resize());
-  });
 }
 ```
+
+Extracting chart setup into a separate `initCharts()` method makes it reusable for theme toggles, which need to dispose and reinit all charts from scratch.
 
 Chart container in the HTML:
 
@@ -1308,7 +1329,7 @@ The artifact runs in a browser on any platform: desktop Linux, Raspberry Pi, mac
   - 10,000-100,000 points: add `large: true` and `largeThreshold: 2000` on the series for GPU-accelerated rendering.
   - Over 100,000 points: pre-aggregate the data before charting; this volume is beyond in-browser rendering.
 - Note: `sampling: 'lttb'` only applies to line series. For bar charts with many categories, aggregate into bins. For scatter plots with thousands of points, use `large: true`.
-- Avoid `requestAnimationFrame` loops unless the artifact is explicitly a visualization or game.
+- Avoid `requestAnimationFrame` loops unless the artifact is explicitly a visualization or game. A one-shot `requestAnimationFrame` for post-init chart resize (see Initialization section) is fine.
 
 -----
 
@@ -1357,14 +1378,13 @@ Alpine.data('app', () => ({
   toggleTheme() {
     this.darkMode = !this.darkMode;
     document.documentElement.classList.toggle('dark', this.darkMode);
-    // Re-theme all ECharts instances
-    Object.keys(this.charts).forEach(key => {
-      const el = this.charts[key].getDom();
-      const opt = this.charts[key].getOption();
-      this.charts[key].dispose();
-      this.charts[key] = echarts.init(el, this.currentTheme);
-      this.charts[key].setOption(opt);
-    });
+    // Dispose all charts and reinit from scratch.
+    // Do NOT use getOption/setOption -- it preserves stale hardcoded
+    // colors from the previous theme, causing invisible or low-contrast
+    // elements after the switch.
+    Object.values(this.charts).forEach(c => c.dispose());
+    this.charts = {};
+    this.$nextTick(() => this.initCharts());
   }
 }));
 ```
@@ -1376,6 +1396,25 @@ Register a `zinc-light` theme alongside the dark theme. Use `darkMode: "class"` 
 ```
 
 This sets the initial theme to match the user's OS setting. The toggle button overrides it.
+
+### Theme-aware colors in chart options
+
+Do not hardcode color literals (`'#fff'`, `'#a1a1aa'`, etc.) in chart options for axis labels, visualMap text, radar indicators, gauge pointers, treemap borders, or sankey labels. These values become invisible or low-contrast when the theme switches.
+
+Instead, derive colors from Alpine state so they update on reinit:
+
+```js
+get tc() {
+  return {
+    text: this.darkMode ? '#e4e4e7' : '#3f3f46',     // zinc-200 / zinc-700
+    subtext: this.darkMode ? '#a1a1aa' : '#71717a',   // zinc-400 / zinc-500
+    border: this.darkMode ? '#3f3f46' : '#e4e4e7',    // zinc-700 / zinc-200
+    bg: this.darkMode ? '#27272a' : '#ffffff',         // zinc-800 / white
+  };
+}
+```
+
+Then reference `this.tc.text` etc. in every `setOption` call where you would otherwise write a hex literal. When `initCharts()` runs after a theme toggle, the getter returns the correct values for the new mode automatically.
 
 -----
 
@@ -1773,7 +1812,7 @@ Before saving the file, verify:
 3. The layout works at mobile, tablet, and desktop widths.
 4. Dark theme tokens are consistent (not mixing `zinc-900` page with `zinc-900` cards).
 5. Interactive elements (tabs, filters, sort) work without requiring hover.
-6. Charts initialize correctly, resize on window resize, and reflect filtered data.
+6. Charts initialize correctly (via `$nextTick` + `requestAnimationFrame` resize), resize on window resize, and reflect filtered data.
 7. No unused CDN scripts in the head.
 8. `x-cloak` style is present in the head.
 9. Alpine.js script tag is last, with `defer`.
