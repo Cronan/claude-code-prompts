@@ -12,7 +12,7 @@ The stack:
 
 - **Alpine.js** -- reactive UI state (tabs, search, filters, sorting) in ~15 KB
 - **ECharts** -- interactive charts with zoom, brush, linked tooltips, and a toolbox
-- **Tailwind CSS** -- dark theme styling, responsive layout
+- **Tailwind CSS** -- dark/light theme styling, responsive layout
 
 All three load from CDN. Data is hardcoded in the file and structured for easy editing.
 
@@ -43,22 +43,24 @@ Performance guidance covers DOM limits, animation constraints, and dataset sizes
 
 ## Charts
 
-ECharts provides 13 chart types with complete configuration examples:
+ECharts provides 15 chart types with complete configuration examples:
 
 - **Standard**: line, bar, stacked area, line+bar combo
 - **Part-to-whole**: donut/pie, treemap, funnel, sankey
 - **Statistical**: scatter/bubble, heatmap, radar, boxplot
 - **KPI**: gauge
-- **Financial**: candlestick with volume overlay
+- **Financial**: candlestick with volume overlay, waterfall, calendar heatmap
 
 Interactive features include DataZoom (slider and scroll-wheel zoom), linked tooltips, toolbox (save image, data view, reset), legend toggle, brush selection, markLine thresholds, and markArea regions. Charts can be combined in a single instance (line + bar, candlestick + volume bars, stacked area).
 
-Charts use a custom `zinc-dark` theme that matches the Tailwind dark theme tokens.
+Charts use dual ECharts themes (`zinc-dark` and `zinc-light`) that match the Tailwind dark/light theme tokens.
 
 ## Dashboard features
 
 Beyond charting, artifacts support production-grade dashboard patterns:
 
+- **Dark/light theme toggle** -- runtime switch with ECharts re-theming and `prefers-color-scheme` detection
+- **Color-blind safe palette** -- runtime toggle swapping to a deuteranopia-safe color set
 - **Cross-filtering** -- click a chart element to filter other charts and tables
 - **CSV export** -- download table/chart data with proper quoting and escaping
 - **URL hash state** -- filter values and active tab encoded in URL for shareable links
@@ -68,6 +70,9 @@ Beyond charting, artifacts support production-grade dashboard patterns:
 - **Print stylesheet** -- white background, hidden controls, page-break-safe cards
 - **Synced crosshair** -- linked tooltips across charts via `echarts.connect()`
 - **Sortable tables** -- keyboard-accessible headers with ARIA sort attributes
+- **View-as-table toggle** -- swap between chart and data table for accessibility
+- **Responsive legend** -- ECharts `media` option for automatic legend repositioning
+- **Inline JSON data blocks** -- separate large datasets from chart logic
 - **prefers-reduced-motion** -- respects system accessibility setting
 - **prefers-color-scheme** -- detects system dark/light preference
 
@@ -78,7 +83,7 @@ Full specification: [`SKILL.md`](SKILL.md).
 - Single file. One page per artifact.
 - No external API calls. Data is hardcoded, structured for easy editing.
 - No `localStorage` or `sessionStorage`.
-- Dark theme by default (`bg-zinc-900` page, `bg-zinc-800` cards, `border-zinc-700`).
+- Dark theme by default, with light theme toggle available.
 - No `<form>` tags. Use `@click` and `x-model` directly.
 - No hover-only interactions. Touch devices must work.
 
@@ -86,7 +91,7 @@ Full specification: [`SKILL.md`](SKILL.md).
 
 | File | Content |
 |---|---|
-| [`references/patterns.md`](references/patterns.md) | Component skeletons: sidebar, cards, tables, tabs, search, charts, badges, progress bars, CSV export, fullscreen panels, skeleton loading, print stylesheet |
+| [`references/patterns.md`](references/patterns.md) | Component skeletons: sidebar, cards, tables, tabs, search, charts, badges, progress bars, CSV export, fullscreen panels, skeleton loading, print stylesheet, dark/light toggle, view-as-table toggle, color-blind palette toggle |
 | [`references/tailwind-guide.md`](references/tailwind-guide.md) | Dark theme tokens, ECharts theme config, spacing scale, typography |
 
 ## Examples
@@ -95,6 +100,6 @@ Full specification: [`SKILL.md`](SKILL.md).
 
 | File | Content |
 |---|---|
-| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | All 13 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial) with type labels, fullscreen panels, markLine/markArea, keyboard shortcuts |
-| [`examples/example-dashboard.html`](examples/example-dashboard.html) | System monitor with cross-filtering, CSV export, URL hash state, sortable table, search, filter chips, skeleton loading, print stylesheet |
-| [`examples/example-gdp-analysis.html`](examples/example-gdp-analysis.html) | GDP and labor market analysis: 10 economic sectors, 18 job categories, task-level automation breakdowns. Combines treemap, scatter/bubble, radar, stacked bar, gauge, sortable tables, cross-filtering |
+| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | 15 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial) with waterfall, calendar heatmap, dark/light toggle, color-blind mode, fullscreen panels, keyboard shortcuts |
+| [`examples/example-dashboard.html`](examples/example-dashboard.html) | System monitor with cross-filtering, dark/light toggle, color-blind mode, CSV export, URL hash state, sortable table, search, filter chips, skeleton loading, print stylesheet |
+| [`examples/example-gdp-analysis.html`](examples/example-gdp-analysis.html) | GDP and labor market analysis: 10 economic sectors, 18 job categories, task-level automation breakdowns. Dark/light toggle, color-blind mode, treemap, scatter/bubble, radar, stacked bar, gauge, sortable tables, cross-filtering |

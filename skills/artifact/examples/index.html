@@ -43,7 +43,7 @@
         <div>
           <h2 class="text-base font-semibold text-white mb-1">ECharts Type Showcase</h2>
           <p class="text-sm text-zinc-400 leading-relaxed">
-            All 13 supported chart types organized by category: line, bar, stacked area, combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume.
+            15 chart types organized by category: line, bar, stacked area, combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume, waterfall, calendar heatmap.
           </p>
         </div>
         <svg class="w-5 h-5 text-zinc-500 mt-1 flex-shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,12 +51,12 @@
         </svg>
       </div>
       <div class="flex flex-wrap gap-1.5 mt-3">
-        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">13 chart types</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">15 chart types</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">dark/light toggle</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">color-blind mode</span>
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">fullscreen panels</span>
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">keyboard shortcuts</span>
-        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">markLine / markArea</span>
-        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">toolbox</span>
-        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">print stylesheet</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">waterfall + calendar</span>
       </div>
     </a>
 
@@ -76,11 +76,11 @@
       </div>
       <div class="flex flex-wrap gap-1.5 mt-3">
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">cross-filtering</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">dark/light toggle</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">color-blind mode</span>
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">CSV export</span>
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">URL state</span>
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">sortable table</span>
-        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">search + filters</span>
-        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">skeleton loading</span>
       </div>
     </a>
 
@@ -100,10 +100,11 @@
       </div>
       <div class="flex flex-wrap gap-1.5 mt-3">
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">multi-tab analysis</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">dark/light toggle</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">color-blind mode</span>
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">cross-filtering</span>
         <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">10+ chart types</span>
-        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">data tables</span>
-        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">all Batch 1+2 features</span>
+        <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-xs">all features</span>
       </div>
     </a>
 
@@ -132,6 +133,8 @@
   <div class="mt-6 pt-4 border-t border-zinc-700/50">
     <h2 class="text-sm font-semibold text-white mb-3">Dashboard Features</h2>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1.5 text-xs text-zinc-400">
+      <span>Dark/light theme toggle</span>
+      <span>Color-blind safe palette</span>
       <span>Cross-filtering (click to filter)</span>
       <span>CSV export</span>
       <span>URL hash state (shareable)</span>
@@ -141,15 +144,19 @@
       <span>Print stylesheet</span>
       <span>prefers-reduced-motion</span>
       <span>prefers-color-scheme</span>
+      <span>Responsive legend (ECharts media)</span>
       <span>markLine / markArea thresholds</span>
       <span>Synced crosshair (connect)</span>
       <span>Toolbox (save image)</span>
       <span>Sortable tables (ARIA)</span>
+      <span>View-as-table toggle</span>
+      <span>Inline JSON data blocks</span>
       <span>Search + filter chips</span>
       <span>Status badges</span>
       <span>Progress bars (ARIA)</span>
-      <span>Dark theme (zinc tokens)</span>
-      <span>Responsive (mobile-first)</span>
+      <span>15 chart types</span>
+      <span>Waterfall charts</span>
+      <span>Calendar heatmaps</span>
     </div>
   </div>
 

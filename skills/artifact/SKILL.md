@@ -494,6 +494,8 @@ Option A is simpler and recommended for most artifacts.
 | Gauge | `'gauge'` | Single-value display. Data is `[{ value: 72, name: 'Score' }]`. No axes. Use for KPIs, health scores, completion percentage. |
 | Funnel | `'funnel'` | Data is `[{ name, value }]` in descending order. No axes. Use for conversion funnels, sales pipelines, process stages. |
 | Sankey | `'sankey'` | Data is `{ nodes: [...], links: [{ source, target, value }] }`. No axes. Use for flow visualization: budget allocation, traffic sources, energy flow. |
+| Waterfall | `'bar'` | Simulated using stacked bars with a transparent base. Data is `[{ name, value }]` with computed running total. Use for financial statements, variance analysis, bridge charts. |
+| Calendar heatmap | `'heatmap'` + `calendar` | Uses ECharts `calendar` component. Data is `[[date, value], ...]`. Use for activity tracking, contribution graphs, daily patterns over months. |
 
 ### Chart type examples
 
@@ -680,6 +682,75 @@ The `color` array on `axisLine` defines threshold bands: red below 60, amber 60-
   }]
 }
 ```
+
+**Waterfall** -- bridge chart showing cumulative effect of positive and negative values. Uses stacked bars with a transparent base series:
+
+```js
+{
+  xAxis: {
+    type: 'category',
+    data: ['Q1 Revenue', 'COGS', 'Gross Profit', 'OpEx', 'Tax', 'Net Income']
+  },
+  yAxis: { type: 'value', axisLabel: { formatter: (v) => '$' + (v / 1e6).toFixed(0) + 'M' } },
+  series: [
+    {
+      // Invisible base (creates the "floating" effect)
+      type: 'bar', stack: 'waterfall', silent: true,
+      itemStyle: { color: 'transparent', borderColor: 'transparent' },
+      data: [0, 8000000, 0, 5200000, 4000000, 0]  // running total minus current bar
+    },
+    {
+      // Visible bars
+      type: 'bar', stack: 'waterfall',
+      data: [
+        { value: 12000000, itemStyle: { color: '#3b82f6' } },  // total: positive
+        { value: -4000000, itemStyle: { color: '#ef4444' } },   // decrease
+        { value: 8000000, itemStyle: { color: '#10b981' } },    // subtotal
+        { value: -1200000, itemStyle: { color: '#ef4444' } },   // decrease
+        { value: -1000000, itemStyle: { color: '#ef4444' } },   // decrease
+        { value: 5800000, itemStyle: { color: '#10b981' } }     // final total
+      ],
+      label: {
+        show: true, position: 'top',
+        formatter: (p) => {
+          const v = p.value;
+          return (v < 0 ? '-' : '') + '$' + (Math.abs(v) / 1e6).toFixed(1) + 'M';
+        }
+      }
+    }
+  ]
+}
+```
+
+The transparent base series shifts each bar vertically to create the waterfall stepping effect. Pre-compute the base values: for each bar, the base is the running total before that bar's contribution. Color positive values blue/green, negatives red, and subtotals/totals with a distinct accent.
+
+**Calendar heatmap** -- daily values plotted on a calendar grid. Uses ECharts `calendar` component:
+
+```js
+{
+  visualMap: {
+    min: 0, max: 15, calculable: true,
+    orient: 'horizontal', left: 'center', bottom: 0,
+    inRange: { color: ['#27272a', '#3b82f6', '#10b981'] }
+  },
+  calendar: {
+    range: '2024',
+    cellSize: ['auto', 14],
+    itemStyle: { borderWidth: 2, borderColor: '#18181b' },
+    yearLabel: { color: '#a1a1aa' },
+    monthLabel: { color: '#a1a1aa' },
+    dayLabel: { color: '#71717a', firstDay: 1 },
+    splitLine: { lineStyle: { color: '#3f3f46' } }
+  },
+  series: [{
+    type: 'heatmap',
+    coordinateSystem: 'calendar',
+    data: generateCalendarData()  // [[date_string, value], ...]
+  }]
+}
+```
+
+Generate calendar data as `[['2024-01-01', 5], ['2024-01-02', 12], ...]`. The `calendar` component handles day-of-week layout, month boundaries, and label positioning. Use `cellSize: ['auto', 14]` for a compact GitHub-style contribution graph; increase to `['auto', 20]` for larger displays.
 
 ### Combining chart types
 
@@ -1089,6 +1160,30 @@ const SENSORS = [
 
 Do not fetch from external APIs. Do not use `localStorage` or `sessionStorage`. Session state (tab selection, search query, expanded panels) is fine in Alpine's reactive data.
 
+### Inline JSON data blocks
+
+For artifacts with large datasets, separate data from logic using `<script type="application/json">`. This keeps data editable without scrolling through chart configuration:
+
+```html
+<script type="application/json" id="sector-data">
+[
+  { "name": "Manufacturing", "gdp": 2890, "growth": 2.1, "employment": 12.8 },
+  { "name": "Finance", "gdp": 2340, "growth": 2.8, "employment": 6.7 }
+]
+</script>
+```
+
+Read it in the `alpine:init` block:
+
+```js
+document.addEventListener('alpine:init', () => {
+  const SECTORS = JSON.parse(document.getElementById('sector-data').textContent);
+  // ... use SECTORS in Alpine.data()
+});
+```
+
+This pattern is optional. For small datasets (under ~50 items), inline `const` declarations are simpler. Use JSON blocks when the data exceeds ~100 lines and would obscure the component logic.
+
 -----
 
 ## What not to do
@@ -1172,7 +1267,28 @@ All interactive elements must be at least 44x44px. This applies to phones and Ra
 Charts resize automatically via the `resize()` handler in the standard init pattern. Additional guidance for narrow screens:
 
 - **Axis labels**: use `axisLabel: { rotate: 45, fontSize: 10 }` or `axisLabel: { interval: 'auto' }` to prevent label overlap on phones.
-- **Legend**: move below the chart on narrow screens: `legend: { bottom: 0, orient: 'horizontal' }`. Top-right placement overlaps the chart at phone widths.
+- **Legend**: move below the chart on narrow screens. Use ECharts `media` option for automatic responsive legend positioning:
+
+```js
+chart.setOption({
+  // Base option (mobile-first)
+  legend: { bottom: 0, orient: 'horizontal', left: 'center' },
+  grid: { bottom: 40 },
+  // ... series, axes, etc.
+  media: [
+    {
+      query: { minWidth: 768 },
+      option: {
+        legend: { orient: 'vertical', right: 10, top: 'center', bottom: 'auto' },
+        grid: { right: 120, bottom: 20 }
+      }
+    }
+  ]
+});
+```
+
+The `media` option works like CSS media queries inside ECharts. The base option applies to all sizes; query blocks override specific properties at breakpoints. This avoids legend overlapping chart content at phone widths.
+
 - **Toolbox**: hide on phones. Set `toolbox: { show: window.innerWidth >= 768 }` in the chart option.
 
 -----
@@ -1225,18 +1341,41 @@ In CSS, disable transitions for users who prefer reduced motion:
 </style>
 ```
 
-### System theme detection
+### System theme detection and dark/light toggle
 
 When building artifacts with a dark/light toggle, detect the system preference on load:
 
 ```js
 Alpine.data('app', () => ({
   darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
-  // ...
+  charts: {},
+
+  get currentTheme() {
+    return this.darkMode ? 'zinc-dark' : 'zinc-light';
+  },
+
+  toggleTheme() {
+    this.darkMode = !this.darkMode;
+    document.documentElement.classList.toggle('dark', this.darkMode);
+    // Re-theme all ECharts instances
+    Object.keys(this.charts).forEach(key => {
+      const el = this.charts[key].getDom();
+      const opt = this.charts[key].getOption();
+      this.charts[key].dispose();
+      this.charts[key] = echarts.init(el, this.currentTheme);
+      this.charts[key].setOption(opt);
+    });
+  }
 }));
 ```
 
-This sets the initial theme to match the user's OS setting. The toggle button still works to override it.
+Register a `zinc-light` theme alongside the dark theme. Use `darkMode: "class"` in the Tailwind config so the `dark` class on `<html>` controls all Tailwind utilities. Use `dark:` prefix classes for dark mode and unprefixed for light:
+
+```html
+<body class="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen">
+```
+
+This sets the initial theme to match the user's OS setting. The toggle button overrides it.
 
 -----
 
@@ -1539,6 +1678,92 @@ handleKeyboard(e) {
 
 -----
 
+## View-as-table toggle
+
+Add a "View as table" toggle on chart cards so users can see the raw data. This is the most accessible way to present chart data and helps screen reader users:
+
+```html
+<div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700" x-data="{ showTable: false }">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm text-zinc-400">Revenue by Month</h2>
+    <button @click="showTable = !showTable"
+            class="text-zinc-400 hover:text-zinc-200 text-xs no-print"
+            :aria-label="showTable ? 'Show chart' : 'Show data table'">
+      <span x-text="showTable ? 'Chart' : 'Table'"></span>
+    </button>
+  </div>
+
+  <!-- Chart view -->
+  <div x-show="!showTable" x-ref="revenueChart" class="h-64 w-full"></div>
+
+  <!-- Table view -->
+  <div x-show="showTable" class="overflow-x-auto">
+    <table class="w-full text-sm text-left">
+      <thead>
+        <tr class="border-b border-zinc-700 text-zinc-400">
+          <th class="px-3 py-2 font-medium">Month</th>
+          <th class="px-3 py-2 font-medium text-right">Revenue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="(val, i) in chartData" :key="i">
+          <tr class="border-b border-zinc-700/50">
+            <td class="px-3 py-2 text-zinc-300" x-text="labels[i]"></td>
+            <td class="px-3 py-2 text-zinc-300 text-right" x-text="'$' + val.toLocaleString()"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+```
+
+Use nested `x-data` to keep the toggle state local to each card. The chart stays initialized (via `x-show`, not `x-if`) so switching back is instant.
+
+For screen readers, the table view provides equivalent access to all data that the chart visualizes.
+
+-----
+
+## Color-blind mode toggle
+
+Add a runtime toggle that swaps the ECharts color palette to a color-blind-safe set. This goes beyond the static palette guidance in the theme section:
+
+```js
+Alpine.data('app', () => ({
+  colorBlindMode: false,
+  charts: {},
+
+  get palette() {
+    return this.colorBlindMode
+      ? ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']  // deuteranopia-safe
+      : ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4']; // default
+  },
+
+  toggleColorBlind() {
+    this.colorBlindMode = !this.colorBlindMode;
+    // Re-apply palette to all charts
+    Object.values(this.charts).forEach(c => {
+      c.setOption({ color: this.palette });
+    });
+  }
+}));
+```
+
+Toggle button (place in the header):
+
+```html
+<button @click="toggleColorBlind()"
+        :class="colorBlindMode ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors no-print"
+        aria-label="Toggle color-blind safe palette">
+  <span x-text="colorBlindMode ? 'Standard palette' : 'Color-blind safe'"></span>
+</button>
+```
+
+The deuteranopia-safe palette avoids the red-green pair that is indistinguishable to ~8% of males. When active, all charts update immediately via `setOption` merge. Pair with shape/style redundancy (dashed lines, different markers) for complete accessibility.
+
+-----
+
 ## Quality checklist
 
 Before saving the file, verify:
@@ -1557,6 +1782,8 @@ Before saving the file, verify:
 12. Print stylesheet hides interactive controls and forces readable colors.
 13. CSV export produces valid, escaped output for all data types.
 14. Fullscreen panels resize charts correctly on enter and exit.
+15. View-as-table shows equivalent data to the chart it accompanies.
+16. Color-blind palette toggle updates all charts immediately.
 
 -----
 

@@ -25,23 +25,23 @@
   <script>tailwind.config = { darkMode: "class" }</script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
 </head>
-<body class="bg-zinc-900 text-white min-h-screen">
+<body class="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen transition-colors">
 
 <!-- Skeleton loading -->
 <div id="skeleton" class="max-w-7xl mx-auto p-3 md:p-6">
-  <div class="h-8 w-64 bg-zinc-800 rounded animate-pulse mb-2"></div>
-  <div class="h-4 w-96 bg-zinc-800 rounded animate-pulse mb-6"></div>
-  <div class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6 h-10 animate-pulse"></div>
+  <div class="h-8 w-64 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse mb-2"></div>
+  <div class="h-4 w-96 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse mb-6"></div>
+  <div class="flex gap-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg p-1 mb-6 h-10 animate-pulse"></div>
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="bg-zinc-800 rounded-xl border border-zinc-700 h-80 animate-pulse"></div>
-    <div class="bg-zinc-800 rounded-xl border border-zinc-700 h-80 animate-pulse"></div>
+    <div class="bg-zinc-200 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 h-80 animate-pulse"></div>
+    <div class="bg-zinc-200 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 h-80 animate-pulse"></div>
   </div>
 </div>
 
 <script>
 document.addEventListener('alpine:init', () => {
 
-  // ── ECharts theme ───────────────────────────────────────
+  // ── ECharts themes ──────────────────────────────────────
   echarts.registerTheme('zinc-dark', {
     darkMode: true,
     backgroundColor: 'transparent',
@@ -80,6 +80,43 @@ document.addEventListener('alpine:init', () => {
     toolbox: { iconStyle: { borderColor: '#a1a1aa' } }
   });
 
+  echarts.registerTheme('zinc-light', {
+    backgroundColor: 'transparent',
+    color: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4'],
+    textStyle: { color: '#3f3f46' },
+    title: { textStyle: { color: '#18181b' }, subtextStyle: { color: '#71717a' } },
+    legend: { textStyle: { color: '#52525b' } },
+    tooltip: {
+      backgroundColor: '#ffffff',
+      borderColor: '#e4e4e7',
+      textStyle: { color: '#3f3f46' }
+    },
+    categoryAxis: {
+      axisLine: { lineStyle: { color: '#d4d4d8' } },
+      axisTick: { lineStyle: { color: '#d4d4d8' } },
+      axisLabel: { color: '#71717a' },
+      splitLine: { lineStyle: { color: '#f4f4f5' } }
+    },
+    valueAxis: {
+      axisLine: { lineStyle: { color: '#d4d4d8' } },
+      axisTick: { lineStyle: { color: '#d4d4d8' } },
+      axisLabel: { color: '#71717a' },
+      splitLine: { lineStyle: { color: '#f4f4f5' } }
+    },
+    dataZoom: {
+      backgroundColor: '#f4f4f5',
+      fillerColor: 'rgba(212, 212, 216, 0.3)',
+      borderColor: '#d4d4d8',
+      handleStyle: { color: '#a1a1aa' },
+      textStyle: { color: '#71717a' },
+      dataBackground: {
+        lineStyle: { color: '#d4d4d8' },
+        areaStyle: { color: '#f4f4f5' }
+      }
+    },
+    toolbox: { iconStyle: { borderColor: '#71717a' } }
+  });
+
   // ── Reduced motion check ─────────────────────────────────
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -99,7 +136,6 @@ document.addEventListener('alpine:init', () => {
   };
 
   // ── Data ────────────────────────────────────────────────
-  // Edit these arrays to change what the charts display.
 
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -205,7 +241,7 @@ document.addEventListener('alpine:init', () => {
     [32, 72000, 0.62], [14, 18000, 0.88]
   ];
 
-  // Heatmap: activity by hour x day (deterministic)
+  // Heatmap: activity by hour x day
   const HOURS = ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm'];
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const ACTIVITY = [];
@@ -240,13 +276,32 @@ document.addEventListener('alpine:init', () => {
     [5, 10, 15, 25, 60]
   ];
 
-  // Stacked area data
   const STACK_MONTHS = MONTHS;
   const STACK_SERIES = [
     { name: 'Organic', data: [320, 332, 301, 334, 390, 430, 410, 442, 480, 520, 540, 580] },
     { name: 'Direct', data: [120, 132, 101, 134, 90, 230, 210, 182, 191, 234, 260, 250] },
     { name: 'Referral', data: [220, 182, 191, 234, 290, 330, 310, 328, 350, 380, 400, 420] }
   ];
+
+  // Waterfall data
+  const WATERFALL_LABELS = ['Q1 Revenue', 'COGS', 'Gross Profit', 'OpEx', 'Tax', 'Net Income'];
+  const WATERFALL_VALUES = [12000, -4000, 8000, -1200, -1000, 5800]; // in thousands
+  const WATERFALL_BASE = [0, 8000, 0, 5800, 4800, 0]; // transparent base
+
+  // Calendar heatmap data (2024)
+  const CALENDAR_DATA = [];
+  const startDate = new Date('2024-01-01');
+  for (let i = 0; i < 366; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    if (d.getFullYear() > 2024) break;
+    const dayOfWeek = d.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const base = isWeekend ? 2 : 8;
+    const val = Math.max(0, base + ((i * 7 + 3) % 11) - 3);
+    const dateStr = d.toISOString().split('T')[0];
+    CALENDAR_DATA.push([dateStr, val]);
+  }
 
   // ── Chart type metadata ─────────────────────────────────
   const CHART_TYPES = {
@@ -272,7 +327,9 @@ document.addEventListener('alpine:init', () => {
       { key: 'gauge', label: 'Gauge', desc: 'Single-value KPI with threshold bands' }
     ],
     'Financial': [
-      { key: 'candle', label: 'Candlestick + Volume', desc: 'OHLC price data with volume overlay' }
+      { key: 'candle', label: 'Candlestick + Volume', desc: 'OHLC price data with volume overlay' },
+      { key: 'waterfall', label: 'Waterfall', desc: 'Cumulative variance, bridge chart' },
+      { key: 'calendar', label: 'Calendar Heatmap', desc: 'Daily values on a yearly calendar grid' }
     ]
   };
 
@@ -284,11 +341,24 @@ document.addEventListener('alpine:init', () => {
     initialized: {},
     fullscreen: null,
     chartTypes: CHART_TYPES,
+    darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+    colorBlindMode: false,
+
+    get palette() {
+      return this.colorBlindMode
+        ? ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
+        : ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4'];
+    },
+
+    get currentTheme() {
+      return this.darkMode ? 'zinc-dark' : 'zinc-light';
+    },
 
     init() {
-      // Hide skeleton
       const skel = document.getElementById('skeleton');
       if (skel) skel.style.display = 'none';
+
+      document.documentElement.classList.toggle('dark', this.darkMode);
 
       this.initTab('Standard');
 
@@ -305,6 +375,25 @@ document.addEventListener('alpine:init', () => {
 
       this.$watch('fullscreen', () => {
         this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+      });
+    },
+
+    toggleTheme() {
+      this.darkMode = !this.darkMode;
+      document.documentElement.classList.toggle('dark', this.darkMode);
+      Object.keys(this.charts).forEach(key => {
+        const el = this.charts[key].getDom();
+        const opt = this.charts[key].getOption();
+        this.charts[key].dispose();
+        this.charts[key] = echarts.init(el, this.currentTheme);
+        this.charts[key].setOption(opt);
+      });
+    },
+
+    toggleColorBlind() {
+      this.colorBlindMode = !this.colorBlindMode;
+      Object.values(this.charts).forEach(c => {
+        c.setOption({ color: this.palette });
       });
     },
 
@@ -338,8 +427,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     initStandard() {
-      // ── Line chart ──
-      this.charts.line = echarts.init(this.$refs.lineChart, 'zinc-dark');
+      this.charts.line = echarts.init(this.$refs.lineChart, this.currentTheme);
       this.charts.line.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true },
@@ -358,8 +446,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      // ── Bar chart ──
-      this.charts.bar = echarts.init(this.$refs.barChart, 'zinc-dark');
+      this.charts.bar = echarts.init(this.$refs.barChart, this.currentTheme);
       this.charts.bar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
@@ -377,8 +464,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      // ── Stacked area ──
-      this.charts.area = echarts.init(this.$refs.areaChart, 'zinc-dark');
+      this.charts.area = echarts.init(this.$refs.areaChart, this.currentTheme);
       this.charts.area.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true },
@@ -392,8 +478,7 @@ document.addEventListener('alpine:init', () => {
         }))
       });
 
-      // ── Line + Bar combo (dual axis) ──
-      this.charts.combo = echarts.init(this.$refs.comboChart, 'zinc-dark');
+      this.charts.combo = echarts.init(this.$refs.comboChart, this.currentTheme);
       this.charts.combo.setOption({
         animation: !reduceMotion,
         tooltip: {
@@ -427,8 +512,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     initPartToWhole() {
-      // ── Donut pie ──
-      this.charts.pie = echarts.init(this.$refs.pieChart, 'zinc-dark');
+      this.charts.pie = echarts.init(this.$refs.pieChart, this.currentTheme);
       this.charts.pie.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item', formatter: '{b}: ${c}K ({d}%)' },
@@ -442,8 +526,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      // ── Treemap ──
-      this.charts.treemap = echarts.init(this.$refs.treemapChart, 'zinc-dark');
+      this.charts.treemap = echarts.init(this.$refs.treemapChart, this.currentTheme);
       this.charts.treemap.setOption({
         animation: !reduceMotion,
         tooltip: { formatter: (p) => p.name + ': ' + fmt.compact(p.value) },
@@ -460,8 +543,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      // ── Funnel ──
-      this.charts.funnel = echarts.init(this.$refs.funnelChart, 'zinc-dark');
+      this.charts.funnel = echarts.init(this.$refs.funnelChart, this.currentTheme);
       this.charts.funnel.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item', formatter: (p) => p.name + ': ' + fmt.num(p.value) },
@@ -474,8 +556,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      // ── Sankey ──
-      this.charts.sankey = echarts.init(this.$refs.sankeyChart, 'zinc-dark');
+      this.charts.sankey = echarts.init(this.$refs.sankeyChart, this.currentTheme);
       this.charts.sankey.setOption({
         animation: !reduceMotion,
         tooltip: {
@@ -498,8 +579,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     initStatistical() {
-      // ── Scatter (bubble) ──
-      this.charts.scatter = echarts.init(this.$refs.scatterChart, 'zinc-dark');
+      this.charts.scatter = echarts.init(this.$refs.scatterChart, this.currentTheme);
       this.charts.scatter.setOption({
         animation: !reduceMotion,
         tooltip: {
@@ -527,8 +607,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      // ── Heatmap ──
-      this.charts.heatmap = echarts.init(this.$refs.heatmapChart, 'zinc-dark');
+      this.charts.heatmap = echarts.init(this.$refs.heatmapChart, this.currentTheme);
       this.charts.heatmap.setOption({
         animation: !reduceMotion,
         tooltip: {
@@ -551,8 +630,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      // ── Radar ──
-      this.charts.radar = echarts.init(this.$refs.radarChart, 'zinc-dark');
+      this.charts.radar = echarts.init(this.$refs.radarChart, this.currentTheme);
       this.charts.radar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item' },
@@ -567,8 +645,7 @@ document.addEventListener('alpine:init', () => {
         series: [{ type: 'radar', data: RADAR_DATA, areaStyle: { opacity: 0.15 } }]
       });
 
-      // ── Boxplot ──
-      this.charts.boxplot = echarts.init(this.$refs.boxplotChart, 'zinc-dark');
+      this.charts.boxplot = echarts.init(this.$refs.boxplotChart, this.currentTheme);
       this.charts.boxplot.setOption({
         animation: !reduceMotion,
         tooltip: {
@@ -589,7 +666,7 @@ document.addEventListener('alpine:init', () => {
 
     initKPI() {
       const gaugeBase = (el, value, name, min, max, bands) => {
-        const chart = echarts.init(el, 'zinc-dark');
+        const chart = echarts.init(el, this.currentTheme);
         chart.setOption({
           animation: !reduceMotion,
           toolbox: this.defaultToolbox(),
@@ -619,8 +696,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initFinancial() {
-      // ── Candlestick + Volume ──
-      this.charts.candle = echarts.init(this.$refs.candleChart, 'zinc-dark');
+      // Candlestick + Volume
+      this.charts.candle = echarts.init(this.$refs.candleChart, this.currentTheme);
       this.charts.candle.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, confine: true },
@@ -642,6 +719,79 @@ document.addEventListener('alpine:init', () => {
             itemStyle: { color: 'rgba(59, 130, 246, 0.3)' }, barWidth: '60%' }
         ]
       });
+
+      // Waterfall chart
+      this.charts.waterfall = echarts.init(this.$refs.waterfallChart, this.currentTheme);
+      this.charts.waterfall.setOption({
+        animation: !reduceMotion,
+        tooltip: {
+          trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true,
+          formatter: (params) => {
+            const visible = params.find(p => p.seriesIndex === 1);
+            if (!visible) return '';
+            const v = WATERFALL_VALUES[visible.dataIndex];
+            return visible.name + '<br/>' + (v >= 0 ? '+' : '') + '$' + v.toLocaleString() + 'K';
+          }
+        },
+        toolbox: this.defaultToolbox(),
+        xAxis: { type: 'category', data: WATERFALL_LABELS },
+        yAxis: { type: 'value', axisLabel: { formatter: (v) => '$' + v + 'K' } },
+        series: [
+          {
+            type: 'bar', stack: 'waterfall', silent: true,
+            itemStyle: { color: 'transparent', borderColor: 'transparent' },
+            emphasis: { itemStyle: { color: 'transparent', borderColor: 'transparent' } },
+            data: WATERFALL_BASE
+          },
+          {
+            type: 'bar', stack: 'waterfall',
+            data: WATERFALL_VALUES.map((v, i) => ({
+              value: Math.abs(v),
+              itemStyle: {
+                color: (i === 2 || i === 5) ? '#3b82f6'
+                  : v >= 0 ? '#10b981' : '#ef4444'
+              }
+            })),
+            label: {
+              show: true, position: 'top',
+              formatter: (p) => {
+                const v = WATERFALL_VALUES[p.dataIndex];
+                return (v >= 0 ? '+' : '-') + '$' + Math.abs(v).toLocaleString() + 'K';
+              }
+            }
+          }
+        ]
+      });
+
+      // Calendar heatmap
+      this.charts.calendar = echarts.init(this.$refs.calendarChart, this.currentTheme);
+      this.charts.calendar.setOption({
+        animation: !reduceMotion,
+        tooltip: {
+          formatter: (p) => p.data[0] + ': ' + p.data[1] + ' contributions'
+        },
+        toolbox: this.defaultToolbox(),
+        visualMap: {
+          min: 0, max: 15, calculable: true, show: true,
+          orient: 'horizontal', left: 'center', bottom: 0,
+          inRange: { color: ['#27272a', '#3b82f6', '#10b981'] },
+          textStyle: { color: '#a1a1aa' }
+        },
+        calendar: {
+          range: '2024', top: 30, left: 40, right: 20,
+          cellSize: ['auto', 14],
+          itemStyle: { borderWidth: 2, borderColor: '#18181b' },
+          yearLabel: { color: '#a1a1aa' },
+          monthLabel: { color: '#a1a1aa' },
+          dayLabel: { color: '#71717a', firstDay: 1 },
+          splitLine: { lineStyle: { color: '#3f3f46' } }
+        },
+        series: [{
+          type: 'heatmap',
+          coordinateSystem: 'calendar',
+          data: CALENDAR_DATA
+        }]
+      });
     }
   }));
 
@@ -654,52 +804,70 @@ document.addEventListener('alpine:init', () => {
   <main class="max-w-7xl mx-auto p-3 md:p-6">
 
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6">
       <div>
         <h1 class="text-xl md:text-2xl font-bold mb-1">ECharts Type Showcase</h1>
-        <p class="text-sm text-zinc-400">All 13 chart types organized by category. Each panel labels the chart type and its use case.</p>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">15 chart types organized by category. Each panel labels the chart type and its use case.</p>
       </div>
-      <p class="text-xs text-zinc-400 mt-2 sm:mt-0 no-print">Press 1-5 to switch tabs. Esc to exit fullscreen.</p>
+      <div class="flex items-center gap-2 mt-3 sm:mt-0 no-print">
+        <button @click="toggleColorBlind()"
+                :class="colorBlindMode ? 'bg-blue-600 text-white' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700'"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                aria-label="Toggle color-blind safe palette">
+          <span x-text="colorBlindMode ? 'Standard palette' : 'Color-blind safe'"></span>
+        </button>
+        <button @click="toggleTheme()"
+                class="text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-2 rounded-lg"
+                :aria-label="darkMode ? 'Switch to light theme' : 'Switch to dark theme'">
+          <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+        </button>
+        <span class="text-xs text-zinc-400 hidden md:inline">Press 1-5 for tabs. Esc to exit fullscreen.</span>
+      </div>
     </div>
 
     <!-- Tabs -->
-    <div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
+    <div role="tablist" class="flex gap-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
       <template x-for="(t, i) in tabs" :key="t">
         <button role="tab"
                 :aria-selected="tab === t"
                 @click="tab = t"
                 :class="tab === t
-                  ? 'bg-zinc-700 text-white'
-                  : 'text-zinc-400 hover:text-zinc-200'"
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'"
                 class="px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap">
           <span x-text="(i+1) + '. ' + t"></span>
         </button>
       </template>
     </div>
 
-    <!-- ═══ Standard: line, bar, stacked area, line+bar combo ═══ -->
+    <!-- Standard: line, bar, stacked area, line+bar combo -->
     <div role="tabpanel" x-show="tab === 'Standard'">
-      <!-- Type index -->
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Standard']" :key="ct.key">
-          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
-            <span class="text-white font-medium" x-text="ct.label"></span>
-            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-zinc-900 dark:text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-500 dark:text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
           </span>
         </template>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Line -->
-        <div :class="fullscreen === 'line' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
-             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div :class="fullscreen === 'line' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-sm font-medium text-white">Line Chart</h2>
-              <p class="text-xs text-zinc-400 mt-0.5">Trends over time. markLine shows a $150K target threshold.</p>
+              <h2 class="text-sm font-medium">Line Chart</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Trends over time. markLine shows a $150K target threshold.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'line' ? null : 'line'"
-                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
                     :aria-label="fullscreen === 'line' ? 'Exit fullscreen' : 'Fullscreen'">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -710,16 +878,15 @@ document.addEventListener('alpine:init', () => {
           <div x-ref="lineChart" :class="fullscreen === 'line' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
         </div>
 
-        <!-- Bar -->
-        <div :class="fullscreen === 'bar' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
-             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div :class="fullscreen === 'bar' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-sm font-medium text-white">Bar Chart</h2>
-              <p class="text-xs text-zinc-400 mt-0.5">Categorical comparison. markArea highlights Q4.</p>
+              <h2 class="text-sm font-medium">Bar Chart</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Categorical comparison. markArea highlights Q4.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'bar' ? null : 'bar'"
-                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
                     :aria-label="fullscreen === 'bar' ? 'Exit fullscreen' : 'Fullscreen'">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -730,16 +897,15 @@ document.addEventListener('alpine:init', () => {
           <div x-ref="barChart" :class="fullscreen === 'bar' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
         </div>
 
-        <!-- Stacked Area -->
-        <div :class="fullscreen === 'area' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
-             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div :class="fullscreen === 'area' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-sm font-medium text-white">Stacked Area</h2>
-              <p class="text-xs text-zinc-400 mt-0.5">Composition over time. stack: 'total' with areaStyle.</p>
+              <h2 class="text-sm font-medium">Stacked Area</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Composition over time. stack: 'total' with areaStyle.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'area' ? null : 'area'"
-                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
                     :aria-label="fullscreen === 'area' ? 'Exit fullscreen' : 'Fullscreen'">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -750,16 +916,15 @@ document.addEventListener('alpine:init', () => {
           <div x-ref="areaChart" :class="fullscreen === 'area' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
         </div>
 
-        <!-- Line + Bar Combo -->
-        <div :class="fullscreen === 'combo' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
-             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div :class="fullscreen === 'combo' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-sm font-medium text-white">Line + Bar Combo</h2>
-              <p class="text-xs text-zinc-400 mt-0.5">Dual-axis: revenue (bar, left) and growth rate (line, right).</p>
+              <h2 class="text-sm font-medium">Line + Bar Combo</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Dual-axis: revenue (bar, left) and growth rate (line, right).</p>
             </div>
             <button @click="fullscreen = fullscreen === 'combo' ? null : 'combo'"
-                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 no-print p-1"
                     :aria-label="fullscreen === 'combo' ? 'Exit fullscreen' : 'Fullscreen'">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -772,132 +937,149 @@ document.addEventListener('alpine:init', () => {
       </div>
     </div>
 
-    <!-- ═══ Part-to-Whole: pie, treemap, funnel, sankey ═══ -->
+    <!-- Part-to-Whole: pie, treemap, funnel, sankey -->
     <div role="tabpanel" x-show="tab === 'Part-to-Whole'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Part-to-Whole']" :key="ct.key">
-          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
-            <span class="text-white font-medium" x-text="ct.label"></span>
-            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-zinc-900 dark:text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-500 dark:text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
           </span>
         </template>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Donut / Pie</h2>
-          <p class="text-xs text-zinc-400 mb-4">Proportions. radius: ['40%', '70%'] makes the donut hole.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Donut / Pie</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Proportions. radius: ['40%', '70%'] makes the donut hole.</p>
           <div x-ref="pieChart" class="h-72 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Treemap</h2>
-          <p class="text-xs text-zinc-400 mb-4">Hierarchical drill-down. Click a node to zoom in; breadcrumb to zoom out.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Treemap</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Hierarchical drill-down. Click a node to zoom in; breadcrumb to zoom out.</p>
           <div x-ref="treemapChart" class="h-72 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Funnel</h2>
-          <p class="text-xs text-zinc-400 mb-4">Conversion pipeline. Data sorted descending by value.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Funnel</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Conversion pipeline. Data sorted descending by value.</p>
           <div x-ref="funnelChart" class="h-80 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Sankey</h2>
-          <p class="text-xs text-zinc-400 mb-4">Flow between nodes. emphasis: { focus: 'adjacency' } highlights connected paths.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Sankey</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Flow between nodes. emphasis: { focus: 'adjacency' } highlights connected paths.</p>
           <div x-ref="sankeyChart" class="h-80 w-full"></div>
         </div>
       </div>
     </div>
 
-    <!-- ═══ Statistical: scatter, heatmap, radar, boxplot ═══ -->
+    <!-- Statistical: scatter, heatmap, radar, boxplot -->
     <div role="tabpanel" x-show="tab === 'Statistical'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Statistical']" :key="ct.key">
-          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
-            <span class="text-white font-medium" x-text="ct.label"></span>
-            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-zinc-900 dark:text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-500 dark:text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
           </span>
         </template>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Scatter / Bubble</h2>
-          <p class="text-xs text-zinc-400 mb-4">Size = probability, color = risk tier. symbolSize maps the third dimension.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Scatter / Bubble</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Size = probability, color = risk tier. symbolSize maps the third dimension.</p>
           <div x-ref="scatterChart" class="h-72 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Heatmap</h2>
-          <p class="text-xs text-zinc-400 mb-4">2D density with visualMap color gradient. Data: [[x, y, value], ...]</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Heatmap</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">2D density with visualMap color gradient. Data: [[x, y, value], ...]</p>
           <div x-ref="heatmapChart" class="h-72 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Radar</h2>
-          <p class="text-xs text-zinc-400 mb-4">Multi-dimensional comparison. Each indicator is an axis spoke.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Radar</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Multi-dimensional comparison. Each indicator is an axis spoke.</p>
           <div x-ref="radarChart" class="h-72 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Boxplot</h2>
-          <p class="text-xs text-zinc-400 mb-4">Distribution: [min, Q1, median, Q3, max] per category.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Boxplot</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Distribution: [min, Q1, median, Q3, max] per category.</p>
           <div x-ref="boxplotChart" class="h-72 w-full"></div>
         </div>
       </div>
     </div>
 
-    <!-- ═══ KPI: gauges ═══ -->
+    <!-- KPI: gauges -->
     <div role="tabpanel" x-show="tab === 'KPI'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['KPI']" :key="ct.key">
-          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
-            <span class="text-white font-medium" x-text="ct.label"></span>
-            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-zinc-900 dark:text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-500 dark:text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
           </span>
         </template>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Revenue Target</h2>
-          <p class="text-xs text-zinc-400 mb-2">Gauge with red/amber/green threshold bands at 60/80/100.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Revenue Target</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Gauge with red/amber/green threshold bands at 60/80/100.</p>
           <div x-ref="gauge1" class="h-48 sm:h-44 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Customer Satisfaction</h2>
-          <p class="text-xs text-zinc-400 mb-2">Same gauge pattern, different KPI value.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Customer Satisfaction</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Same gauge pattern, different KPI value.</p>
           <div x-ref="gauge2" class="h-48 sm:h-44 w-full"></div>
         </div>
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">System Uptime</h2>
-          <p class="text-xs text-zinc-400 mb-2">Narrow range (95-100%). Custom band thresholds.</p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">System Uptime</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Narrow range (95-100%). Custom band thresholds.</p>
           <div x-ref="gauge3" class="h-48 sm:h-44 w-full"></div>
         </div>
       </div>
     </div>
 
-    <!-- ═══ Financial: candlestick + volume ═══ -->
+    <!-- Financial: candlestick + volume, waterfall, calendar heatmap -->
     <div role="tabpanel" x-show="tab === 'Financial'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Financial']" :key="ct.key">
-          <span class="bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded text-xs">
-            <span class="text-white font-medium" x-text="ct.label"></span>
-            <span class="text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-zinc-900 dark:text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-500 dark:text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
           </span>
         </template>
       </div>
 
-      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-        <h2 class="text-sm font-medium text-white mb-0.5">Candlestick + Volume</h2>
-        <p class="text-xs text-zinc-400 mb-4">OHLC price action with volume bars. Dual y-axis. DataZoom slider below. Green = bullish (close > open), red = bearish.</p>
-        <div x-ref="candleChart" class="h-96 w-full"></div>
+      <div class="space-y-4">
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Candlestick + Volume</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">OHLC price action with volume bars. Dual y-axis. DataZoom slider below. Green = bullish, red = bearish.</p>
+          <div x-ref="candleChart" class="h-96 w-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+            <h2 class="text-sm font-medium mb-0.5">Waterfall Chart</h2>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Bridge chart showing cumulative P&amp;L. Stacked bars with transparent base create the stepping effect. Blue = subtotals, green = increases, red = decreases.</p>
+            <div x-ref="waterfallChart" class="h-72 w-full"></div>
+          </div>
+
+          <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+            <h2 class="text-sm font-medium mb-0.5">Calendar Heatmap</h2>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Daily contributions over a year. Uses ECharts calendar coordinate system with heatmap series. GitHub-style contribution graph.</p>
+            <div x-ref="calendarChart" class="h-72 w-full"></div>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Footer -->
-    <div class="mt-8 pt-4 border-t border-zinc-700/50 text-xs text-zinc-400 no-print">
-      <p>Features demonstrated: 13 chart types (line, bar, stacked area, line+bar combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume), markLine thresholds, markArea regions, DataZoom, toolbox (save image, restore), dual-axis, fullscreen panels, keyboard shortcuts, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
+    <div class="mt-8 pt-4 border-t border-zinc-300 dark:border-zinc-700/50 text-xs text-zinc-500 dark:text-zinc-400 no-print">
+      <p>15 chart types: line, bar, stacked area, line+bar combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume, waterfall, calendar heatmap. Features: markLine, markArea, DataZoom, toolbox, dual-axis, fullscreen, keyboard shortcuts, dark/light toggle, color-blind mode, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
     </div>
 
   </main>
 </div>
 
+<!-- bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400 bg-amber-900/30 text-amber-400 -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 </body>
 </html>
