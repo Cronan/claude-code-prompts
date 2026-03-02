@@ -25,7 +25,7 @@
   <script>tailwind.config = { darkMode: "class" }</script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
 </head>
-<body class="bg-zinc-900 text-white min-h-screen">
+<body class="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen transition-colors">
 
 <!-- bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400
      bg-amber-900/30 text-amber-400 bg-cyan-900/30 text-cyan-400
@@ -84,6 +84,43 @@ document.addEventListener('alpine:init', () => {
       }
     },
     toolbox: { iconStyle: { borderColor: '#a1a1aa' } }
+  });
+
+  echarts.registerTheme('zinc-light', {
+    backgroundColor: 'transparent',
+    color: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'],
+    textStyle: { color: '#3f3f46' },
+    title: { textStyle: { color: '#18181b' }, subtextStyle: { color: '#71717a' } },
+    legend: { textStyle: { color: '#52525b' } },
+    tooltip: {
+      backgroundColor: '#ffffff',
+      borderColor: '#e4e4e7',
+      textStyle: { color: '#3f3f46' }
+    },
+    categoryAxis: {
+      axisLine: { lineStyle: { color: '#d4d4d8' } },
+      axisTick: { lineStyle: { color: '#d4d4d8' } },
+      axisLabel: { color: '#71717a' },
+      splitLine: { lineStyle: { color: '#f4f4f5' } }
+    },
+    valueAxis: {
+      axisLine: { lineStyle: { color: '#d4d4d8' } },
+      axisTick: { lineStyle: { color: '#d4d4d8' } },
+      axisLabel: { color: '#71717a' },
+      splitLine: { lineStyle: { color: '#f4f4f5' } }
+    },
+    dataZoom: {
+      backgroundColor: '#f4f4f5',
+      fillerColor: 'rgba(212, 212, 216, 0.3)',
+      borderColor: '#d4d4d8',
+      handleStyle: { color: '#a1a1aa' },
+      textStyle: { color: '#71717a' },
+      dataBackground: {
+        lineStyle: { color: '#d4d4d8' },
+        areaStyle: { color: '#f4f4f5' }
+      }
+    },
+    toolbox: { iconStyle: { borderColor: '#71717a' } }
   });
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -223,6 +260,37 @@ document.addEventListener('alpine:init', () => {
     sectors: SECTORS,
     jobs: JOBS,
     riskColors: RISK_COLORS,
+    darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+    colorBlindMode: false,
+
+    get palette() {
+      return this.colorBlindMode
+        ? ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6']
+        : ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
+    },
+
+    get currentTheme() {
+      return this.darkMode ? 'zinc-dark' : 'zinc-light';
+    },
+
+    toggleTheme() {
+      this.darkMode = !this.darkMode;
+      document.documentElement.classList.toggle('dark', this.darkMode);
+      Object.keys(this.charts).forEach(key => {
+        const el = this.charts[key].getDom();
+        const opt = this.charts[key].getOption();
+        this.charts[key].dispose();
+        this.charts[key] = echarts.init(el, this.currentTheme);
+        this.charts[key].setOption(opt);
+      });
+    },
+
+    toggleColorBlind() {
+      this.colorBlindMode = !this.colorBlindMode;
+      Object.values(this.charts).forEach(c => {
+        c.setOption({ color: this.palette });
+      });
+    },
 
     get stats() {
       const totalGdp = this.sectors.reduce((s, sec) => s + sec.gdp, 0);
@@ -295,6 +363,8 @@ document.addEventListener('alpine:init', () => {
       const skel = document.getElementById('skeleton');
       if (skel) skel.style.display = 'none';
 
+      document.documentElement.classList.toggle('dark', this.darkMode);
+
       this.readHash();
       window.addEventListener('hashchange', () => this.readHash());
 
@@ -349,7 +419,7 @@ document.addEventListener('alpine:init', () => {
 
     initEconomy() {
       // Quarterly GDP growth (bar + trend line)
-      this.charts.gdpGrowth = echarts.init(this.$refs.gdpGrowth, 'zinc-dark');
+      this.charts.gdpGrowth = echarts.init(this.$refs.gdpGrowth, this.currentTheme);
       this.charts.gdpGrowth.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true, valueFormatter: (v) => fmt.pct(v) },
@@ -374,7 +444,7 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Productivity index (line + change bars)
-      this.charts.productivity = echarts.init(this.$refs.productivity, 'zinc-dark');
+      this.charts.productivity = echarts.init(this.$refs.productivity, this.currentTheme);
       this.charts.productivity.setOption({
         animation: !reduceMotion,
         tooltip: {
@@ -403,7 +473,7 @@ document.addEventListener('alpine:init', () => {
       });
 
       // GDP by sector (horizontal bar)
-      this.charts.sectorBar = echarts.init(this.$refs.sectorBar, 'zinc-dark');
+      this.charts.sectorBar = echarts.init(this.$refs.sectorBar, this.currentTheme);
       const sortedSectors = [...SECTORS].sort((a, b) => a.gdp - b.gdp);
       this.charts.sectorBar.setOption({
         animation: !reduceMotion,
@@ -430,7 +500,7 @@ document.addEventListener('alpine:init', () => {
 
     initSectors() {
       // Treemap of GDP by sector
-      this.charts.sectorTreemap = echarts.init(this.$refs.sectorTreemap, 'zinc-dark');
+      this.charts.sectorTreemap = echarts.init(this.$refs.sectorTreemap, this.currentTheme);
       this.charts.sectorTreemap.setOption({
         animation: !reduceMotion,
         tooltip: {
@@ -449,7 +519,7 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Scatter: Growth vs Automation exposure (bubble = employment)
-      this.charts.sectorScatter = echarts.init(this.$refs.sectorScatter, 'zinc-dark');
+      this.charts.sectorScatter = echarts.init(this.$refs.sectorScatter, this.currentTheme);
       this.charts.sectorScatter.setOption({
         animation: !reduceMotion,
         tooltip: {
@@ -491,7 +561,7 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Radar: sector vulnerability profile
-      this.charts.sectorRadar = echarts.init(this.$refs.sectorRadar, 'zinc-dark');
+      this.charts.sectorRadar = echarts.init(this.$refs.sectorRadar, this.currentTheme);
       const radarSectors = ['Info & Tech', 'Finance', 'Manufacturing', 'Retail', 'Healthcare', 'Construction'];
       const taskAuto = [41, 52, 58, 62, 34, 31];
       const reskill = [50, 75, 75, 90, 50, 25]; // mapped from categories
@@ -522,7 +592,7 @@ document.addEventListener('alpine:init', () => {
 
     initJobs() {
       // Horizontal bar: automation exposure by job
-      this.charts.jobBar = echarts.init(this.$refs.jobBar, 'zinc-dark');
+      this.charts.jobBar = echarts.init(this.$refs.jobBar, this.currentTheme);
       this.updateJobBar();
 
       this.$watch('filteredJobs', () => {
@@ -565,8 +635,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initTasks() {
-      this.charts.taskBar = echarts.init(this.$refs.taskBar, 'zinc-dark');
-      this.charts.taskGauge = echarts.init(this.$refs.taskGauge, 'zinc-dark');
+      this.charts.taskBar = echarts.init(this.$refs.taskBar, this.currentTheme);
+      this.charts.taskGauge = echarts.init(this.$refs.taskGauge, this.currentTheme);
       this.updateTaskCharts();
 
       this.$watch('taskDrill', () => this.updateTaskCharts());
@@ -654,32 +724,52 @@ document.addEventListener('alpine:init', () => {
   <main class="max-w-7xl mx-auto p-3 md:p-6">
 
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6">
       <div>
         <h1 class="text-xl md:text-2xl font-bold mb-1">GDP and Labor Market Analysis</h1>
-        <p class="text-sm text-zinc-400">Economic sectors, job categories, and task-level automation exposure. 2024-2025 estimates.</p>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">Economic sectors, job categories, and task-level automation exposure. 2024-2025 estimates.</p>
       </div>
-      <p class="text-xs text-zinc-400 mt-2 sm:mt-0 no-print">Press 1-4 to switch tabs. Esc to reset.</p>
+      <div class="flex items-center gap-2 mt-2 sm:mt-0 no-print">
+        <button @click="toggleColorBlind()"
+                :class="colorBlindMode ? 'bg-blue-600 text-white' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700'"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                aria-label="Toggle color-blind safe palette">
+          <span x-text="colorBlindMode ? 'Standard palette' : 'Color-blind safe'"></span>
+        </button>
+        <button @click="toggleTheme()"
+                class="text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-2 rounded-lg"
+                :aria-label="darkMode ? 'Switch to light theme' : 'Switch to dark theme'">
+          <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+        </button>
+        <span class="text-xs text-zinc-400 hidden md:inline">1-4 tabs. Esc reset.</span>
+      </div>
     </div>
 
     <!-- Stats row -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       <template x-for="stat in stats" :key="stat.label">
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-          <p class="text-xs text-zinc-400 mb-1" x-text="stat.label"></p>
-          <p class="text-xl font-semibold text-white" x-text="stat.value"></p>
-          <p class="text-xs text-zinc-400 mt-1" x-text="stat.sub"></p>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-1" x-text="stat.label"></p>
+          <p class="text-xl font-semibold" x-text="stat.value"></p>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1" x-text="stat.sub"></p>
         </div>
       </template>
     </div>
 
     <!-- Tabs -->
-    <div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
+    <div role="tablist" class="flex gap-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
       <template x-for="(t, i) in tabs" :key="t">
         <button role="tab"
                 :aria-selected="tab === t"
                 @click="tab = t"
-                :class="tab === t ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'"
+                :class="tab === t ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'"
                 class="px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap">
           <span x-text="(i+1) + '. ' + t"></span>
         </button>
@@ -702,11 +792,11 @@ document.addEventListener('alpine:init', () => {
     <div role="tabpanel" x-show="tab === 'Economy'">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <!-- GDP Growth -->
-        <div :class="fullscreen === 'gdp' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
-             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div :class="fullscreen === 'gdp' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-sm font-medium text-white">Quarterly GDP Growth</h2>
+              <h2 class="text-sm font-medium">Quarterly GDP Growth</h2>
               <p class="text-xs text-zinc-400 mt-0.5">Bar chart with markLine average and trend overlay.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'gdp' ? null : 'gdp'"
@@ -721,11 +811,11 @@ document.addEventListener('alpine:init', () => {
         </div>
 
         <!-- Productivity -->
-        <div :class="fullscreen === 'prod' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
-             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div :class="fullscreen === 'prod' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-sm font-medium text-white">Productivity Index</h2>
+              <h2 class="text-sm font-medium">Productivity Index</h2>
               <p class="text-xs text-zinc-400 mt-0.5">GDP per worker (2020=100). Line + bar combo, dual axis.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'prod' ? null : 'prod'"
@@ -741,11 +831,11 @@ document.addEventListener('alpine:init', () => {
       </div>
 
       <!-- GDP by sector (horizontal bar, full width) -->
-      <div :class="fullscreen === 'secbar' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
-           class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+      <div :class="fullscreen === 'secbar' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+           class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h2 class="text-sm font-medium text-white">GDP Contribution by Sector</h2>
+            <h2 class="text-sm font-medium">GDP Contribution by Sector</h2>
             <p class="text-xs text-zinc-400 mt-0.5">Click a bar to cross-filter the Jobs tab by sector.</p>
           </div>
           <button @click="fullscreen = fullscreen === 'secbar' ? null : 'secbar'"
@@ -764,14 +854,14 @@ document.addEventListener('alpine:init', () => {
     <div role="tabpanel" x-show="tab === 'Sectors'">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <!-- Treemap -->
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium text-white mb-0.5">GDP Share (Treemap)</h2>
           <p class="text-xs text-zinc-400 mb-4">Area proportional to GDP contribution.</p>
           <div x-ref="sectorTreemap" class="h-72 w-full"></div>
         </div>
 
         <!-- Scatter: Growth vs Automation -->
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium text-white mb-0.5">Growth vs Automation Exposure</h2>
           <p class="text-xs text-zinc-400 mb-4">Bubble size = employment. Color: green (low risk), amber (medium), red (high).</p>
           <div x-ref="sectorScatter" class="h-72 w-full"></div>
@@ -779,16 +869,16 @@ document.addEventListener('alpine:init', () => {
       </div>
 
       <!-- Radar -->
-      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+      <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
         <h2 class="text-sm font-medium text-white mb-0.5">Sector Vulnerability Profile (Radar)</h2>
         <p class="text-xs text-zinc-400 mb-4">Multi-dimensional risk comparison: automation level, reskilling need, GDP growth sensitivity.</p>
         <div x-ref="sectorRadar" class="h-80 w-full"></div>
       </div>
 
       <!-- Sector data table -->
-      <div class="mt-4 bg-zinc-800 rounded-xl border border-zinc-700 overflow-hidden break-inside-avoid">
+      <div class="mt-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 overflow-hidden break-inside-avoid">
         <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
-          <h2 class="text-sm font-medium text-white">Sector Data</h2>
+          <h2 class="text-sm font-medium">Sector Data</h2>
           <button @click="downloadCSV('sectors.csv',
               ['Sector', 'GDP ($B)', 'Share %', 'Growth %', 'Employment (M)', 'Automation %'],
               sectors.map(s => [s.name, s.gdp, s.share, s.growth, s.employment, s.automation]))"
@@ -872,7 +962,7 @@ document.addEventListener('alpine:init', () => {
       </div>
 
       <!-- Job data table -->
-      <div class="bg-zinc-800 rounded-xl border border-zinc-700 overflow-hidden break-inside-avoid">
+      <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 overflow-hidden break-inside-avoid">
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead>
@@ -973,7 +1063,7 @@ document.addEventListener('alpine:init', () => {
         </div>
 
         <!-- Weighted gauge (1/3 width) -->
-        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium text-white mb-0.5">Weighted Automation Score</h2>
           <p class="text-xs text-zinc-400 mb-2">Feasibility weighted by time allocation per task.</p>
           <div x-ref="taskGauge" class="h-48 w-full"></div>
@@ -982,9 +1072,9 @@ document.addEventListener('alpine:init', () => {
       </div>
 
       <!-- Task data table -->
-      <div class="mt-4 bg-zinc-800 rounded-xl border border-zinc-700 overflow-hidden break-inside-avoid">
+      <div class="mt-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 overflow-hidden break-inside-avoid">
         <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
-          <h2 class="text-sm font-medium text-white" x-text="taskDrill + ' -- Task Breakdown'"></h2>
+          <h2 class="text-sm font-medium" x-text="taskDrill + ' -- Task Breakdown'"></h2>
           <button @click="downloadCSV(taskDrill.toLowerCase().replace(/\s+/g, '-') + '-tasks.csv',
               ['Task', 'Time %', 'Feasibility %', 'Readiness'],
               currentTasks.map(t => [t.task, t.time, t.feasibility, t.readiness]))"
@@ -1040,8 +1130,8 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Footer -->
-    <div class="mt-8 pt-4 border-t border-zinc-700/50 text-xs text-zinc-400 no-print">
-      <p class="mb-1">Features: stat cards, 4-tab navigation (keyboard shortcuts), cross-filtering (click sector bar to filter jobs), CSV export (per-tab), URL hash state, fullscreen panels, sortable tables (ARIA), search, status badges, progress bars in table cells, treemap, scatter/bubble, radar, stacked bar, gauge, line+bar combo, markLine, toolbox, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
+    <div class="mt-8 pt-4 border-t border-zinc-300 dark:border-zinc-700/50 text-xs text-zinc-500 dark:text-zinc-400 no-print">
+      <p class="mb-1">Features: stat cards, 4-tab navigation (keyboard shortcuts), cross-filtering, CSV export, URL hash state, fullscreen panels, sortable tables (ARIA), search, status badges, progress bars, dark/light toggle, color-blind mode, treemap, scatter/bubble, radar, stacked bar, gauge, line+bar combo, markLine, toolbox, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
       <p>Data: plausible 2024-2025 estimates loosely based on US BEA/BLS patterns. For demo purposes only.</p>
     </div>
 

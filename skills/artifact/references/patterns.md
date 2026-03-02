@@ -541,3 +541,146 @@ Show which cross-filters are applied and let users clear them.
   </button>
 </div>
 ```
+
+## Dark/light toggle
+
+Toggle between dark and light themes. Detects system preference on load. Updates `<html>` class and re-themes ECharts instances.
+
+```html
+<button @click="toggleTheme()"
+        class="text-zinc-400 hover:text-zinc-200 no-print p-2 rounded-lg"
+        :aria-label="darkMode ? 'Switch to light theme' : 'Switch to dark theme'">
+  <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+  </svg>
+  <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+  </svg>
+</button>
+```
+
+Alpine data:
+
+```js
+darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+
+toggleTheme() {
+  this.darkMode = !this.darkMode;
+  document.documentElement.classList.toggle('dark', this.darkMode);
+  // Re-theme all ECharts instances
+  const theme = this.darkMode ? 'zinc-dark' : 'zinc-light';
+  Object.keys(this.charts).forEach(key => {
+    const el = this.charts[key].getDom();
+    const opt = this.charts[key].getOption();
+    this.charts[key].dispose();
+    this.charts[key] = echarts.init(el, theme);
+    this.charts[key].setOption(opt);
+  });
+}
+```
+
+Register a light theme alongside the dark theme in the `alpine:init` block:
+
+```js
+echarts.registerTheme('zinc-light', {
+  backgroundColor: 'transparent',
+  textStyle: { color: '#3f3f46' },
+  title: { textStyle: { color: '#18181b' } },
+  legend: { textStyle: { color: '#52525b' } },
+  categoryAxis: {
+    axisLine: { lineStyle: { color: '#d4d4d8' } },
+    axisLabel: { color: '#71717a' },
+    splitLine: { lineStyle: { color: '#e4e4e7' } }
+  },
+  valueAxis: {
+    axisLine: { lineStyle: { color: '#d4d4d8' } },
+    axisLabel: { color: '#71717a' },
+    splitLine: { lineStyle: { color: '#e4e4e7' } }
+  },
+  color: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4']
+});
+```
+
+In Tailwind, light mode classes use the base (unprefixed) utilities. Dark mode classes use `dark:` prefix. Since `darkMode: "class"` is configured, the `dark` class on `<html>` controls everything:
+
+```html
+<body class="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen">
+```
+
+## View-as-table toggle
+
+Swap between chart and data table views on the same card. Uses nested `x-data` for local toggle state.
+
+```html
+<div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700" x-data="{ showTable: false }">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm text-zinc-400">Revenue by Month</h2>
+    <button @click="showTable = !showTable"
+            class="text-zinc-400 hover:text-zinc-200 text-xs no-print"
+            :aria-label="showTable ? 'Show chart' : 'Show data table'">
+      <span x-text="showTable ? 'Chart' : 'Table'"></span>
+    </button>
+  </div>
+
+  <!-- Chart view -->
+  <div x-show="!showTable" x-ref="revenueChart" class="h-64 w-full"></div>
+
+  <!-- Table view -->
+  <div x-show="showTable" class="overflow-x-auto">
+    <table class="w-full text-sm text-left">
+      <thead>
+        <tr class="border-b border-zinc-700 text-zinc-400">
+          <th class="px-3 py-2 font-medium">Month</th>
+          <th class="px-3 py-2 font-medium text-right">Revenue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="(val, i) in revenueData" :key="i">
+          <tr class="border-b border-zinc-700/50">
+            <td class="px-3 py-2 text-zinc-300" x-text="months[i]"></td>
+            <td class="px-3 py-2 text-zinc-300 text-right" x-text="'$' + val.toLocaleString()"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+```
+
+The chart stays initialized (via `x-show`, not `x-if`) so switching back is instant. Use nested `x-data` to keep the toggle state local to each card without polluting the parent component.
+
+## Color-blind palette toggle
+
+Runtime toggle that swaps ECharts color palette to a deuteranopia-safe set. Place the button in the dashboard header alongside other controls.
+
+```html
+<button @click="toggleColorBlind()"
+        :class="colorBlindMode ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors no-print"
+        aria-label="Toggle color-blind safe palette">
+  <span x-text="colorBlindMode ? 'Standard palette' : 'Color-blind safe'"></span>
+</button>
+```
+
+Alpine data:
+
+```js
+colorBlindMode: false,
+
+get palette() {
+  return this.colorBlindMode
+    ? ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
+    : ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4'];
+},
+
+toggleColorBlind() {
+  this.colorBlindMode = !this.colorBlindMode;
+  Object.values(this.charts).forEach(c => {
+    c.setOption({ color: this.palette });
+  });
+}
+```
+
+The deuteranopia-safe palette avoids the red-green pair. All charts update immediately via `setOption` merge.
