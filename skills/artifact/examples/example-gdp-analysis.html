@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GDP and Labor Market Analysis</title>
+  <style>
+    [x-cloak] { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+    @media print {
+      body { background: white !important; color: black !important; }
+      .no-print { display: none !important; }
+      .bg-zinc-800, .bg-zinc-900 { background: white !important; border-color: #e4e4e7 !important; }
+      .text-white, .text-zinc-300, .text-zinc-400 { color: black !important; }
+      canvas { max-width: 100% !important; }
+      .break-inside-avoid { break-inside: avoid; }
+    }
+  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: "class" }</script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+</head>
+<body class="bg-zinc-900 text-white min-h-screen">
+
+<!-- bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400
+     bg-amber-900/30 text-amber-400 bg-cyan-900/30 text-cyan-400
+     bg-blue-900/30 text-blue-400 bg-zinc-700 text-zinc-300 -->
+
+<!-- Skeleton loading -->
+<div id="skeleton" class="max-w-7xl mx-auto p-3 md:p-6">
+  <div class="h-8 w-72 bg-zinc-800 rounded animate-pulse mb-2"></div>
+  <div class="h-4 w-96 bg-zinc-800 rounded animate-pulse mb-6"></div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-24 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-24 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-24 animate-pulse"></div>
+    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-24 animate-pulse"></div>
+  </div>
+  <div class="bg-zinc-800 rounded-xl border border-zinc-700 h-80 animate-pulse"></div>
+</div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+
+  // ── ECharts theme ───────────────────────────────────────
+  echarts.registerTheme('zinc-dark', {
+    darkMode: true,
+    backgroundColor: 'transparent',
+    color: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'],
+    textStyle: { color: '#d4d4d8' },
+    title: { textStyle: { color: '#f4f4f5' }, subtextStyle: { color: '#a1a1aa' } },
+    legend: { textStyle: { color: '#a1a1aa' } },
+    tooltip: {
+      backgroundColor: '#27272a',
+      borderColor: '#3f3f46',
+      textStyle: { color: '#d4d4d8' }
+    },
+    categoryAxis: {
+      axisLine: { lineStyle: { color: '#3f3f46' } },
+      axisTick: { lineStyle: { color: '#3f3f46' } },
+      axisLabel: { color: '#a1a1aa' },
+      splitLine: { lineStyle: { color: '#27272a' } }
+    },
+    valueAxis: {
+      axisLine: { lineStyle: { color: '#3f3f46' } },
+      axisTick: { lineStyle: { color: '#3f3f46' } },
+      axisLabel: { color: '#a1a1aa' },
+      splitLine: { lineStyle: { color: '#27272a' } }
+    },
+    dataZoom: {
+      backgroundColor: '#18181b',
+      fillerColor: 'rgba(63, 63, 70, 0.3)',
+      borderColor: '#3f3f46',
+      handleStyle: { color: '#71717a' },
+      textStyle: { color: '#a1a1aa' },
+      dataBackground: {
+        lineStyle: { color: '#3f3f46' },
+        areaStyle: { color: '#27272a' }
+      }
+    },
+    toolbox: { iconStyle: { borderColor: '#a1a1aa' } }
+  });
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ── Formatters ──────────────────────────────────────────
+  const fmt = {
+    currency: (v, d = 0) => '$' + Math.abs(v).toLocaleString('en-US', {
+      minimumFractionDigits: d, maximumFractionDigits: d
+    }),
+    pct: (v, d = 1) => v.toFixed(d) + '%',
+    num: (v) => v.toLocaleString('en-US'),
+    compact: (v) => {
+      if (Math.abs(v) >= 1e12) return '$' + (v / 1e12).toFixed(1) + 'T';
+      if (Math.abs(v) >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+      if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+      if (Math.abs(v) >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+      return '$' + v.toFixed(0);
+    },
+    millions: (v) => v.toFixed(1) + 'M'
+  };
+
+  // ── Data ────────────────────────────────────────────────
+  // Economic sectors: GDP contribution, growth, employment, automation exposure.
+  // Loosely modeled on US GDP composition (~$28.4T total), 2024-2025 estimates.
+
+  const SECTORS = [
+    { id: 1, name: 'Real Estate & Housing',        gdp: 4210, share: 14.8, growth: 1.9, employment: 2.3,  automation: 22 },
+    { id: 2, name: 'Professional & Business Svcs',  gdp: 3780, share: 13.3, growth: 3.4, employment: 23.1, automation: 46 },
+    { id: 3, name: 'Government',                    gdp: 3520, share: 12.4, growth: 1.1, employment: 22.9, automation: 18 },
+    { id: 4, name: 'Manufacturing',                 gdp: 2890, share: 10.2, growth: 2.1, employment: 12.8, automation: 58 },
+    { id: 5, name: 'Finance & Insurance',           gdp: 2340, share: 8.2,  growth: 2.8, employment: 6.7,  automation: 52 },
+    { id: 6, name: 'Healthcare & Social Assistance', gdp: 2180, share: 7.7,  growth: 4.2, employment: 21.4, automation: 34 },
+    { id: 7, name: 'Information & Technology',       gdp: 2050, share: 7.2,  growth: 5.6, employment: 4.2,  automation: 41 },
+    { id: 8, name: 'Retail Trade',                  gdp: 1720, share: 6.1,  growth: 1.4, employment: 15.3, automation: 62 },
+    { id: 9, name: 'Construction',                  gdp: 1280, share: 4.5,  growth: 2.3, employment: 8.2,  automation: 31 },
+    { id: 10, name: 'Agriculture & Mining',          gdp: 580,  share: 2.0,  growth: -0.3, employment: 2.6, automation: 44 },
+  ];
+
+  const QUARTERS = ['Q1 24', 'Q2 24', 'Q3 24', 'Q4 24', 'Q1 25', 'Q2 25', 'Q3 25', 'Q4 25'];
+  const GDP_GROWTH = [1.6, 2.8, 3.1, 2.4, 2.0, 2.3, 2.7, 2.5];
+
+  // Productivity index (GDP per worker, 2020 = 100)
+  const PROD_YEARS = ['2020', '2021', '2022', '2023', '2024', '2025'];
+  const PROD_INDEX = [100.0, 103.2, 104.1, 105.8, 108.4, 111.2];
+  const PROD_CHANGE = [null, 3.2, 0.9, 1.6, 2.5, 2.6];
+
+  // Job categories with automation exposure
+  const JOBS = [
+    { id: 1,  name: 'Data Entry & Processing',       employment: 1.2, autoExposure: 87, aiExposure: 82, risk: 'High',        sector: 'Professional & Business Svcs' },
+    { id: 2,  name: 'Bookkeeping & Payroll',          employment: 1.5, autoExposure: 81, aiExposure: 68, risk: 'High',        sector: 'Finance & Insurance' },
+    { id: 3,  name: 'Retail Cashiers',                employment: 3.4, autoExposure: 76, aiExposure: 24, risk: 'High',        sector: 'Retail Trade' },
+    { id: 4,  name: 'Customer Service Reps',          employment: 2.9, autoExposure: 72, aiExposure: 65, risk: 'High',        sector: 'Professional & Business Svcs' },
+    { id: 5,  name: 'Transport & Delivery Drivers',   employment: 4.1, autoExposure: 68, aiExposure: 18, risk: 'Medium-High', sector: 'Retail Trade' },
+    { id: 6,  name: 'Financial Analysts',             employment: 0.8, autoExposure: 64, aiExposure: 61, risk: 'Medium',      sector: 'Finance & Insurance' },
+    { id: 7,  name: 'Legal Assistants',               employment: 0.4, autoExposure: 62, aiExposure: 58, risk: 'Medium',      sector: 'Professional & Business Svcs' },
+    { id: 8,  name: 'Manufacturing Assembly',         employment: 4.2, autoExposure: 61, aiExposure: 22, risk: 'Medium',      sector: 'Manufacturing' },
+    { id: 9,  name: 'Marketing & Advertising',        employment: 1.1, autoExposure: 58, aiExposure: 54, risk: 'Medium',      sector: 'Professional & Business Svcs' },
+    { id: 10, name: 'Software Development',           employment: 2.0, autoExposure: 52, aiExposure: 49, risk: 'Low-Medium',  sector: 'Information & Technology' },
+    { id: 11, name: 'Administrative Assistants',      employment: 3.3, autoExposure: 51, aiExposure: 47, risk: 'Medium',      sector: 'Professional & Business Svcs' },
+    { id: 12, name: 'Warehouse & Logistics',          employment: 5.8, autoExposure: 49, aiExposure: 14, risk: 'Medium',      sector: 'Retail Trade' },
+    { id: 13, name: 'Nursing & Clinical Support',     employment: 4.6, autoExposure: 33, aiExposure: 18, risk: 'Low',         sector: 'Healthcare & Social Assistance' },
+    { id: 14, name: 'Teaching (K-12)',                employment: 4.0, autoExposure: 28, aiExposure: 21, risk: 'Low',         sector: 'Government' },
+    { id: 15, name: 'Construction Trades',            employment: 6.1, autoExposure: 26, aiExposure: 8,  risk: 'Low',         sector: 'Construction' },
+    { id: 16, name: 'Plumbing, Electrical, HVAC',     employment: 2.2, autoExposure: 22, aiExposure: 6,  risk: 'Low',         sector: 'Construction' },
+    { id: 17, name: 'Emergency Services',             employment: 1.2, autoExposure: 17, aiExposure: 9,  risk: 'Very Low',    sector: 'Government' },
+    { id: 18, name: 'Childcare & Personal Care',      employment: 2.8, autoExposure: 14, aiExposure: 7,  risk: 'Very Low',    sector: 'Healthcare & Social Assistance' },
+  ];
+
+  // Task-level breakdowns for selected job categories
+  const TASKS = {
+    'Financial Analysts': [
+      { task: 'Data collection & aggregation', time: 20, feasibility: 92, readiness: 'Production-ready' },
+      { task: 'Spreadsheet modeling',          time: 25, feasibility: 78, readiness: 'Production-ready' },
+      { task: 'Report writing & formatting',   time: 15, feasibility: 71, readiness: 'Production-ready' },
+      { task: 'Pattern recognition in data',   time: 10, feasibility: 83, readiness: 'Production-ready' },
+      { task: 'Client communication',          time: 15, feasibility: 31, readiness: 'Augmentation' },
+      { task: 'Strategic judgment',            time: 10, feasibility: 18, readiness: 'Human-led' },
+      { task: 'Compliance interpretation',     time: 5,  feasibility: 44, readiness: 'Augmentation' },
+    ],
+    'Software Development': [
+      { task: 'Boilerplate & scaffolding',     time: 10, feasibility: 89, readiness: 'Production-ready' },
+      { task: 'Unit test generation',          time: 8,  feasibility: 82, readiness: 'Production-ready' },
+      { task: 'Bug triage & code review',      time: 12, feasibility: 61, readiness: 'Emerging' },
+      { task: 'Documentation writing',         time: 8,  feasibility: 74, readiness: 'Production-ready' },
+      { task: 'Feature implementation',        time: 20, feasibility: 48, readiness: 'Augmentation' },
+      { task: 'Architecture & design',         time: 15, feasibility: 22, readiness: 'Human-led' },
+      { task: 'Coordination & planning',       time: 12, feasibility: 14, readiness: 'Human-led' },
+      { task: 'Complex debugging',             time: 10, feasibility: 38, readiness: 'Augmentation' },
+      { task: 'Performance optimization',      time: 5,  feasibility: 42, readiness: 'Augmentation' },
+    ],
+    'Nursing & Clinical Support': [
+      { task: 'Charting & documentation',      time: 20, feasibility: 72, readiness: 'Emerging' },
+      { task: 'Medication administration',     time: 15, feasibility: 41, readiness: 'Limited' },
+      { task: 'Patient monitoring (vitals)',   time: 15, feasibility: 68, readiness: 'Production-ready' },
+      { task: 'Care plan coordination',        time: 10, feasibility: 34, readiness: 'Augmentation' },
+      { task: 'Patient interaction',           time: 20, feasibility: 8,  readiness: 'Human-only' },
+      { task: 'Emergency response',            time: 10, feasibility: 6,  readiness: 'Human-only' },
+      { task: 'Patient education',             time: 10, feasibility: 22, readiness: 'Augmentation' },
+    ],
+    'Retail Cashiers': [
+      { task: 'Transaction processing',        time: 35, feasibility: 95, readiness: 'Production-ready' },
+      { task: 'Inventory scanning',            time: 15, feasibility: 88, readiness: 'Production-ready' },
+      { task: 'Bagging & order assembly',      time: 15, feasibility: 62, readiness: 'Emerging' },
+      { task: 'Customer queries',              time: 15, feasibility: 54, readiness: 'Emerging' },
+      { task: 'Shelf restocking',              time: 10, feasibility: 48, readiness: 'Emerging' },
+      { task: 'Loss prevention',               time: 5,  feasibility: 71, readiness: 'Production-ready' },
+      { task: 'Complaints & exceptions',       time: 5,  feasibility: 28, readiness: 'Human-preferred' },
+    ],
+  };
+
+  const TASK_DRILL_OPTIONS = Object.keys(TASKS);
+
+  // Risk color mapping
+  const RISK_COLORS = {
+    'High': { bg: 'bg-red-900/30', text: 'text-red-400' },
+    'Medium-High': { bg: 'bg-amber-900/30', text: 'text-amber-400' },
+    'Medium': { bg: 'bg-amber-900/30', text: 'text-amber-400' },
+    'Low-Medium': { bg: 'bg-cyan-900/30', text: 'text-cyan-400' },
+    'Low': { bg: 'bg-emerald-900/30', text: 'text-emerald-400' },
+    'Very Low': { bg: 'bg-emerald-900/30', text: 'text-emerald-400' },
+  };
+
+  // ── Alpine component ───────────────────────────────────
+  Alpine.data('gdp', () => ({
+    tab: 'Economy',
+    tabs: ['Economy', 'Sectors', 'Jobs', 'Tasks'],
+    charts: {},
+    initialized: {},
+    fullscreen: null,
+    selectedSector: null,
+    selectedJob: null,
+    taskDrill: TASK_DRILL_OPTIONS[0],
+    taskDrillOptions: TASK_DRILL_OPTIONS,
+    search: '',
+    sortKey: 'autoExposure',
+    sortDir: 'desc',
+    sectors: SECTORS,
+    jobs: JOBS,
+    riskColors: RISK_COLORS,
+
+    get stats() {
+      const totalGdp = this.sectors.reduce((s, sec) => s + sec.gdp, 0);
+      const avgGrowth = (GDP_GROWTH.reduce((s, v) => s + v, 0) / GDP_GROWTH.length);
+      const totalEmp = this.sectors.reduce((s, sec) => s + sec.employment, 0);
+      const avgAuto = Math.round(this.jobs.reduce((s, j) => s + j.autoExposure, 0) / this.jobs.length);
+      return [
+        { label: 'Total GDP (covered)', value: fmt.compact(totalGdp * 1e9), sub: '10 sectors, 86% of economy' },
+        { label: 'Avg Quarterly Growth', value: fmt.pct(avgGrowth), sub: 'Q1 2024 -- Q4 2025' },
+        { label: 'Total Employment', value: fmt.millions(totalEmp), sub: 'workers across tracked sectors' },
+        { label: 'Avg Automation Exposure', value: avgAuto + '%', sub: 'across 18 job categories' },
+      ];
+    },
+
+    get filteredJobs() {
+      return this.jobs.filter(j => {
+        const matchSearch = j.name.toLowerCase().includes(this.search.toLowerCase());
+        const matchSector = !this.selectedSector || j.sector === this.selectedSector;
+        return matchSearch && matchSector;
+      });
+    },
+
+    get sortedJobs() {
+      return [...this.filteredJobs].sort((a, b) => {
+        const av = a[this.sortKey], bv = b[this.sortKey];
+        const cmp = av > bv ? 1 : av < bv ? -1 : 0;
+        return this.sortDir === 'asc' ? cmp : -cmp;
+      });
+    },
+
+    get currentTasks() {
+      return TASKS[this.taskDrill] || [];
+    },
+
+    toggleSort(key) {
+      if (this.sortKey === key) {
+        this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.sortKey = key;
+        this.sortDir = 'desc';
+      }
+    },
+
+    downloadCSV(filename, headers, rows) {
+      const escape = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+      const csv = [headers.map(escape).join(',')]
+        .concat(rows.map(r => r.map(escape).join(',')))
+        .join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    },
+
+    handleKeyboard(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= this.tabs.length) this.tab = this.tabs[num - 1];
+    },
+
+    defaultToolbox() {
+      return {
+        show: window.innerWidth >= 768,
+        feature: { saveAsImage: { pixelRatio: 2 }, restore: {} }
+      };
+    },
+
+    init() {
+      const skel = document.getElementById('skeleton');
+      if (skel) skel.style.display = 'none';
+
+      this.readHash();
+      window.addEventListener('hashchange', () => this.readHash());
+
+      this.initTab('Economy');
+
+      window.addEventListener('resize', () => {
+        Object.values(this.charts).forEach(c => c.resize());
+      });
+
+      this.$watch('tab', () => {
+        this.writeHash();
+        this.$nextTick(() => {
+          this.initTab(this.tab);
+          Object.values(this.charts).forEach(c => c.resize());
+        });
+      });
+
+      this.$watch('fullscreen', () => {
+        this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+      });
+
+      this.$watch('search', () => this.writeHash());
+    },
+
+    readHash() {
+      const params = new URLSearchParams(location.hash.slice(1));
+      if (params.has('tab')) this.tab = params.get('tab');
+      if (params.has('q')) this.search = params.get('q');
+      if (params.has('sector')) this.selectedSector = params.get('sector');
+    },
+
+    writeHash() {
+      const params = new URLSearchParams();
+      if (this.tab !== 'Economy') params.set('tab', this.tab);
+      if (this.search) params.set('q', this.search);
+      if (this.selectedSector) params.set('sector', this.selectedSector);
+      const hash = params.toString();
+      history.replaceState(null, '', hash ? '#' + hash : location.pathname);
+    },
+
+    initTab(name) {
+      if (this.initialized[name]) return;
+      this.initialized[name] = true;
+      const init = {
+        'Economy': () => this.initEconomy(),
+        'Sectors': () => this.initSectors(),
+        'Jobs': () => this.initJobs(),
+        'Tasks': () => this.initTasks(),
+      };
+      if (init[name]) init[name]();
+    },
+
+    initEconomy() {
+      // Quarterly GDP growth (bar + trend line)
+      this.charts.gdpGrowth = echarts.init(this.$refs.gdpGrowth, 'zinc-dark');
+      this.charts.gdpGrowth.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'axis', confine: true, valueFormatter: (v) => fmt.pct(v) },
+        toolbox: this.defaultToolbox(),
+        xAxis: { type: 'category', data: QUARTERS },
+        yAxis: { type: 'value', name: 'Annualized %', axisLabel: { formatter: '{value}%' } },
+        series: [
+          {
+            name: 'GDP Growth', type: 'bar', data: GDP_GROWTH, barWidth: '50%',
+            itemStyle: { color: (p) => p.value >= 2.5 ? '#10b981' : p.value >= 2.0 ? '#3b82f6' : '#f59e0b' },
+            markLine: {
+              data: [{ yAxis: 2.43, name: 'Avg' }],
+              lineStyle: { type: 'dashed', color: '#a1a1aa' },
+              label: { color: '#a1a1aa', formatter: 'Avg: 2.4%' }
+            }
+          },
+          {
+            name: 'Trend', type: 'line', data: GDP_GROWTH,
+            smooth: true, symbol: 'none', lineStyle: { width: 1, type: 'dashed', color: '#8b5cf6' }
+          }
+        ]
+      });
+
+      // Productivity index (line + change bars)
+      this.charts.productivity = echarts.init(this.$refs.productivity, 'zinc-dark');
+      this.charts.productivity.setOption({
+        animation: !reduceMotion,
+        tooltip: {
+          trigger: 'axis', confine: true,
+          formatter: (params) => {
+            let html = params[0].axisValueLabel + '<br/>';
+            params.forEach(p => {
+              const val = p.seriesName === 'Index' ? p.value.toFixed(1)
+                : p.value != null ? '+' + fmt.pct(p.value) : '--';
+              html += p.marker + ' ' + p.seriesName + ': ' + val + '<br/>';
+            });
+            return html;
+          }
+        },
+        toolbox: this.defaultToolbox(),
+        legend: { data: ['Index', 'Annual Change'] },
+        xAxis: { type: 'category', data: PROD_YEARS },
+        yAxis: [
+          { type: 'value', name: 'Index (2020=100)', min: 95 },
+          { type: 'value', name: 'Change %', axisLabel: { formatter: '{value}%' }, splitLine: { show: false } }
+        ],
+        series: [
+          { name: 'Index', type: 'line', data: PROD_INDEX, yAxisIndex: 0, areaStyle: { opacity: 0.15 } },
+          { name: 'Annual Change', type: 'bar', data: PROD_CHANGE, yAxisIndex: 1, barWidth: '40%' }
+        ]
+      });
+
+      // GDP by sector (horizontal bar)
+      this.charts.sectorBar = echarts.init(this.$refs.sectorBar, 'zinc-dark');
+      const sortedSectors = [...SECTORS].sort((a, b) => a.gdp - b.gdp);
+      this.charts.sectorBar.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'axis', confine: true, valueFormatter: (v) => fmt.compact(v * 1e9) },
+        toolbox: this.defaultToolbox(),
+        grid: { left: '30%', right: '8%' },
+        xAxis: { type: 'value', name: 'GDP ($B)', axisLabel: { formatter: (v) => '$' + v + 'B' } },
+        yAxis: { type: 'category', data: sortedSectors.map(s => s.name), axisLabel: { fontSize: 11 } },
+        series: [{
+          type: 'bar', data: sortedSectors.map(s => s.gdp), barWidth: '60%',
+          label: { show: true, position: 'right', formatter: (p) => '$' + p.value + 'B', color: '#a1a1aa', fontSize: 11 }
+        }]
+      });
+
+      // Cross-filter: click sector bar to filter Jobs tab
+      this.charts.sectorBar.on('click', (params) => {
+        const sector = sortedSectors[params.dataIndex];
+        if (sector) {
+          this.selectedSector = this.selectedSector === sector.name ? null : sector.name;
+          this.writeHash();
+        }
+      });
+    },
+
+    initSectors() {
+      // Treemap of GDP by sector
+      this.charts.sectorTreemap = echarts.init(this.$refs.sectorTreemap, 'zinc-dark');
+      this.charts.sectorTreemap.setOption({
+        animation: !reduceMotion,
+        tooltip: {
+          formatter: (p) => p.name + '<br/>GDP: ' + fmt.compact(p.value * 1e9)
+            + '<br/>Share: ' + SECTORS.find(s => s.name === p.name)?.share + '%'
+        },
+        toolbox: this.defaultToolbox(),
+        series: [{
+          type: 'treemap',
+          data: SECTORS.map(s => ({ name: s.name, value: s.gdp })),
+          roam: false,
+          label: { formatter: (p) => p.name + '\n$' + p.value + 'B', fontSize: 11 },
+          breadcrumb: { show: false },
+          levels: [{ itemStyle: { borderColor: '#3f3f46', borderWidth: 2, gapWidth: 2 } }]
+        }]
+      });
+
+      // Scatter: Growth vs Automation exposure (bubble = employment)
+      this.charts.sectorScatter = echarts.init(this.$refs.sectorScatter, 'zinc-dark');
+      this.charts.sectorScatter.setOption({
+        animation: !reduceMotion,
+        tooltip: {
+          trigger: 'item', confine: true,
+          formatter: (p) => {
+            const s = SECTORS[p.dataIndex];
+            return s.name + '<br/>Growth: ' + fmt.pct(s.growth)
+              + '<br/>Automation: ' + s.automation + '%'
+              + '<br/>Employment: ' + fmt.millions(s.employment);
+          }
+        },
+        toolbox: this.defaultToolbox(),
+        xAxis: { type: 'value', name: 'YoY Growth (%)', axisLabel: { formatter: '{value}%' } },
+        yAxis: { type: 'value', name: 'Automation Exposure (%)', axisLabel: { formatter: '{value}%' } },
+        series: [{
+          type: 'scatter',
+          data: SECTORS.map(s => [s.growth, s.automation]),
+          symbolSize: (_, p) => Math.max(Math.sqrt(SECTORS[p.dataIndex].employment) * 12, 10),
+          label: {
+            show: true, position: 'right', fontSize: 10, color: '#a1a1aa',
+            formatter: (p) => SECTORS[p.dataIndex].name.split(' ')[0]
+          },
+          itemStyle: {
+            color: (p) => {
+              const auto = SECTORS[p.dataIndex].automation;
+              return auto > 50 ? '#ef4444' : auto > 35 ? '#f59e0b' : '#10b981';
+            },
+            opacity: 0.8
+          }
+        }],
+        markLine: {
+          data: [
+            { xAxis: 2.43, name: 'Avg Growth' },
+            { yAxis: 40, name: 'Avg Automation' }
+          ],
+          lineStyle: { type: 'dashed', color: '#3f3f46' },
+          label: { show: false }
+        }
+      });
+
+      // Radar: sector vulnerability profile
+      this.charts.sectorRadar = echarts.init(this.$refs.sectorRadar, 'zinc-dark');
+      const radarSectors = ['Info & Tech', 'Finance', 'Manufacturing', 'Retail', 'Healthcare', 'Construction'];
+      const taskAuto = [41, 52, 58, 62, 34, 31];
+      const reskill = [50, 75, 75, 90, 50, 25]; // mapped from categories
+      const growthSens = [20, 50, 50, 80, 20, 20];
+      this.charts.sectorRadar.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'item' },
+        toolbox: this.defaultToolbox(),
+        legend: { data: ['Automation %', 'Reskilling Need', 'GDP Sensitivity'] },
+        radar: {
+          indicator: radarSectors.map(s => ({ name: s, max: 100 })),
+          shape: 'polygon',
+          axisName: { color: '#a1a1aa', fontSize: 10 },
+          splitArea: { areaStyle: { color: ['transparent'] } },
+          splitLine: { lineStyle: { color: '#3f3f46' } }
+        },
+        series: [{
+          type: 'radar',
+          data: [
+            { value: taskAuto, name: 'Automation %' },
+            { value: reskill, name: 'Reskilling Need' },
+            { value: growthSens, name: 'GDP Sensitivity' }
+          ],
+          areaStyle: { opacity: 0.1 }
+        }]
+      });
+    },
+
+    initJobs() {
+      // Horizontal bar: automation exposure by job
+      this.charts.jobBar = echarts.init(this.$refs.jobBar, 'zinc-dark');
+      this.updateJobBar();
+
+      this.$watch('filteredJobs', () => {
+        if (this.charts.jobBar) this.updateJobBar();
+      });
+    },
+
+    updateJobBar() {
+      const sorted = [...this.filteredJobs].sort((a, b) => a.autoExposure - b.autoExposure);
+      this.charts.jobBar.setOption({
+        animation: !reduceMotion,
+        tooltip: {
+          trigger: 'axis', confine: true,
+          formatter: (params) => {
+            const job = sorted[params[0].dataIndex];
+            return job.name + '<br/>'
+              + 'Total automation: ' + job.autoExposure + '%<br/>'
+              + 'AI-specific: ' + job.aiExposure + '%<br/>'
+              + 'Risk: ' + job.risk;
+          }
+        },
+        toolbox: this.defaultToolbox(),
+        legend: { data: ['AI Exposure', 'Other Automation'] },
+        grid: { left: '35%', right: '8%' },
+        xAxis: { type: 'value', max: 100, name: '%', axisLabel: { formatter: '{value}%' } },
+        yAxis: { type: 'category', data: sorted.map(j => j.name), axisLabel: { fontSize: 10 } },
+        series: [
+          {
+            name: 'AI Exposure', type: 'bar', stack: 'total',
+            data: sorted.map(j => j.aiExposure), barWidth: '60%',
+            itemStyle: { color: '#8b5cf6' }
+          },
+          {
+            name: 'Other Automation', type: 'bar', stack: 'total',
+            data: sorted.map(j => j.autoExposure - j.aiExposure), barWidth: '60%',
+            itemStyle: { color: '#3b82f6' }
+          }
+        ]
+      }, { replaceMerge: ['series'] });
+    },
+
+    initTasks() {
+      this.charts.taskBar = echarts.init(this.$refs.taskBar, 'zinc-dark');
+      this.charts.taskGauge = echarts.init(this.$refs.taskGauge, 'zinc-dark');
+      this.updateTaskCharts();
+
+      this.$watch('taskDrill', () => this.updateTaskCharts());
+    },
+
+    updateTaskCharts() {
+      const tasks = this.currentTasks;
+
+      // Stacked bar: time allocation colored by readiness
+      const readinessColors = {
+        'Production-ready': '#10b981',
+        'Emerging': '#3b82f6',
+        'Augmentation': '#f59e0b',
+        'Human-led': '#ef4444',
+        'Human-only': '#ef4444',
+        'Human-preferred': '#ef4444',
+        'Limited': '#f59e0b',
+      };
+
+      this.charts.taskBar.setOption({
+        animation: !reduceMotion,
+        tooltip: {
+          trigger: 'axis', confine: true,
+          formatter: (params) => {
+            const t = tasks[params[0].dataIndex];
+            return t.task + '<br/>'
+              + 'Time: ' + t.time + '%<br/>'
+              + 'Feasibility: ' + t.feasibility + '%<br/>'
+              + 'Readiness: ' + t.readiness;
+          }
+        },
+        toolbox: this.defaultToolbox(),
+        grid: { left: '35%', right: '8%', bottom: '12%' },
+        xAxis: { type: 'value', max: 100, name: 'Feasibility %', axisLabel: { formatter: '{value}%' } },
+        yAxis: {
+          type: 'category',
+          data: tasks.map(t => t.task),
+          axisLabel: { fontSize: 10 }
+        },
+        series: [{
+          type: 'bar',
+          data: tasks.map(t => ({
+            value: t.feasibility,
+            itemStyle: { color: readinessColors[t.readiness] || '#71717a' }
+          })),
+          barWidth: '55%',
+          label: {
+            show: true, position: 'right',
+            formatter: (p) => tasks[p.dataIndex].time + '% time',
+            color: '#a1a1aa', fontSize: 10
+          }
+        }]
+      }, { replaceMerge: ['series'] });
+
+      // Gauge: weighted automation score for the role
+      const weighted = tasks.reduce((sum, t) => sum + (t.time * t.feasibility / 100), 0);
+      this.charts.taskGauge.setOption({
+        animation: !reduceMotion,
+        series: [{
+          type: 'gauge',
+          data: [{ value: Math.round(weighted), name: 'Weighted Score' }],
+          min: 0, max: 100,
+          center: ['50%', '55%'], radius: '85%',
+          startAngle: 210, endAngle: -30,
+          axisLine: { lineStyle: { width: 12, color: [[0.3, '#10b981'], [0.6, '#f59e0b'], [1, '#ef4444']] } },
+          pointer: { width: 4, length: '55%', itemStyle: { color: '#d4d4d8' } },
+          anchor: { show: true, size: 8, itemStyle: { color: '#d4d4d8' } },
+          axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+          detail: {
+            formatter: '{value}%', fontSize: 22, fontWeight: 'bold',
+            color: '#f4f4f5', offsetCenter: [0, '70%']
+          },
+          title: { show: false }
+        }]
+      });
+    }
+  }));
+
+});
+</script>
+
+<div x-cloak x-data="gdp"
+     @keydown.escape.window="fullscreen = null; selectedSector = null"
+     @keydown.window="handleKeyboard($event)">
+  <main class="max-w-7xl mx-auto p-3 md:p-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-6">
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold mb-1">GDP and Labor Market Analysis</h1>
+        <p class="text-sm text-zinc-400">Economic sectors, job categories, and task-level automation exposure. 2024-2025 estimates.</p>
+      </div>
+      <p class="text-xs text-zinc-400 mt-2 sm:mt-0 no-print">Press 1-4 to switch tabs. Esc to reset.</p>
+    </div>
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <template x-for="stat in stats" :key="stat.label">
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+          <p class="text-xs text-zinc-400 mb-1" x-text="stat.label"></p>
+          <p class="text-xl font-semibold text-white" x-text="stat.value"></p>
+          <p class="text-xs text-zinc-400 mt-1" x-text="stat.sub"></p>
+        </div>
+      </template>
+    </div>
+
+    <!-- Tabs -->
+    <div role="tablist" class="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
+      <template x-for="(t, i) in tabs" :key="t">
+        <button role="tab"
+                :aria-selected="tab === t"
+                @click="tab = t"
+                :class="tab === t ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'"
+                class="px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap">
+          <span x-text="(i+1) + '. ' + t"></span>
+        </button>
+      </template>
+    </div>
+
+    <!-- Cross-filter indicator -->
+    <div x-show="selectedSector" class="flex items-center gap-2 mb-4 no-print" x-transition>
+      <span class="text-sm text-zinc-400">Filtered by sector:</span>
+      <span class="bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-medium" x-text="selectedSector"></span>
+      <button @click="selectedSector = null; writeHash()" class="text-zinc-400 hover:text-zinc-200 text-xs ml-1">
+        <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+        Clear
+      </button>
+    </div>
+
+    <!-- ═══ Economy tab ═══ -->
+    <div role="tabpanel" x-show="tab === 'Economy'">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <!-- GDP Growth -->
+        <div :class="fullscreen === 'gdp' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium text-white">Quarterly GDP Growth</h2>
+              <p class="text-xs text-zinc-400 mt-0.5">Bar chart with markLine average and trend overlay.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'gdp' ? null : 'gdp'"
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="gdpGrowth" :class="fullscreen === 'gdp' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+        </div>
+
+        <!-- Productivity -->
+        <div :class="fullscreen === 'prod' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium text-white">Productivity Index</h2>
+              <p class="text-xs text-zinc-400 mt-0.5">GDP per worker (2020=100). Line + bar combo, dual axis.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'prod' ? null : 'prod'"
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="productivity" :class="fullscreen === 'prod' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+        </div>
+      </div>
+
+      <!-- GDP by sector (horizontal bar, full width) -->
+      <div :class="fullscreen === 'secbar' ? 'fixed inset-0 z-50 bg-zinc-900 p-4 md:p-8' : ''"
+           class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-sm font-medium text-white">GDP Contribution by Sector</h2>
+            <p class="text-xs text-zinc-400 mt-0.5">Click a bar to cross-filter the Jobs tab by sector.</p>
+          </div>
+          <button @click="fullscreen = fullscreen === 'secbar' ? null : 'secbar'"
+                  class="text-zinc-400 hover:text-zinc-200 no-print p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+            </svg>
+          </button>
+        </div>
+        <div x-ref="sectorBar" :class="fullscreen === 'secbar' ? 'h-[calc(100vh-8rem)]' : 'h-80'" class="w-full"></div>
+      </div>
+    </div>
+
+    <!-- ═══ Sectors tab ═══ -->
+    <div role="tabpanel" x-show="tab === 'Sectors'">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <!-- Treemap -->
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">GDP Share (Treemap)</h2>
+          <p class="text-xs text-zinc-400 mb-4">Area proportional to GDP contribution.</p>
+          <div x-ref="sectorTreemap" class="h-72 w-full"></div>
+        </div>
+
+        <!-- Scatter: Growth vs Automation -->
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Growth vs Automation Exposure</h2>
+          <p class="text-xs text-zinc-400 mb-4">Bubble size = employment. Color: green (low risk), amber (medium), red (high).</p>
+          <div x-ref="sectorScatter" class="h-72 w-full"></div>
+        </div>
+      </div>
+
+      <!-- Radar -->
+      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+        <h2 class="text-sm font-medium text-white mb-0.5">Sector Vulnerability Profile (Radar)</h2>
+        <p class="text-xs text-zinc-400 mb-4">Multi-dimensional risk comparison: automation level, reskilling need, GDP growth sensitivity.</p>
+        <div x-ref="sectorRadar" class="h-80 w-full"></div>
+      </div>
+
+      <!-- Sector data table -->
+      <div class="mt-4 bg-zinc-800 rounded-xl border border-zinc-700 overflow-hidden break-inside-avoid">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
+          <h2 class="text-sm font-medium text-white">Sector Data</h2>
+          <button @click="downloadCSV('sectors.csv',
+              ['Sector', 'GDP ($B)', 'Share %', 'Growth %', 'Employment (M)', 'Automation %'],
+              sectors.map(s => [s.name, s.gdp, s.share, s.growth, s.employment, s.automation]))"
+            class="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 px-2.5 py-1 rounded text-xs font-medium transition-colors no-print flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            CSV
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="border-b border-zinc-700 text-zinc-400">
+                <th class="px-4 py-3 font-medium">Sector</th>
+                <th class="px-4 py-3 font-medium text-right">GDP ($B)</th>
+                <th class="px-4 py-3 font-medium text-right">Share</th>
+                <th class="px-4 py-3 font-medium text-right">Growth</th>
+                <th class="px-4 py-3 font-medium text-right">Employment</th>
+                <th class="px-4 py-3 font-medium text-right">Automation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="s in sectors" :key="s.id">
+                <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50 cursor-pointer"
+                    @click="selectedSector = selectedSector === s.name ? null : s.name; tab = 'Jobs'; writeHash()">
+                  <td class="px-4 py-3 text-white font-medium" x-text="s.name"></td>
+                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="'$' + s.gdp.toLocaleString()"></td>
+                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="s.share + '%'"></td>
+                  <td class="px-4 py-3 text-right"
+                      :class="s.growth >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                      x-text="(s.growth >= 0 ? '+' : '') + s.growth + '%'"></td>
+                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="s.employment + 'M'"></td>
+                  <td class="px-4 py-3 text-right">
+                    <span :class="s.automation > 50 ? 'text-red-400' : s.automation > 35 ? 'text-amber-400' : 'text-emerald-400'"
+                          x-text="s.automation + '%'"></span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Jobs tab ═══ -->
+    <div role="tabpanel" x-show="tab === 'Jobs'">
+      <!-- Controls -->
+      <div class="flex flex-col md:flex-row gap-3 mb-4 no-print">
+        <div class="relative flex-1">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
+               fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input type="text" x-model="search" placeholder="Search job categories..."
+                 aria-label="Search job categories"
+                 class="w-full pl-10 pr-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500">
+        </div>
+        <button @click="downloadCSV('jobs.csv',
+            ['Job Category', 'Employment (M)', 'Automation %', 'AI %', 'Risk', 'Sector'],
+            filteredJobs.map(j => [j.name, j.employment, j.autoExposure, j.aiExposure, j.risk, j.sector]))"
+          class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg text-xs font-medium transition-colors border border-zinc-700 no-print flex items-center gap-1.5 self-start">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Export CSV
+        </button>
+      </div>
+
+      <p class="text-xs text-zinc-400 mb-3" aria-live="polite"
+         x-text="filteredJobs.length + ' of ' + jobs.length + ' job categories'"></p>
+
+      <!-- Stacked bar chart -->
+      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 mb-4 break-inside-avoid">
+        <h2 class="text-sm font-medium text-white mb-0.5">Automation Exposure by Job Category</h2>
+        <p class="text-xs text-zinc-400 mb-4">Stacked bar: purple = AI-specific, blue = other automation. Sorted by total exposure.</p>
+        <div x-ref="jobBar" class="w-full" style="height: 500px"></div>
+      </div>
+
+      <!-- Job data table -->
+      <div class="bg-zinc-800 rounded-xl border border-zinc-700 overflow-hidden break-inside-avoid">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="border-b border-zinc-700 text-zinc-400">
+                <th @click="toggleSort('name')" @keydown.enter="toggleSort('name')"
+                    tabindex="0"
+                    :aria-sort="sortKey === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
+                  Job Category
+                  <span x-show="sortKey === 'name'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
+                </th>
+                <th @click="toggleSort('employment')" @keydown.enter="toggleSort('employment')"
+                    tabindex="0"
+                    :aria-sort="sortKey === 'employment' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200 text-right">
+                  Employment
+                  <span x-show="sortKey === 'employment'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
+                </th>
+                <th @click="toggleSort('autoExposure')" @keydown.enter="toggleSort('autoExposure')"
+                    tabindex="0"
+                    :aria-sort="sortKey === 'autoExposure' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200 text-right">
+                  Automation
+                  <span x-show="sortKey === 'autoExposure'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
+                </th>
+                <th @click="toggleSort('aiExposure')" @keydown.enter="toggleSort('aiExposure')"
+                    tabindex="0"
+                    :aria-sort="sortKey === 'aiExposure' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200 text-right">
+                  AI
+                  <span x-show="sortKey === 'aiExposure'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
+                </th>
+                <th class="px-4 py-3 font-medium">Risk</th>
+                <th class="px-4 py-3 font-medium">Sector</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="j in sortedJobs" :key="j.id">
+                <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50">
+                  <td class="px-4 py-3 text-white font-medium" x-text="j.name"></td>
+                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="j.employment + 'M'"></td>
+                  <td class="px-4 py-3 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <div class="w-16 bg-zinc-700 rounded-full h-1.5 overflow-hidden">
+                        <div class="h-full rounded-full"
+                             :class="j.autoExposure > 65 ? 'bg-red-500' : j.autoExposure > 40 ? 'bg-amber-500' : 'bg-emerald-500'"
+                             :style="'width: ' + j.autoExposure + '%'"></div>
+                      </div>
+                      <span class="text-zinc-300 w-8 text-right" x-text="j.autoExposure + '%'"></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="j.aiExposure + '%'"></td>
+                  <td class="px-4 py-3">
+                    <span :class="(riskColors[j.risk] || {}).bg + ' ' + (riskColors[j.risk] || {}).text"
+                          class="px-2 py-0.5 rounded text-xs font-medium"
+                          x-text="j.risk"></span>
+                  </td>
+                  <td class="px-4 py-3 text-zinc-400 text-xs" x-text="j.sector"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div x-show="filteredJobs.length === 0"
+             class="flex items-center justify-center py-12 text-zinc-400 text-sm">
+          No jobs match your search
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Tasks tab ═══ -->
+    <div role="tabpanel" x-show="tab === 'Tasks'">
+      <!-- Job selector -->
+      <div class="flex flex-col sm:flex-row gap-3 mb-4">
+        <div class="flex-1">
+          <label class="text-xs text-zinc-400 mb-1 block">Select a job category to see task-level breakdown:</label>
+          <select x-model="taskDrill"
+                  class="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-zinc-500 no-print">
+            <template x-for="opt in taskDrillOptions" :key="opt">
+              <option :value="opt" x-text="opt"></option>
+            </template>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Task feasibility chart (2/3 width) -->
+        <div class="lg:col-span-2 bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Task Automation Feasibility</h2>
+          <p class="text-xs text-zinc-400 mb-4">Bar color = readiness level. Label = time allocation for each task.</p>
+          <div x-ref="taskBar" class="h-72 w-full"></div>
+          <div class="flex flex-wrap gap-3 mt-3 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500"></span> Production-ready</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-500"></span> Emerging</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-500"></span> Augmentation / Limited</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500"></span> Human-led / Human-only</span>
+          </div>
+        </div>
+
+        <!-- Weighted gauge (1/3 width) -->
+        <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium text-white mb-0.5">Weighted Automation Score</h2>
+          <p class="text-xs text-zinc-400 mb-2">Feasibility weighted by time allocation per task.</p>
+          <div x-ref="taskGauge" class="h-48 w-full"></div>
+          <p class="text-xs text-zinc-400 text-center mt-2">Green: low exposure. Red: high exposure.</p>
+        </div>
+      </div>
+
+      <!-- Task data table -->
+      <div class="mt-4 bg-zinc-800 rounded-xl border border-zinc-700 overflow-hidden break-inside-avoid">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
+          <h2 class="text-sm font-medium text-white" x-text="taskDrill + ' -- Task Breakdown'"></h2>
+          <button @click="downloadCSV(taskDrill.toLowerCase().replace(/\s+/g, '-') + '-tasks.csv',
+              ['Task', 'Time %', 'Feasibility %', 'Readiness'],
+              currentTasks.map(t => [t.task, t.time, t.feasibility, t.readiness]))"
+            class="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 px-2.5 py-1 rounded text-xs font-medium transition-colors no-print flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            CSV
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="border-b border-zinc-700 text-zinc-400">
+                <th class="px-4 py-3 font-medium">Task</th>
+                <th class="px-4 py-3 font-medium text-right">Time %</th>
+                <th class="px-4 py-3 font-medium text-right">Feasibility %</th>
+                <th class="px-4 py-3 font-medium">Readiness</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(t, i) in currentTasks" :key="i">
+                <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50">
+                  <td class="px-4 py-3 text-white font-medium" x-text="t.task"></td>
+                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="t.time + '%'"></td>
+                  <td class="px-4 py-3 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <div class="w-16 bg-zinc-700 rounded-full h-1.5 overflow-hidden">
+                        <div class="h-full rounded-full"
+                             :class="t.feasibility > 70 ? 'bg-red-500' : t.feasibility > 40 ? 'bg-amber-500' : 'bg-emerald-500'"
+                             :style="'width: ' + t.feasibility + '%'"></div>
+                      </div>
+                      <span class="text-zinc-300 w-8 text-right" x-text="t.feasibility + '%'"></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span :class="{
+                      'bg-emerald-900/30 text-emerald-400': t.readiness === 'Production-ready',
+                      'bg-blue-900/30 text-blue-400': t.readiness === 'Emerging',
+                      'bg-amber-900/30 text-amber-400': t.readiness === 'Augmentation' || t.readiness === 'Limited',
+                      'bg-red-900/30 text-red-400': t.readiness === 'Human-led' || t.readiness === 'Human-only' || t.readiness === 'Human-preferred'
+                    }"
+                    class="px-2 py-0.5 rounded text-xs font-medium"
+                    x-text="t.readiness"></span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 pt-4 border-t border-zinc-700/50 text-xs text-zinc-400 no-print">
+      <p class="mb-1">Features: stat cards, 4-tab navigation (keyboard shortcuts), cross-filtering (click sector bar to filter jobs), CSV export (per-tab), URL hash state, fullscreen panels, sortable tables (ARIA), search, status badges, progress bars in table cells, treemap, scatter/bubble, radar, stacked bar, gauge, line+bar combo, markLine, toolbox, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
+      <p>Data: plausible 2024-2025 estimates loosely based on US BEA/BLS patterns. For demo purposes only.</p>
+    </div>
+
+  </main>
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+</body>
+</html>
