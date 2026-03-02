@@ -150,16 +150,16 @@ document.addEventListener('alpine:init', () => {
   ];
 
   const SERVICES = [
-    { id: 1, name: 'API Gateway',   status: 'active',  cpu: 12, memory: 256, uptime: '14d 3h' },
-    { id: 2, name: 'Auth Service',  status: 'active',  cpu: 8,  memory: 128, uptime: '14d 3h' },
-    { id: 3, name: 'Database',      status: 'warning', cpu: 45, memory: 1024,uptime: '7d 12h' },
-    { id: 4, name: 'Cache Layer',   status: 'active',  cpu: 5,  memory: 512, uptime: '14d 3h' },
-    { id: 5, name: 'Queue Worker',  status: 'active',  cpu: 15, memory: 384, uptime: '3d 8h'  },
-    { id: 6, name: 'File Storage',  status: 'error',   cpu: 0,  memory: 0,   uptime: '0h'     },
-    { id: 7, name: 'Search Index',  status: 'active',  cpu: 22, memory: 768, uptime: '10d 1h' },
-    { id: 8, name: 'Mail Sender',   status: 'active',  cpu: 3,  memory: 96,  uptime: '14d 3h' },
-    { id: 9, name: 'Scheduler',     status: 'active',  cpu: 7,  memory: 192, uptime: '14d 3h' },
-    { id: 10,name: 'Log Collector', status: 'warning', cpu: 38, memory: 640, uptime: '2d 5h'  },
+    { id: 1, name: 'API Gateway',   status: 'active',  cpu: 12, memory: 256, uptime: '14d 3h',  trend: [8, 10, 9, 14, 11, 10, 13, 15, 12, 11, 13, 12] },
+    { id: 2, name: 'Auth Service',  status: 'active',  cpu: 8,  memory: 128, uptime: '14d 3h',  trend: [6, 7, 5, 8, 9, 7, 6, 8, 7, 9, 8, 8] },
+    { id: 3, name: 'Database',      status: 'warning', cpu: 45, memory: 1024,uptime: '7d 12h',  trend: [28, 32, 35, 38, 42, 40, 44, 48, 50, 47, 46, 45] },
+    { id: 4, name: 'Cache Layer',   status: 'active',  cpu: 5,  memory: 512, uptime: '14d 3h',  trend: [4, 5, 3, 5, 6, 4, 5, 4, 6, 5, 4, 5] },
+    { id: 5, name: 'Queue Worker',  status: 'active',  cpu: 15, memory: 384, uptime: '3d 8h',   trend: [10, 12, 18, 22, 19, 16, 14, 12, 15, 17, 14, 15] },
+    { id: 6, name: 'File Storage',  status: 'error',   cpu: 0,  memory: 0,   uptime: '0h',      trend: [5, 6, 4, 8, 12, 18, 25, 0, 0, 0, 0, 0] },
+    { id: 7, name: 'Search Index',  status: 'active',  cpu: 22, memory: 768, uptime: '10d 1h',  trend: [18, 20, 19, 24, 22, 25, 21, 23, 20, 22, 24, 22] },
+    { id: 8, name: 'Mail Sender',   status: 'active',  cpu: 3,  memory: 96,  uptime: '14d 3h',  trend: [2, 1, 3, 2, 4, 3, 2, 1, 3, 4, 2, 3] },
+    { id: 9, name: 'Scheduler',     status: 'active',  cpu: 7,  memory: 192, uptime: '14d 3h',  trend: [5, 6, 8, 7, 6, 7, 8, 6, 7, 5, 8, 7] },
+    { id: 10,name: 'Log Collector', status: 'warning', cpu: 38, memory: 640, uptime: '2d 5h',   trend: [20, 22, 25, 28, 30, 32, 35, 34, 36, 38, 37, 38] },
   ];
 
   const DISK_USAGE = [
@@ -209,6 +209,7 @@ document.addEventListener('alpine:init', () => {
       document.documentElement.classList.toggle('dark', this.darkMode);
       Object.values(this.charts).forEach(c => c.dispose());
       this.charts = {};
+      this.disposeSparklines();
       this.$nextTick(() => {
         this.initCharts();
         if (this.colorBlindMode) {
@@ -411,6 +412,44 @@ document.addEventListener('alpine:init', () => {
           barWidth: '50%'
         }]
       }, { replaceMerge: ['series'] });
+    },
+
+    // ── Sparklines ────────────────────────────────────────
+    _sparklines: {},
+
+    initSparkline(el, row) {
+      const key = 'spark-' + row.id;
+      if (this._sparklines[key]) this._sparklines[key].dispose();
+      const chart = echarts.init(el, this.currentTheme, { width: 80, height: 24 });
+      const colors = {
+        error:   { line: '#ef4444', fill: 'rgba(239, 68, 68, 0.3)' },
+        warning: { line: '#f59e0b', fill: 'rgba(245, 158, 11, 0.3)' },
+        active:  { line: '#10b981', fill: 'rgba(16, 185, 129, 0.3)' }
+      };
+      const c = colors[row.status] || colors.active;
+      chart.setOption({
+        animation: false,
+        grid: { left: 0, right: 0, top: 0, bottom: 0 },
+        xAxis: { show: false, type: 'category' },
+        yAxis: { show: false, type: 'value', min: 0 },
+        series: [{
+          type: 'line', data: row.trend, smooth: true, symbol: 'none',
+          lineStyle: { width: 1.5, color: c.line },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: c.fill },
+              { offset: 1, color: 'transparent' }
+            ])
+          }
+        }],
+        tooltip: { show: false }
+      });
+      this._sparklines[key] = chart;
+    },
+
+    disposeSparklines() {
+      Object.values(this._sparklines).forEach(c => c.dispose());
+      this._sparklines = {};
     }
   }));
 
@@ -577,7 +616,7 @@ document.addEventListener('alpine:init', () => {
         </button>
       </div>
 
-      <!-- Table [features: sortable columns, ARIA sort, keyboard-accessible headers, status badges] -->
+      <!-- Table [features: sortable columns, ARIA sort, keyboard-accessible headers, status badges, sparklines] -->
       <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 overflow-hidden break-inside-avoid">
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
@@ -611,6 +650,7 @@ document.addEventListener('alpine:init', () => {
                   Memory
                   <span x-show="sortKey === 'memory'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
                 </th>
+                <th class="px-4 py-3 font-medium">Trend</th>
                 <th class="px-4 py-3 font-medium">Uptime</th>
               </tr>
             </thead>
@@ -628,6 +668,9 @@ document.addEventListener('alpine:init', () => {
                           x-text="row.status"></span>
                   </td>
                   <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300" x-text="row.cpu + '%'"></td>
+                  <td class="px-4 py-3">
+                    <div x-init="$nextTick(() => initSparkline($el, row))" style="width:80px;height:24px"></div>
+                  </td>
                   <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300" x-text="row.memory + ' MB'"></td>
                   <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300" x-text="row.uptime"></td>
                 </tr>

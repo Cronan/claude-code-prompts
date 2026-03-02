@@ -1354,6 +1354,73 @@ series: [
 
 Built-in transforms: `'filter'`, `'sort'`. The `ecStat` extension adds `'regression'`, `'histogram'`, and `'clustering'` transforms but requires an additional CDN script -- avoid for simple artifacts.
 
+### Sparklines
+
+Sparklines are tiny inline charts embedded in table cells that show a data trend without axes, labels, or chrome. Initialize an ECharts instance in a small container with all decorations stripped:
+
+```js
+initSparkline(el, data, color) {
+  const chart = echarts.init(el, this.currentTheme, { width: 80, height: 24 });
+  chart.setOption({
+    animation: false,
+    grid: { left: 0, right: 0, top: 0, bottom: 0 },
+    xAxis: { show: false, type: 'category' },
+    yAxis: { show: false, type: 'value', min: 0 },
+    tooltip: { show: false },
+    series: [{
+      type: 'line', data: data, smooth: true, symbol: 'none',
+      lineStyle: { width: 1.5, color: color },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
+          { offset: 1, color: 'transparent' }
+        ])
+      }
+    }]
+  });
+  return chart;
+}
+```
+
+The table cell needs a fixed-size container:
+
+```html
+<td class="px-4 py-3">
+  <div x-init="$nextTick(() => initSparkline($el, row.trend, '#10b981'))"
+       style="width:80px;height:24px"></div>
+</td>
+```
+
+Key constraints:
+- `grid` with zero margins eliminates all padding around the chart
+- `symbol: 'none'` hides data point dots that would clutter the tiny canvas
+- `animation: false` avoids jarring entry effects on table render
+- `min: 0` on yAxis anchors the baseline so all sparklines share visual scale
+- Use `width` and `height` in `echarts.init` options, not CSS, for crisp rendering
+
+Track sparkline instances for cleanup. When theme toggles or rows re-render, dispose all sparklines and re-create:
+
+```js
+_sparklines: {},
+
+initSparkline(el, row) {
+  const key = 'spark-' + row.id;
+  if (this._sparklines[key]) this._sparklines[key].dispose();
+  const chart = echarts.init(el, this.currentTheme, { width: 80, height: 24 });
+  // ... setOption ...
+  this._sparklines[key] = chart;
+},
+
+disposeSparklines() {
+  Object.values(this._sparklines).forEach(c => c.dispose());
+  this._sparklines = {};
+}
+```
+
+Call `disposeSparklines()` before theme-toggle re-init. Alpine's `x-init` on each `<template x-for>` row handles re-creation automatically when the sorted/filtered list changes.
+
+Color the sparkline to match the row's status (green for active, amber for warning, red for error) to reinforce meaning without needing a legend.
+
 -----
 
 ## Alpine.js patterns
