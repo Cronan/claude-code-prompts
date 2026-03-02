@@ -1010,6 +1010,50 @@ legend: {
 }
 ```
 
+**Brush** -- rectangle or polygon selection for filtering:
+
+```js
+brush: {
+  toolbox: ['rect', 'polygon', 'clear'],
+  xAxisIndex: 0
+},
+toolbox: {
+  feature: {
+    brush: { type: ['rect', 'polygon', 'clear'] }
+  }
+}
+```
+
+Wire the selection to Alpine state:
+
+```js
+this.charts.scatter.on('brushSelected', (params) => {
+  const selected = params.batch[0]?.selected[0]?.dataIndex || [];
+  this.brushedItems = selected.map(i => this.items[i]);
+});
+```
+
+Use brush on scatter, bar, and line charts for interactive data selection. The toolbox brush buttons let users switch between rectangle and polygon selection modes. Call `chart.dispatchAction({ type: 'brush', areas: [] })` to clear the selection programmatically.
+
+**VisualMap (piecewise)** -- categorical color mapping for discrete ranges:
+
+```js
+visualMap: {
+  type: 'piecewise',
+  pieces: [
+    { min: 0, max: 30, label: 'Low', color: '#10b981' },
+    { min: 30, max: 70, label: 'Medium', color: '#f59e0b' },
+    { min: 70, max: 100, label: 'High', color: '#ef4444' }
+  ],
+  orient: 'horizontal',
+  left: 'center',
+  bottom: 10,
+  textStyle: { color: '#a1a1aa' }
+}
+```
+
+Use piecewise visualMap for risk levels, status categories, or any discrete classification. The continuous `visualMap` (documented in the heatmap example) maps a numeric range to a gradient; piecewise maps ranges to distinct colors with labels.
+
 ### Linking charts
 
 Synchronize tooltip position, legend toggles, and zoom range across charts:
@@ -1205,6 +1249,131 @@ The zinc-dark theme uses Tailwind 500-level hex values:
 - amber: `#f59e0b`
 - red: `#ef4444`
 - cyan: `#06b6d4`
+
+### Gradient fills
+
+Use `echarts.graphic.LinearGradient` for gradient area fills, bar fills, or line backgrounds:
+
+```js
+series: [{
+  type: 'line',
+  data: values,
+  areaStyle: {
+    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+      { offset: 0, color: 'rgba(16, 185, 129, 0.4)' },
+      { offset: 1, color: 'rgba(16, 185, 129, 0.02)' }
+    ])
+  }
+}]
+```
+
+The four constructor arguments `(x1, y1, x2, y2, colorStops)` define the gradient direction. `(0, 0, 0, 1)` is top-to-bottom. `(0, 0, 1, 0)` is left-to-right.
+
+For bar chart gradients:
+
+```js
+series: [{
+  type: 'bar',
+  data: values,
+  itemStyle: {
+    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+      { offset: 0, color: '#3b82f6' },
+      { offset: 1, color: '#1d4ed8' }
+    ])
+  }
+}]
+```
+
+Use gradients sparingly. A single gradient area fill under a line chart improves visual depth. Applying gradients to every series in a multi-series chart creates visual noise.
+
+### Decal patterns (accessibility)
+
+Decal patterns add hatching or dots to chart areas, making series distinguishable without relying on color alone. This complements the color-blind palette toggle:
+
+```js
+series: [{
+  type: 'bar',
+  data: values,
+  itemStyle: {
+    decal: { symbol: 'rect', dashArrayX: 5, dashArrayY: 3, rotation: 0.8 }
+  }
+}]
+```
+
+Enable global decals for all series:
+
+```js
+chart.setOption({
+  aria: {
+    enabled: true,
+    decal: { show: true }
+  }
+});
+```
+
+ECharts provides built-in decal patterns (`'circle'`, `'rect'`, `'roundRect'`, `'triangle'`, `'diamond'`) that auto-apply different patterns per series. The `aria.decal.show` approach is the simplest -- each series gets a distinct pattern automatically.
+
+### Dataset component
+
+The dataset component separates data from series configuration. This simplifies chart options and enables data transforms:
+
+```js
+const option = {
+  dataset: {
+    source: [
+      ['product', 'Q1', 'Q2', 'Q3', 'Q4'],
+      ['Widget A', 120, 132, 101, 134],
+      ['Widget B', 220, 182, 191, 234],
+      ['Widget C', 150, 232, 201, 154]
+    ]
+  },
+  xAxis: { type: 'category' },
+  yAxis: {},
+  series: [
+    { type: 'bar' },
+    { type: 'bar' },
+    { type: 'bar' },
+    { type: 'bar' }
+  ]
+};
+```
+
+ECharts infers the mapping from dataset columns to series automatically. For explicit control, use `encode`:
+
+```js
+series: [{
+  type: 'scatter',
+  encode: { x: 'income', y: 'lifeExpectancy', tooltip: ['country', 'income', 'lifeExpectancy'] }
+}]
+```
+
+Use dataset when multiple charts share the same data source or when you need transforms. For most single-chart dashboards, inline `data` arrays in each series are simpler and more readable.
+
+**Dataset transforms** -- filter, sort, or aggregate data without preprocessing:
+
+```js
+dataset: [
+  { source: rawData },
+  {
+    transform: {
+      type: 'filter',
+      config: { dimension: 'category', value: 'Electronics' }
+    }
+  },
+  {
+    transform: {
+      type: 'sort',
+      config: { dimension: 'revenue', order: 'desc' }
+    }
+  }
+],
+series: [
+  { type: 'bar', datasetIndex: 1 },  // uses filtered data
+  { type: 'line', datasetIndex: 2 }   // uses sorted data
+]
+```
+
+Built-in transforms: `'filter'`, `'sort'`. The `ecStat` extension adds `'regression'`, `'histogram'`, and `'clustering'` transforms but requires an additional CDN script -- avoid for simple artifacts.
 
 -----
 

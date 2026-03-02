@@ -613,9 +613,48 @@ document.addEventListener('alpine:init', () => {
       this.charts.jobBar = echarts.init(this.$refs.jobBar, this.currentTheme);
       this.updateJobBar();
 
+      // Scatter: AI exposure vs traditional automation
+      this.charts.jobScatter = echarts.init(this.$refs.jobScatter, this.currentTheme);
+      this.updateJobScatter();
+
       this.$watch('filteredJobs', () => {
         if (this.charts.jobBar) this.updateJobBar();
+        if (this.charts.jobScatter) this.updateJobScatter();
       });
+    },
+
+    updateJobScatter() {
+      const jobs = this.filteredJobs;
+      this.charts.jobScatter.setOption({
+        animation: !reduceMotion,
+        tooltip: {
+          trigger: 'item', confine: true,
+          formatter: (p) => {
+            const j = jobs[p.dataIndex];
+            return j.name + '<br/>AI: ' + j.aiExposure + '%<br/>Other automation: '
+              + (j.autoExposure - j.aiExposure) + '%<br/>Employment: ' + j.employment + 'M<br/>Risk: ' + j.risk;
+          }
+        },
+        toolbox: this.defaultToolbox(),
+        xAxis: { type: 'value', name: 'AI Exposure (%)', max: 100, axisLabel: { formatter: '{value}%' } },
+        yAxis: { type: 'value', name: 'Traditional Automation (%)', max: 50, axisLabel: { formatter: '{value}%' } },
+        series: [{
+          type: 'scatter',
+          data: jobs.map(j => [j.aiExposure, j.autoExposure - j.aiExposure]),
+          symbolSize: (_, p) => Math.max(Math.sqrt(jobs[p.dataIndex].employment) * 14, 8),
+          label: {
+            show: window.innerWidth >= 768, position: 'right', fontSize: 9, color: this.tc.textMuted,
+            formatter: (p) => jobs[p.dataIndex].name.split(' ')[0]
+          },
+          itemStyle: {
+            color: (p) => {
+              const risk = jobs[p.dataIndex].risk;
+              return risk === 'High' ? '#ef4444' : risk.includes('Medium') ? '#f59e0b' : '#10b981';
+            },
+            opacity: 0.8
+          }
+        }]
+      }, { replaceMerge: ['series'] });
     },
 
     updateJobBar() {
@@ -815,7 +854,7 @@ document.addEventListener('alpine:init', () => {
           <div class="flex items-center justify-between mb-4">
             <div>
               <h2 class="text-sm font-medium">Quarterly GDP Growth</h2>
-              <p class="text-xs text-zinc-400 mt-0.5">Bar chart with markLine average and trend overlay.</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Bar chart with markLine average and trend overlay.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'gdp' ? null : 'gdp'"
                     class="text-zinc-400 hover:text-zinc-200 no-print p-1">
@@ -834,7 +873,7 @@ document.addEventListener('alpine:init', () => {
           <div class="flex items-center justify-between mb-4">
             <div>
               <h2 class="text-sm font-medium">Productivity Index</h2>
-              <p class="text-xs text-zinc-400 mt-0.5">GDP per worker (2020=100). Line + bar combo, dual axis.</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">GDP per worker (2020=100). Line + bar combo, dual axis.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'prod' ? null : 'prod'"
                     class="text-zinc-400 hover:text-zinc-200 no-print p-1">
@@ -854,7 +893,7 @@ document.addEventListener('alpine:init', () => {
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="text-sm font-medium">GDP Contribution by Sector</h2>
-            <p class="text-xs text-zinc-400 mt-0.5">Click a bar to cross-filter the Jobs tab by sector.</p>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Click a bar to cross-filter the Jobs tab by sector.</p>
           </div>
           <button @click="fullscreen = fullscreen === 'secbar' ? null : 'secbar'"
                   class="text-zinc-400 hover:text-zinc-200 no-print p-1">
@@ -872,35 +911,74 @@ document.addEventListener('alpine:init', () => {
     <div role="tabpanel" x-show="tab === 'Sectors'">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <!-- Treemap -->
-        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">GDP Share (Treemap)</h2>
-          <p class="text-xs text-zinc-400 mb-4">Area proportional to GDP contribution.</p>
-          <div x-ref="sectorTreemap" class="h-72 w-full"></div>
+        <div :class="fullscreen === 'treemap' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">GDP Share (Treemap)</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Area proportional to GDP contribution.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'treemap' ? null : 'treemap'"
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'treemap' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="sectorTreemap" :class="fullscreen === 'treemap' ? 'h-[calc(100vh-8rem)]' : 'h-72'" class="w-full"></div>
         </div>
 
         <!-- Scatter: Growth vs Automation -->
-        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Growth vs Automation Exposure</h2>
-          <p class="text-xs text-zinc-400 mb-4">Bubble size = employment. Color: green (low risk), amber (medium), red (high).</p>
-          <div x-ref="sectorScatter" class="h-72 w-full"></div>
+        <div :class="fullscreen === 'secscatter' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+             class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-medium mb-0.5">Growth vs Automation Exposure</h2>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Bubble size = employment. Green = low risk, amber = medium, red = high.</p>
+            </div>
+            <button @click="fullscreen = fullscreen === 'secscatter' ? null : 'secscatter'"
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'secscatter' ? 'Exit fullscreen' : 'Fullscreen'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+              </svg>
+            </button>
+          </div>
+          <div x-ref="sectorScatter" :class="fullscreen === 'secscatter' ? 'h-[calc(100vh-8rem)]' : 'h-72'" class="w-full"></div>
         </div>
       </div>
 
       <!-- Radar -->
-      <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-        <h2 class="text-sm font-medium text-white mb-0.5">Sector Vulnerability Profile (Radar)</h2>
-        <p class="text-xs text-zinc-400 mb-4">Multi-dimensional risk comparison: automation level, reskilling need, GDP growth sensitivity.</p>
-        <div x-ref="sectorRadar" class="h-80 w-full"></div>
+      <div :class="fullscreen === 'radar' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
+           class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-sm font-medium mb-0.5">Sector Vulnerability Profile (Radar)</h2>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">Automation level, reskilling need, GDP growth sensitivity.</p>
+          </div>
+          <button @click="fullscreen = fullscreen === 'radar' ? null : 'radar'"
+                  class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                  :aria-label="fullscreen === 'radar' ? 'Exit fullscreen' : 'Fullscreen'">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+            </svg>
+          </button>
+        </div>
+        <div x-ref="sectorRadar" :class="fullscreen === 'radar' ? 'h-[calc(100vh-8rem)]' : 'h-80'" class="w-full"></div>
       </div>
 
       <!-- Sector data table -->
       <div class="mt-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 overflow-hidden break-inside-avoid">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-300 dark:border-zinc-700">
           <h2 class="text-sm font-medium">Sector Data</h2>
           <button @click="downloadCSV('sectors.csv',
               ['Sector', 'GDP ($B)', 'Share %', 'Growth %', 'Employment (M)', 'Automation %'],
               sectors.map(s => [s.name, s.gdp, s.share, s.growth, s.employment, s.automation]))"
-            class="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 px-2.5 py-1 rounded text-xs font-medium transition-colors no-print flex items-center gap-1">
+            class="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 px-2.5 py-1 rounded text-xs font-medium transition-colors no-print flex items-center gap-1">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -911,7 +989,7 @@ document.addEventListener('alpine:init', () => {
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead>
-              <tr class="border-b border-zinc-700 text-zinc-400">
+              <tr class="border-b border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
                 <th class="px-4 py-3 font-medium">Sector</th>
                 <th class="px-4 py-3 font-medium text-right">GDP ($B)</th>
                 <th class="px-4 py-3 font-medium text-right">Share</th>
@@ -922,15 +1000,15 @@ document.addEventListener('alpine:init', () => {
             </thead>
             <tbody>
               <template x-for="s in sectors" :key="s.id">
-                <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50 cursor-pointer"
+                <tr class="border-b border-zinc-200 dark:border-zinc-700/50 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 cursor-pointer"
                     @click="selectedSector = selectedSector === s.name ? null : s.name; tab = 'Jobs'; writeHash()">
-                  <td class="px-4 py-3 text-white font-medium" x-text="s.name"></td>
-                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="'$' + s.gdp.toLocaleString()"></td>
-                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="s.share + '%'"></td>
+                  <td class="px-4 py-3 font-medium" x-text="s.name"></td>
+                  <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="'$' + s.gdp.toLocaleString()"></td>
+                  <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="s.share + '%'"></td>
                   <td class="px-4 py-3 text-right"
                       :class="s.growth >= 0 ? 'text-emerald-400' : 'text-red-400'"
                       x-text="(s.growth >= 0 ? '+' : '') + s.growth + '%'"></td>
-                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="s.employment + 'M'"></td>
+                  <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="s.employment + 'M'"></td>
                   <td class="px-4 py-3 text-right">
                     <span :class="s.automation > 50 ? 'text-red-400' : s.automation > 35 ? 'text-amber-400' : 'text-emerald-400'"
                           x-text="s.automation + '%'"></span>
@@ -955,12 +1033,12 @@ document.addEventListener('alpine:init', () => {
           </svg>
           <input type="text" x-model="search" placeholder="Search job categories..."
                  aria-label="Search job categories"
-                 class="w-full pl-10 pr-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500">
+                 class="w-full pl-10 pr-4 py-2 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500">
         </div>
         <button @click="downloadCSV('jobs.csv',
             ['Job Category', 'Employment (M)', 'Automation %', 'AI %', 'Risk', 'Sector'],
             filteredJobs.map(j => [j.name, j.employment, j.autoExposure, j.aiExposure, j.risk, j.sector]))"
-          class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg text-xs font-medium transition-colors border border-zinc-700 no-print flex items-center gap-1.5 self-start">
+          class="bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 py-2 rounded-lg text-xs font-medium transition-colors border border-zinc-300 dark:border-zinc-700 no-print flex items-center gap-1.5 self-start">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -969,14 +1047,21 @@ document.addEventListener('alpine:init', () => {
         </button>
       </div>
 
-      <p class="text-xs text-zinc-400 mb-3" aria-live="polite"
+      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3" aria-live="polite"
          x-text="filteredJobs.length + ' of ' + jobs.length + ' job categories'"></p>
 
-      <!-- Stacked bar chart -->
-      <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 mb-4 break-inside-avoid">
-        <h2 class="text-sm font-medium text-white mb-0.5">Automation Exposure by Job Category</h2>
-        <p class="text-xs text-zinc-400 mb-4">Stacked bar: purple = AI-specific, blue = other automation. Sorted by total exposure.</p>
-        <div x-ref="jobBar" class="w-full" style="height: 500px"></div>
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Automation Exposure by Job Category</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Stacked bar: purple = AI-specific, blue = other automation.</p>
+          <div x-ref="jobBar" class="w-full" style="height: 500px"></div>
+        </div>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">AI vs Traditional Automation</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Bubble size = employment. Jobs in upper-right face dual pressure from both AI and traditional automation.</p>
+          <div x-ref="jobScatter" class="w-full" style="height: 500px"></div>
+        </div>
       </div>
 
       <!-- Job data table -->
@@ -984,32 +1069,32 @@ document.addEventListener('alpine:init', () => {
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead>
-              <tr class="border-b border-zinc-700 text-zinc-400">
+              <tr class="border-b border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
                 <th @click="toggleSort('name')" @keydown.enter="toggleSort('name')"
                     tabindex="0"
                     :aria-sort="sortKey === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200">
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200">
                   Job Category
                   <span x-show="sortKey === 'name'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
                 </th>
                 <th @click="toggleSort('employment')" @keydown.enter="toggleSort('employment')"
                     tabindex="0"
                     :aria-sort="sortKey === 'employment' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200 text-right">
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 text-right">
                   Employment
                   <span x-show="sortKey === 'employment'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
                 </th>
                 <th @click="toggleSort('autoExposure')" @keydown.enter="toggleSort('autoExposure')"
                     tabindex="0"
                     :aria-sort="sortKey === 'autoExposure' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200 text-right">
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 text-right">
                   Automation
                   <span x-show="sortKey === 'autoExposure'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
                 </th>
                 <th @click="toggleSort('aiExposure')" @keydown.enter="toggleSort('aiExposure')"
                     tabindex="0"
                     :aria-sort="sortKey === 'aiExposure' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'"
-                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-200 text-right">
+                    class="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 text-right">
                   AI
                   <span x-show="sortKey === 'aiExposure'" x-text="sortDir === 'asc' ? '\u2191' : '\u2193'" class="ml-1"></span>
                 </th>
@@ -1019,33 +1104,35 @@ document.addEventListener('alpine:init', () => {
             </thead>
             <tbody>
               <template x-for="j in sortedJobs" :key="j.id">
-                <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50">
-                  <td class="px-4 py-3 text-white font-medium" x-text="j.name"></td>
-                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="j.employment + 'M'"></td>
+                <tr class="border-b border-zinc-200 dark:border-zinc-700/50 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50">
+                  <td class="px-4 py-3 font-medium" x-text="j.name"></td>
+                  <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="j.employment + 'M'"></td>
                   <td class="px-4 py-3 text-right">
                     <div class="flex items-center justify-end gap-2">
-                      <div class="w-16 bg-zinc-700 rounded-full h-1.5 overflow-hidden">
+                      <div class="w-16 bg-zinc-300 dark:bg-zinc-700 rounded-full h-1.5 overflow-hidden"
+                           role="progressbar" :aria-valuenow="j.autoExposure" aria-valuemin="0" aria-valuemax="100"
+                           :aria-label="j.name + ' automation exposure'">
                         <div class="h-full rounded-full"
                              :class="j.autoExposure > 65 ? 'bg-red-500' : j.autoExposure > 40 ? 'bg-amber-500' : 'bg-emerald-500'"
                              :style="'width: ' + j.autoExposure + '%'"></div>
                       </div>
-                      <span class="text-zinc-300 w-8 text-right" x-text="j.autoExposure + '%'"></span>
+                      <span class="text-zinc-600 dark:text-zinc-300 w-8 text-right" x-text="j.autoExposure + '%'"></span>
                     </div>
                   </td>
-                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="j.aiExposure + '%'"></td>
+                  <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="j.aiExposure + '%'"></td>
                   <td class="px-4 py-3">
                     <span :class="(riskColors[j.risk] || {}).bg + ' ' + (riskColors[j.risk] || {}).text"
                           class="px-2 py-0.5 rounded text-xs font-medium"
                           x-text="j.risk"></span>
                   </td>
-                  <td class="px-4 py-3 text-zinc-400 text-xs" x-text="j.sector"></td>
+                  <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400 text-xs" x-text="j.sector"></td>
                 </tr>
               </template>
             </tbody>
           </table>
         </div>
         <div x-show="filteredJobs.length === 0"
-             class="flex items-center justify-center py-12 text-zinc-400 text-sm">
+             class="flex items-center justify-center py-12 text-zinc-500 dark:text-zinc-400 text-sm">
           No jobs match your search
         </div>
       </div>
@@ -1056,9 +1143,9 @@ document.addEventListener('alpine:init', () => {
       <!-- Job selector -->
       <div class="flex flex-col sm:flex-row gap-3 mb-4">
         <div class="flex-1">
-          <label class="text-xs text-zinc-400 mb-1 block">Select a job category to see task-level breakdown:</label>
-          <select x-model="taskDrill"
-                  class="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-zinc-500 no-print">
+          <label for="task-drill-select" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Select a job category to see task-level breakdown:</label>
+          <select id="task-drill-select" x-model="taskDrill"
+                  class="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-500 no-print">
             <template x-for="opt in taskDrillOptions" :key="opt">
               <option :value="opt" x-text="opt"></option>
             </template>
@@ -1068,9 +1155,9 @@ document.addEventListener('alpine:init', () => {
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- Task feasibility chart (2/3 width) -->
-        <div class="lg:col-span-2 bg-zinc-800 rounded-xl p-4 border border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Task Automation Feasibility</h2>
-          <p class="text-xs text-zinc-400 mb-4">Bar color = readiness level. Label = time allocation for each task.</p>
+        <div class="lg:col-span-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Task Automation Feasibility</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Bar color = readiness level. Label = time allocation for each task.</p>
           <div x-ref="taskBar" class="h-72 w-full"></div>
           <div class="flex flex-wrap gap-3 mt-3 text-xs">
             <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500"></span> Production-ready</span>
@@ -1082,21 +1169,21 @@ document.addEventListener('alpine:init', () => {
 
         <!-- Weighted gauge (1/3 width) -->
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
-          <h2 class="text-sm font-medium text-white mb-0.5">Weighted Automation Score</h2>
-          <p class="text-xs text-zinc-400 mb-2">Feasibility weighted by time allocation per task.</p>
+          <h2 class="text-sm font-medium mb-0.5">Weighted Automation Score</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Feasibility weighted by time allocation per task.</p>
           <div x-ref="taskGauge" class="h-48 w-full"></div>
-          <p class="text-xs text-zinc-400 text-center mt-2">Green: low exposure. Red: high exposure.</p>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 text-center mt-2">Green: low exposure. Red: high exposure.</p>
         </div>
       </div>
 
       <!-- Task data table -->
       <div class="mt-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 overflow-hidden break-inside-avoid">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-300 dark:border-zinc-700">
           <h2 class="text-sm font-medium" x-text="taskDrill + ' -- Task Breakdown'"></h2>
           <button @click="downloadCSV(taskDrill.toLowerCase().replace(/\s+/g, '-') + '-tasks.csv',
               ['Task', 'Time %', 'Feasibility %', 'Readiness'],
               currentTasks.map(t => [t.task, t.time, t.feasibility, t.readiness]))"
-            class="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 px-2.5 py-1 rounded text-xs font-medium transition-colors no-print flex items-center gap-1">
+            class="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 px-2.5 py-1 rounded text-xs font-medium transition-colors no-print flex items-center gap-1">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -1107,7 +1194,7 @@ document.addEventListener('alpine:init', () => {
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead>
-              <tr class="border-b border-zinc-700 text-zinc-400">
+              <tr class="border-b border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
                 <th class="px-4 py-3 font-medium">Task</th>
                 <th class="px-4 py-3 font-medium text-right">Time %</th>
                 <th class="px-4 py-3 font-medium text-right">Feasibility %</th>
@@ -1116,17 +1203,19 @@ document.addEventListener('alpine:init', () => {
             </thead>
             <tbody>
               <template x-for="(t, i) in currentTasks" :key="i">
-                <tr class="border-b border-zinc-700/50 hover:bg-zinc-800/50">
-                  <td class="px-4 py-3 text-white font-medium" x-text="t.task"></td>
-                  <td class="px-4 py-3 text-zinc-300 text-right" x-text="t.time + '%'"></td>
+                <tr class="border-b border-zinc-200 dark:border-zinc-700/50 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50">
+                  <td class="px-4 py-3 font-medium" x-text="t.task"></td>
+                  <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="t.time + '%'"></td>
                   <td class="px-4 py-3 text-right">
                     <div class="flex items-center justify-end gap-2">
-                      <div class="w-16 bg-zinc-700 rounded-full h-1.5 overflow-hidden">
+                      <div class="w-16 bg-zinc-300 dark:bg-zinc-700 rounded-full h-1.5 overflow-hidden"
+                           role="progressbar" :aria-valuenow="t.feasibility" aria-valuemin="0" aria-valuemax="100"
+                           :aria-label="t.task + ' automation feasibility'">
                         <div class="h-full rounded-full"
                              :class="t.feasibility > 70 ? 'bg-red-500' : t.feasibility > 40 ? 'bg-amber-500' : 'bg-emerald-500'"
                              :style="'width: ' + t.feasibility + '%'"></div>
                       </div>
-                      <span class="text-zinc-300 w-8 text-right" x-text="t.feasibility + '%'"></span>
+                      <span class="text-zinc-600 dark:text-zinc-300 w-8 text-right" x-text="t.feasibility + '%'"></span>
                     </div>
                   </td>
                   <td class="px-4 py-3">
@@ -1149,7 +1238,7 @@ document.addEventListener('alpine:init', () => {
 
     <!-- Footer -->
     <div class="mt-8 pt-4 border-t border-zinc-300 dark:border-zinc-700/50 text-xs text-zinc-500 dark:text-zinc-400 no-print">
-      <p class="mb-1">Features: stat cards, 4-tab navigation (keyboard shortcuts), cross-filtering, CSV export, URL hash state, fullscreen panels, sortable tables (ARIA), search, status badges, progress bars, dark/light toggle, color-blind mode, treemap, scatter/bubble, radar, stacked bar, gauge, line+bar combo, markLine, toolbox, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
+      <p class="mb-1">Features: stat cards, 4-tab navigation (keyboard shortcuts), cross-filtering, CSV export, URL hash state, fullscreen panels, sortable tables (ARIA), search, status badges, progress bars (ARIA), dark/light toggle, color-blind mode, treemap, scatter/bubble (2 instances), radar, stacked bar, gauge, line+bar combo, markLine, toolbox, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
       <p>Data: plausible 2024-2025 estimates loosely based on US BEA/BLS patterns. For demo purposes only.</p>
     </div>
 

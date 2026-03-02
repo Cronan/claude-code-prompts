@@ -2,7 +2,7 @@
 
 Build interactive single-file HTML artifacts: dashboards, trackers, data visualizations, planners, calculators, or any self-contained UI.
 
-**[Browse examples](examples/index.html)** -- open in any browser, no server required.
+**[Browse examples](https://cronyn.co.uk/claude-code-prompts/skills/artifact/examples/)** -- open in any browser, no server required.
 
 ## How it works
 
@@ -54,6 +54,8 @@ ECharts provides 20 chart types with complete configuration examples:
 
 Interactive features include DataZoom (slider and scroll-wheel zoom), linked tooltips, toolbox (save image, data view, reset), legend toggle, brush selection, markLine thresholds, and markArea regions. Charts can be combined in a single instance (line + bar, candlestick + volume bars, stacked area).
 
+Visual features include gradient fills (`LinearGradient`), decal patterns for accessibility, piecewise and continuous `visualMap`, and the `dataset` component with transforms for shared data sources.
+
 Charts use dual ECharts themes (`zinc-dark` and `zinc-light`) that match the Tailwind dark/light theme tokens.
 
 ## Dashboard features
@@ -102,10 +104,10 @@ Full specification: [`SKILL.md`](SKILL.md).
 
 ## Examples
 
-**[Browse all examples](examples/index.html)** or download and open individually in any browser.
+**[Browse all examples](https://cronyn.co.uk/claude-code-prompts/skills/artifact/examples/)** or download and open individually in any browser.
 
 | File | Content |
 |---|---|
-| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | 20 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial, Advanced) with sunburst, graph/network, parallel coordinates, themeriver, polar bar, dark/light toggle, color-blind mode, fullscreen panels, keyboard shortcuts |
+| [`examples/example-chart-showcase.html`](examples/example-chart-showcase.html) | 20 chart types organized by category (Standard, Part-to-Whole, Statistical, KPI, Financial, Advanced) with sunburst, graph/network, parallel coordinates, themeriver, polar bar, gradient area fill, dark/light toggle, color-blind mode, fullscreen panels, keyboard shortcuts |
 | [`examples/example-dashboard.html`](examples/example-dashboard.html) | System monitor with cross-filtering, dark/light toggle, color-blind mode, CSV export, URL hash state, sortable table, search, filter chips, skeleton loading, print stylesheet |
 | [`examples/example-gdp-analysis.html`](examples/example-gdp-analysis.html) | GDP and labor market analysis: 10 economic sectors, 18 job categories, task-level automation breakdowns. Dark/light toggle, color-blind mode, treemap, scatter/bubble, radar, stacked bar, gauge, sortable tables, cross-filtering |
