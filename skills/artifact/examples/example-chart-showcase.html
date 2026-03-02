@@ -326,6 +326,124 @@ document.addEventListener('alpine:init', () => {
     CALENDAR_DATA.push([dateStr, val]);
   }
 
+  // ── Data (new chart types) ─────────────────────────────
+
+  // Sunburst: org headcount with 3 levels
+  const SUNBURST_DATA = [
+    { name: 'Engineering', children: [
+      { name: 'Backend', children: [
+        { name: 'API', value: 12 },
+        { name: 'Database', value: 8 },
+        { name: 'Auth', value: 5 }
+      ]},
+      { name: 'Frontend', children: [
+        { name: 'Web', value: 10 },
+        { name: 'Mobile', value: 6 }
+      ]},
+      { name: 'Infra', children: [
+        { name: 'Cloud', value: 7 },
+        { name: 'SRE', value: 4 }
+      ]}
+    ]},
+    { name: 'Product', children: [
+      { name: 'Design', value: 8 },
+      { name: 'Research', value: 5 },
+      { name: 'Analytics', value: 4 }
+    ]},
+    { name: 'Sales', children: [
+      { name: 'Enterprise', children: [
+        { name: 'Americas', value: 6 },
+        { name: 'EMEA', value: 4 }
+      ]},
+      { name: 'SMB', value: 8 },
+      { name: 'Partnerships', value: 3 }
+    ]},
+    { name: 'Operations', children: [
+      { name: 'HR', value: 5 },
+      { name: 'Finance', value: 4 },
+      { name: 'Legal', value: 3 }
+    ]}
+  ];
+
+  // Graph: microservice architecture
+  const GRAPH_NODES = [
+    { name: 'API Gateway', symbolSize: 45, category: 0 },
+    { name: 'Auth', symbolSize: 32, category: 1 },
+    { name: 'Users', symbolSize: 32, category: 1 },
+    { name: 'Orders', symbolSize: 32, category: 1 },
+    { name: 'Payments', symbolSize: 32, category: 1 },
+    { name: 'Notifications', symbolSize: 28, category: 1 },
+    { name: 'PostgreSQL', symbolSize: 28, category: 2 },
+    { name: 'Redis', symbolSize: 28, category: 2 },
+    { name: 'Kafka', symbolSize: 28, category: 2 },
+    { name: 'S3', symbolSize: 24, category: 2 }
+  ];
+  const GRAPH_LINKS = [
+    { source: 'API Gateway', target: 'Auth' },
+    { source: 'API Gateway', target: 'Users' },
+    { source: 'API Gateway', target: 'Orders' },
+    { source: 'API Gateway', target: 'Payments' },
+    { source: 'Auth', target: 'Redis' },
+    { source: 'Users', target: 'PostgreSQL' },
+    { source: 'Orders', target: 'PostgreSQL' },
+    { source: 'Orders', target: 'Kafka' },
+    { source: 'Payments', target: 'PostgreSQL' },
+    { source: 'Payments', target: 'Notifications' },
+    { source: 'Notifications', target: 'Kafka' },
+    { source: 'Notifications', target: 'S3' },
+    { source: 'Users', target: 'S3' }
+  ];
+  const GRAPH_CATEGORIES = [
+    { name: 'Gateway' },
+    { name: 'Services' },
+    { name: 'Data Stores' }
+  ];
+
+  // Parallel: server benchmark comparison
+  const PARALLEL_DIMS = [
+    { dim: 0, name: 'CPU\nCores', min: 2, max: 64 },
+    { dim: 1, name: 'RAM\n(GB)', min: 4, max: 256 },
+    { dim: 2, name: 'Storage\n(TB)', min: 0.25, max: 10 },
+    { dim: 3, name: 'Network\n(Gbps)', min: 1, max: 25 },
+    { dim: 4, name: 'Price\n($/mo)', min: 50, max: 2000, inverse: true },
+    { dim: 5, name: 'Bench\nScore', min: 1000, max: 50000 }
+  ];
+  const PARALLEL_DATA = [
+    [4, 16, 0.5, 1, 85, 6200],
+    [4, 32, 1, 5, 160, 9800],
+    [8, 32, 1, 5, 240, 15200],
+    [8, 64, 2, 10, 420, 22500],
+    [16, 64, 2, 10, 580, 28000],
+    [16, 128, 4, 10, 850, 35200],
+    [32, 128, 4, 25, 1100, 39500],
+    [32, 256, 8, 25, 1450, 43800],
+    [64, 256, 8, 25, 1800, 47200],
+    [64, 256, 10, 25, 1950, 49500]
+  ];
+
+  // ThemeRiver: programming language popularity
+  const THEME_RIVER_DATES = [
+    '2019', '2020', '2021', '2022', '2023', '2024'
+  ];
+  const THEME_RIVER_LANGS = ['Python', 'JavaScript', 'TypeScript', 'Rust', 'Go'];
+  const THEME_RIVER_DATA = [];
+  const _trValues = {
+    'Python':     [680, 750, 830, 890, 950, 1020],
+    'JavaScript': [820, 780, 740, 700, 660, 620],
+    'TypeScript': [180, 280, 400, 520, 640, 760],
+    'Rust':       [60,  95,  140, 200, 280, 370],
+    'Go':         [240, 270, 310, 340, 360, 380]
+  };
+  THEME_RIVER_DATES.forEach((date, i) => {
+    THEME_RIVER_LANGS.forEach(lang => {
+      THEME_RIVER_DATA.push([date, _trValues[lang][i], lang]);
+    });
+  });
+
+  // Polar bar: monthly revenue (cyclical pattern)
+  const POLAR_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const POLAR_VALUES = [68, 52, 78, 95, 118, 142, 155, 148, 130, 112, 88, 160];
+
   // ── Chart type metadata ─────────────────────────────────
   const CHART_TYPES = {
     'Standard': [
@@ -353,13 +471,20 @@ document.addEventListener('alpine:init', () => {
       { key: 'candle', label: 'Candlestick + Volume', desc: 'OHLC price data with volume overlay' },
       { key: 'waterfall', label: 'Waterfall', desc: 'Cumulative variance, bridge chart' },
       { key: 'calendar', label: 'Calendar Heatmap', desc: 'Daily values on a yearly calendar grid' }
+    ],
+    'Advanced': [
+      { key: 'sunburst', label: 'Sunburst', desc: 'Radial hierarchy with drill-down' },
+      { key: 'graph', label: 'Graph / Network', desc: 'Force-directed node-link diagram' },
+      { key: 'parallel', label: 'Parallel Coordinates', desc: 'Multi-dimensional comparison' },
+      { key: 'themeriver', label: 'ThemeRiver', desc: 'Centered streamgraph over time' },
+      { key: 'polar', label: 'Polar Bar', desc: 'Nightingale rose for cyclical data' }
     ]
   };
 
   // ── Alpine component ───────────────────────────────────
   Alpine.data('showcase', () => ({
     tab: 'Standard',
-    tabs: ['Standard', 'Part-to-Whole', 'Statistical', 'KPI', 'Financial'],
+    tabs: ['Standard', 'Part-to-Whole', 'Statistical', 'KPI', 'Financial', 'Advanced'],
     charts: {},
     initialized: {},
     fullscreen: null,
@@ -476,7 +601,8 @@ document.addEventListener('alpine:init', () => {
         'Part-to-Whole': () => this.initPartToWhole(),
         'Statistical': () => this.initStatistical(),
         'KPI': () => this.initKPI(),
-        'Financial': () => this.initFinancial()
+        'Financial': () => this.initFinancial(),
+        'Advanced': () => this.initAdvanced()
       };
       if (init[name]) init[name]();
     },
@@ -848,6 +974,118 @@ document.addEventListener('alpine:init', () => {
           data: CALENDAR_DATA
         }]
       });
+    },
+
+    initAdvanced() {
+      // Sunburst
+      this.charts.sunburst = echarts.init(this.$refs.sunburstChart, this.currentTheme);
+      this.charts.sunburst.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'item', formatter: (p) => p.name + ': ' + (p.value || '') },
+        series: [{
+          type: 'sunburst',
+          data: SUNBURST_DATA,
+          radius: ['12%', '90%'],
+          label: { fontSize: 11, color: this.tc.text, rotate: 'tangential' },
+          itemStyle: { borderRadius: 4, borderWidth: 1, borderColor: this.tc.bgDeep },
+          emphasis: { focus: 'ancestor' },
+          levels: [
+            {},
+            { r0: '12%', r: '38%', label: { fontSize: 13, fontWeight: 'bold' },
+              itemStyle: { borderWidth: 2 } },
+            { r0: '38%', r: '64%', label: { fontSize: 11 } },
+            { r0: '64%', r: '90%', label: { fontSize: 10 } }
+          ]
+        }]
+      });
+
+      // Graph / Network
+      this.charts.graph = echarts.init(this.$refs.graphChart, this.currentTheme);
+      this.charts.graph.setOption({
+        animation: !reduceMotion,
+        tooltip: { formatter: (p) => p.dataType === 'node' ? p.name : p.data.source + ' → ' + p.data.target },
+        legend: { data: GRAPH_CATEGORIES.map(c => c.name), textStyle: { color: this.tc.textMuted } },
+        series: [{
+          type: 'graph',
+          layout: 'force',
+          roam: true,
+          draggable: true,
+          label: { show: true, color: this.tc.text, fontSize: 10 },
+          force: { repulsion: 280, edgeLength: [100, 180], gravity: 0.08 },
+          emphasis: { focus: 'adjacency', lineStyle: { width: 3 } },
+          data: GRAPH_NODES,
+          links: GRAPH_LINKS,
+          categories: GRAPH_CATEGORIES,
+          lineStyle: { color: 'source', curveness: 0.15, opacity: 0.5 }
+        }]
+      });
+
+      // Parallel Coordinates
+      this.charts.parallel = echarts.init(this.$refs.parallelChart, this.currentTheme);
+      this.charts.parallel.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'item' },
+        parallelAxis: PARALLEL_DIMS.map(d => ({
+          ...d,
+          nameTextStyle: { color: this.tc.textMuted, fontSize: 10 },
+          axisLine: { lineStyle: { color: this.tc.border } },
+          axisTick: { lineStyle: { color: this.tc.border } },
+          axisLabel: { color: this.tc.textMuted, fontSize: 10 },
+          splitLine: { lineStyle: { color: this.tc.borderLight } }
+        })),
+        parallel: { left: '5%', right: '10%', bottom: '12%', top: '8%',
+          parallelAxisDefault: { nameLocation: 'start' } },
+        series: [{
+          type: 'parallel',
+          lineStyle: { width: 2, opacity: 0.35 },
+          emphasis: { lineStyle: { width: 4, opacity: 1 } },
+          data: PARALLEL_DATA,
+          smooth: true
+        }]
+      });
+
+      // ThemeRiver
+      this.charts.themeriver = echarts.init(this.$refs.themeriverChart, this.currentTheme);
+      this.charts.themeriver.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'axis', confine: true },
+        singleAxis: {
+          type: 'category', bottom: 30, top: 50,
+          axisLine: { lineStyle: { color: this.tc.border } },
+          axisLabel: { color: this.tc.textMuted },
+          axisTick: { lineStyle: { color: this.tc.border } }
+        },
+        series: [{
+          type: 'themeRiver',
+          emphasis: { focus: 'self' },
+          label: { show: true, color: this.tc.text, fontSize: 11 },
+          data: THEME_RIVER_DATA
+        }]
+      });
+
+      // Polar Bar (Nightingale Rose)
+      this.charts.polar = echarts.init(this.$refs.polarChart, this.currentTheme);
+      this.charts.polar.setOption({
+        animation: !reduceMotion,
+        tooltip: { trigger: 'item', formatter: (p) => p.name + ': $' + p.value + 'K' },
+        polar: { radius: ['8%', '80%'] },
+        angleAxis: {
+          type: 'category', data: POLAR_MONTHS, startAngle: 90,
+          axisLine: { lineStyle: { color: this.tc.border } },
+          axisLabel: { color: this.tc.textMuted, fontSize: 11 }
+        },
+        radiusAxis: {
+          show: false,
+          axisLine: { lineStyle: { color: this.tc.border } }
+        },
+        series: [{
+          type: 'bar',
+          coordinateSystem: 'polar',
+          data: POLAR_VALUES,
+          itemStyle: { borderRadius: [3, 3, 0, 0] },
+          label: { show: false }
+        }]
+      });
     }
   }));
 
@@ -863,7 +1101,7 @@ document.addEventListener('alpine:init', () => {
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6">
       <div>
         <h1 class="text-xl md:text-2xl font-bold mb-1">ECharts Type Showcase</h1>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400">15 chart types organized by category. Each panel labels the chart type and its use case.</p>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">20 chart types organized by category. Each panel labels the chart type and its use case.</p>
       </div>
       <div class="flex items-center gap-2 mt-3 sm:mt-0 no-print">
         <button @click="toggleColorBlind()"
@@ -884,7 +1122,7 @@ document.addEventListener('alpine:init', () => {
                   d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
           </svg>
         </button>
-        <span class="text-xs text-zinc-400 hidden md:inline">Press 1-5 for tabs. Esc to exit fullscreen.</span>
+        <span class="text-xs text-zinc-400 hidden md:inline">Press 1-6 for tabs. Esc to exit fullscreen.</span>
       </div>
     </div>
 
@@ -1130,9 +1368,49 @@ document.addEventListener('alpine:init', () => {
       </div>
     </div>
 
+    <!-- Advanced: sunburst, graph, parallel, themeriver, polar -->
+    <div role="tabpanel" x-show="tab === 'Advanced'">
+      <div class="flex flex-wrap gap-2 mb-4">
+        <template x-for="ct in chartTypes['Advanced']" :key="ct.key">
+          <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-zinc-900 dark:text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-500 dark:text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          </span>
+        </template>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Sunburst</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Radial hierarchy. Click a sector to drill in; click center to zoom out. Concentric rings show depth.</p>
+          <div x-ref="sunburstChart" class="h-80 md:h-72 w-full"></div>
+        </div>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Graph / Network</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Force-directed layout. Drag nodes, pan/zoom. Hover highlights connected neighbors.</p>
+          <div x-ref="graphChart" class="h-80 md:h-72 w-full"></div>
+        </div>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Parallel Coordinates</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Each vertical axis is a dimension. Each line is a server config. Price axis inverted (lower is better).</p>
+          <div x-ref="parallelChart" class="h-80 md:h-72 w-full"></div>
+        </div>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">ThemeRiver</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Centered streamgraph. Width shows category volume over time. Hover isolates one stream.</p>
+          <div x-ref="themeriverChart" class="h-80 md:h-72 w-full"></div>
+        </div>
+        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 md:col-span-2 break-inside-avoid">
+          <h2 class="text-sm font-medium mb-0.5">Polar Bar (Nightingale Rose)</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Radial bar chart for cyclical data. Monthly revenue arranged around a circle. The radial layout signals periodicity.</p>
+          <div x-ref="polarChart" class="h-80 md:h-72 w-full"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Footer -->
     <div class="mt-8 pt-4 border-t border-zinc-300 dark:border-zinc-700/50 text-xs text-zinc-500 dark:text-zinc-400 no-print">
-      <p>15 chart types: line, bar, stacked area, line+bar combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume, waterfall, calendar heatmap. Features: markLine, markArea, DataZoom, toolbox, dual-axis, fullscreen, keyboard shortcuts, dark/light toggle, color-blind mode, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
+      <p>20 chart types: line, bar, stacked area, line+bar combo, donut, treemap, funnel, sankey, scatter/bubble, heatmap, radar, boxplot, gauge, candlestick+volume, waterfall, calendar heatmap, sunburst, graph/network, parallel coordinates, themeriver, polar bar. Features: markLine, markArea, DataZoom, toolbox, dual-axis, fullscreen, keyboard shortcuts, dark/light toggle, color-blind mode, skeleton loading, print stylesheet, prefers-reduced-motion.</p>
     </div>
 
   </main>
