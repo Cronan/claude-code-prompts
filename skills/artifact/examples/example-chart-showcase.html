@@ -137,10 +137,20 @@ document.addEventListener('alpine:init', () => {
 
   // ── Data ────────────────────────────────────────────────
 
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const REVENUE = [82, 95, 110, 98, 125, 142, 138, 155, 167, 178, 190, 205];
-  const GROWTH = [null, 15.9, 15.8, -10.9, 27.6, 13.6, -2.8, 12.3, 7.7, 6.6, 6.7, 7.9];
+  const MONTHS = [
+    'Jan 24', 'Feb 24', 'Mar 24', 'Apr 24', 'May 24', 'Jun 24',
+    'Jul 24', 'Aug 24', 'Sep 24', 'Oct 24', 'Nov 24', 'Dec 24',
+    'Jan 25', 'Feb 25', 'Mar 25', 'Apr 25', 'May 25', 'Jun 25',
+    'Jul 25', 'Aug 25', 'Sep 25', 'Oct 25', 'Nov 25', 'Dec 25'
+  ];
+  const REVENUE = [
+    52, 58, 65, 61, 72, 78, 75, 85, 92, 98, 105, 118,
+    105, 115, 128, 118, 138, 152, 145, 162, 175, 185, 198, 215
+  ];
+  const GROWTH = [
+    null, 11.5, 12.1, -6.2, 18.0, 8.3, -3.8, 13.3, 8.2, 6.5, 7.1, 12.4,
+    -11.0, 9.5, 11.3, -7.8, 16.9, 10.1, -4.6, 11.7, 8.0, 5.7, 7.0, 8.6
+  ];
 
   const CATEGORIES = [
     { name: 'SaaS', value: 840 },
@@ -206,12 +216,14 @@ document.addEventListener('alpine:init', () => {
     { source: 'Demo', target: 'Bounce', value: 300 }
   ];
 
-  // OHLC data: 20 trading days
+  // OHLC data: 30 trading days
   const TRADE_DATES = [
     'Jan 15', 'Jan 16', 'Jan 17', 'Jan 18', 'Jan 19',
     'Jan 22', 'Jan 23', 'Jan 24', 'Jan 25', 'Jan 26',
     'Jan 29', 'Jan 30', 'Jan 31', 'Feb 1', 'Feb 2',
-    'Feb 5', 'Feb 6', 'Feb 7', 'Feb 8', 'Feb 9'
+    'Feb 5', 'Feb 6', 'Feb 7', 'Feb 8', 'Feb 9',
+    'Feb 12', 'Feb 13', 'Feb 14', 'Feb 15', 'Feb 16',
+    'Feb 20', 'Feb 21', 'Feb 22', 'Feb 23', 'Feb 26'
   ];
   const OHLC = [
     [142.5, 145.2, 141.8, 146.0], [145.2, 143.8, 142.5, 146.1],
@@ -223,11 +235,17 @@ document.addEventListener('alpine:init', () => {
     [156.2, 154.8, 153.5, 157.2], [154.8, 158.0, 154.0, 158.5],
     [158.0, 157.2, 156.0, 159.0], [157.2, 160.5, 156.8, 161.0],
     [160.5, 159.0, 158.0, 161.5], [159.0, 162.3, 158.5, 163.0],
-    [162.3, 161.5, 160.0, 163.5], [161.5, 164.0, 161.0, 165.2]
+    [162.3, 161.5, 160.0, 163.5], [161.5, 164.0, 161.0, 165.2],
+    [164.0, 162.5, 161.5, 165.0], [162.5, 166.8, 162.0, 167.5],
+    [166.8, 165.2, 164.0, 168.0], [165.2, 168.5, 164.8, 169.2],
+    [168.5, 167.0, 166.0, 170.0], [167.0, 170.8, 166.5, 171.5],
+    [170.8, 169.5, 168.5, 172.0], [169.5, 173.2, 169.0, 174.0],
+    [173.2, 171.8, 170.5, 174.5], [171.8, 175.0, 171.0, 176.2]
   ];
   const VOLUME = [
     3200, 2800, 4100, 5200, 3800, 4500, 3100, 5800, 4200, 6100,
-    3500, 4800, 3200, 5500, 4100, 6800, 3900, 5200, 4600, 7200
+    3500, 4800, 3200, 5500, 4100, 6800, 3900, 5200, 4600, 7200,
+    5100, 6500, 4200, 5800, 3700, 7100, 4400, 6200, 5300, 8500
   ].map(v => v * 1000);
 
   // Scatter: [days to close, deal size, probability]
@@ -238,7 +256,11 @@ document.addEventListener('alpine:init', () => {
     [30, 68000, 0.65], [15, 22000, 0.85], [40, 95000, 0.55],
     [10, 12000, 0.92], [55, 180000, 0.4], [20, 30000, 0.78],
     [28, 52000, 0.7], [7, 6800, 0.96], [48, 140000, 0.45],
-    [32, 72000, 0.62], [14, 18000, 0.88]
+    [32, 72000, 0.62], [14, 18000, 0.88],
+    [38, 92000, 0.58], [16, 24000, 0.82], [52, 160000, 0.38],
+    [9, 11000, 0.93], [42, 105000, 0.52], [23, 38000, 0.72],
+    [65, 280000, 0.25], [11, 14500, 0.90], [34, 78000, 0.60],
+    [27, 48000, 0.68]
   ];
 
   // Heatmap: activity by hour x day
@@ -278,9 +300,9 @@ document.addEventListener('alpine:init', () => {
 
   const STACK_MONTHS = MONTHS;
   const STACK_SERIES = [
-    { name: 'Organic', data: [320, 332, 301, 334, 390, 430, 410, 442, 480, 520, 540, 580] },
-    { name: 'Direct', data: [120, 132, 101, 134, 90, 230, 210, 182, 191, 234, 260, 250] },
-    { name: 'Referral', data: [220, 182, 191, 234, 290, 330, 310, 328, 350, 380, 400, 420] }
+    { name: 'Organic', data: [220, 235, 255, 245, 275, 295, 285, 310, 340, 365, 385, 420, 320, 332, 301, 334, 390, 430, 410, 442, 480, 520, 540, 580] },
+    { name: 'Direct', data: [80, 88, 78, 92, 72, 115, 105, 98, 108, 128, 142, 138, 120, 132, 101, 134, 90, 230, 210, 182, 191, 234, 260, 250] },
+    { name: 'Referral', data: [140, 128, 138, 158, 178, 215, 205, 212, 232, 248, 268, 288, 220, 182, 191, 234, 290, 330, 310, 328, 350, 380, 400, 420] }
   ];
 
   // Waterfall data
@@ -376,7 +398,12 @@ document.addEventListener('alpine:init', () => {
 
       document.documentElement.classList.toggle('dark', this.darkMode);
 
-      this.initTab('Standard');
+      this.$nextTick(() => {
+        this.initTab('Standard');
+        requestAnimationFrame(() => {
+          Object.values(this.charts).forEach(c => c.resize());
+        });
+      });
 
       window.addEventListener('resize', () => {
         Object.values(this.charts).forEach(c => c.resize());
@@ -475,9 +502,9 @@ document.addEventListener('alpine:init', () => {
         series: [{
           name: 'Revenue', type: 'bar', data: REVENUE, barWidth: '50%',
           markArea: {
-            data: [[{ xAxis: 'Sep' }, { xAxis: 'Dec' }]],
+            data: [[{ xAxis: 'Oct 25' }, { xAxis: 'Dec 25' }]],
             itemStyle: { color: 'rgba(16, 185, 129, 0.08)' },
-            label: { show: true, position: 'top', color: this.tc.textMuted, formatter: 'Q4' }
+            label: { show: true, position: 'top', color: this.tc.textMuted, formatter: 'Q4 25' }
           }
         }]
       });
@@ -752,7 +779,8 @@ document.addEventListener('alpine:init', () => {
           }
         },
         toolbox: this.defaultToolbox(),
-        xAxis: { type: 'category', data: WATERFALL_LABELS },
+        grid: { bottom: '18%' },
+        xAxis: { type: 'category', data: WATERFALL_LABELS, axisLabel: { rotate: 30, fontSize: 11 } },
         yAxis: { type: 'value', axisLabel: { formatter: (v) => '$' + v + 'K' } },
         series: [
           {
@@ -893,7 +921,7 @@ document.addEventListener('alpine:init', () => {
               </svg>
             </button>
           </div>
-          <div x-ref="lineChart" :class="fullscreen === 'line' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+          <div x-ref="lineChart" :class="fullscreen === 'line' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-64'" class="w-full"></div>
         </div>
 
         <div :class="fullscreen === 'bar' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
@@ -912,7 +940,7 @@ document.addEventListener('alpine:init', () => {
               </svg>
             </button>
           </div>
-          <div x-ref="barChart" :class="fullscreen === 'bar' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+          <div x-ref="barChart" :class="fullscreen === 'bar' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-64'" class="w-full"></div>
         </div>
 
         <div :class="fullscreen === 'area' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
@@ -931,7 +959,7 @@ document.addEventListener('alpine:init', () => {
               </svg>
             </button>
           </div>
-          <div x-ref="areaChart" :class="fullscreen === 'area' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+          <div x-ref="areaChart" :class="fullscreen === 'area' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-64'" class="w-full"></div>
         </div>
 
         <div :class="fullscreen === 'combo' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
@@ -950,7 +978,7 @@ document.addEventListener('alpine:init', () => {
               </svg>
             </button>
           </div>
-          <div x-ref="comboChart" :class="fullscreen === 'combo' ? 'h-[calc(100vh-8rem)]' : 'h-64'" class="w-full"></div>
+          <div x-ref="comboChart" :class="fullscreen === 'combo' ? 'h-[calc(100vh-8rem)]' : 'h-80 md:h-64'" class="w-full"></div>
         </div>
       </div>
     </div>
@@ -970,22 +998,22 @@ document.addEventListener('alpine:init', () => {
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium mb-0.5">Donut / Pie</h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Proportions. radius: ['40%', '70%'] makes the donut hole.</p>
-          <div x-ref="pieChart" class="h-72 w-full"></div>
+          <div x-ref="pieChart" class="h-80 md:h-72 w-full"></div>
         </div>
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium mb-0.5">Treemap</h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Hierarchical drill-down. Click a node to zoom in; breadcrumb to zoom out.</p>
-          <div x-ref="treemapChart" class="h-72 w-full"></div>
+          <div x-ref="treemapChart" class="h-80 md:h-72 w-full"></div>
         </div>
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium mb-0.5">Funnel</h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Conversion pipeline. Data sorted descending by value.</p>
-          <div x-ref="funnelChart" class="h-80 w-full"></div>
+          <div x-ref="funnelChart" class="h-96 md:h-80 w-full"></div>
         </div>
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium mb-0.5">Sankey</h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Flow between nodes. emphasis: { focus: 'adjacency' } highlights connected paths.</p>
-          <div x-ref="sankeyChart" class="h-80 w-full"></div>
+          <div x-ref="sankeyChart" class="h-96 md:h-80 w-full"></div>
         </div>
       </div>
     </div>
@@ -1005,22 +1033,22 @@ document.addEventListener('alpine:init', () => {
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium mb-0.5">Scatter / Bubble</h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Size = probability, color = risk tier. symbolSize maps the third dimension.</p>
-          <div x-ref="scatterChart" class="h-72 w-full"></div>
+          <div x-ref="scatterChart" class="h-80 md:h-72 w-full"></div>
         </div>
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium mb-0.5">Heatmap</h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">2D density with visualMap color gradient. Data: [[x, y, value], ...]</p>
-          <div x-ref="heatmapChart" class="h-72 w-full"></div>
+          <div x-ref="heatmapChart" class="h-80 md:h-72 w-full"></div>
         </div>
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium mb-0.5">Radar</h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Multi-dimensional comparison. Each indicator is an axis spoke.</p>
-          <div x-ref="radarChart" class="h-72 w-full"></div>
+          <div x-ref="radarChart" class="h-80 md:h-72 w-full"></div>
         </div>
         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
           <h2 class="text-sm font-medium mb-0.5">Boxplot</h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Distribution: [min, Q1, median, Q3, max] per category.</p>
-          <div x-ref="boxplotChart" class="h-72 w-full"></div>
+          <div x-ref="boxplotChart" class="h-80 md:h-72 w-full"></div>
         </div>
       </div>
     </div>
@@ -1077,13 +1105,13 @@ document.addEventListener('alpine:init', () => {
           <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
             <h2 class="text-sm font-medium mb-0.5">Waterfall Chart</h2>
             <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Bridge chart showing cumulative P&amp;L. Stacked bars with transparent base create the stepping effect. Blue = subtotals, green = increases, red = decreases.</p>
-            <div x-ref="waterfallChart" class="h-72 w-full"></div>
+            <div x-ref="waterfallChart" class="h-80 md:h-72 w-full"></div>
           </div>
 
           <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 break-inside-avoid">
             <h2 class="text-sm font-medium mb-0.5">Calendar Heatmap</h2>
             <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Daily contributions over a year. Uses ECharts calendar coordinate system with heatmap series. GitHub-style contribution graph.</p>
-            <div x-ref="calendarChart" class="h-72 w-full"></div>
+            <div x-ref="calendarChart" class="h-80 md:h-72 w-full"></div>
           </div>
         </div>
       </div>

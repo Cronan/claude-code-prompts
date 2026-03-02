@@ -342,7 +342,12 @@ document.addEventListener('alpine:init', () => {
       this.readHash();
       window.addEventListener('hashchange', () => this.readHash());
 
-      this.initCharts();
+      this.$nextTick(() => {
+        this.initCharts();
+        requestAnimationFrame(() => {
+          Object.values(this.charts).forEach(c => c.resize());
+        });
+      });
 
       window.addEventListener('resize', () => {
         Object.values(this.charts).forEach(c => c.resize());
