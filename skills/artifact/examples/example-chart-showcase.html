@@ -513,11 +513,15 @@ document.addEventListener('alpine:init', () => {
   };
 
   // ── Alpine component ───────────────────────────────────
-  Alpine.data('showcase', () => ({
+  Alpine.data('showcase', () => {
+    // Keep chart instances outside Alpine's reactive proxy.
+    // Proxied ECharts instances break treemap drill-down and breadcrumb navigation.
+    let charts = {};
+    let initialized = {};
+
+    return {
     tab: 'Standard',
     tabs: ['Standard', 'Part-to-Whole', 'Statistical', 'KPI', 'Financial', 'Advanced', 'Custom'],
-    charts: {},
-    initialized: {},
     fullscreen: null,
     chartTypes: CHART_TYPES,
     darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -558,51 +562,51 @@ document.addEventListener('alpine:init', () => {
       this.$nextTick(() => {
         this.initTab('Standard');
         requestAnimationFrame(() => {
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
       });
 
       window.addEventListener('resize', () => {
-        Object.values(this.charts).forEach(c => c.resize());
+        Object.values(charts).forEach(c => c.resize());
       });
 
       this.$watch('tab', () => {
         this.$nextTick(() => {
           this.initTab(this.tab);
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
       });
 
       this.$watch('fullscreen', () => {
-        this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+        this.$nextTick(() => Object.values(charts).forEach(c => c.resize()));
       });
     },
 
     toggleTheme() {
       this.darkMode = !this.darkMode;
       document.documentElement.classList.toggle('dark', this.darkMode);
-      Object.values(this.charts).forEach(c => c.dispose());
-      this.charts = {};
-      this.initialized = {};
+      Object.values(charts).forEach(c => c.dispose());
+      charts = {};
+      initialized = {};
       this.$nextTick(() => {
         this.initTab(this.tab);
         if (this.colorBlindMode) {
-          Object.values(this.charts).forEach(c => c.setOption({ color: this.palette }));
+          Object.values(charts).forEach(c => c.setOption({ color: this.palette }));
         }
       });
     },
 
     toggleColorBlind() {
       this.colorBlindMode = !this.colorBlindMode;
-      Object.values(this.charts).forEach(c => {
+      Object.values(charts).forEach(c => {
         c.setOption({ color: this.palette });
       });
     },
 
     togglePieMode() {
       this.pieMode = this.pieMode === 'donut' ? 'pie' : 'donut';
-      if (this.charts.pie) {
-        this.charts.pie.setOption({
+      if (charts.pie) {
+        charts.pie.setOption({
           series: [{ radius: this.pieMode === 'donut' ? ['40%', '70%'] : [0, '70%'] }]
         });
       }
@@ -624,8 +628,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initTab(name) {
-      if (this.initialized[name]) return;
-      this.initialized[name] = true;
+      if (initialized[name]) return;
+      initialized[name] = true;
 
       const init = {
         'Standard': () => this.initStandard(),
@@ -640,8 +644,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initStandard() {
-      this.charts.line = echarts.init(this.$refs.lineChart, this.currentTheme);
-      this.charts.line.setOption({
+      charts.line = echarts.init(this.$refs.lineChart, this.currentTheme);
+      charts.line.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true },
         toolbox: this.defaultToolbox(),
@@ -664,8 +668,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.bar = echarts.init(this.$refs.barChart, this.currentTheme);
-      this.charts.bar.setOption({
+      charts.bar = echarts.init(this.$refs.barChart, this.currentTheme);
+      charts.bar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
         toolbox: this.defaultToolbox(),
@@ -682,8 +686,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.area = echarts.init(this.$refs.areaChart, this.currentTheme);
-      this.charts.area.setOption({
+      charts.area = echarts.init(this.$refs.areaChart, this.currentTheme);
+      charts.area.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true },
         toolbox: this.defaultToolbox(),
@@ -696,8 +700,8 @@ document.addEventListener('alpine:init', () => {
         }))
       });
 
-      this.charts.combo = echarts.init(this.$refs.comboChart, this.currentTheme);
-      this.charts.combo.setOption({
+      charts.combo = echarts.init(this.$refs.comboChart, this.currentTheme);
+      charts.combo.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', axisPointer: { type: 'cross' }, confine: true,
@@ -730,8 +734,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initPartToWhole() {
-      this.charts.pie = echarts.init(this.$refs.pieChart, this.currentTheme);
-      this.charts.pie.setOption({
+      charts.pie = echarts.init(this.$refs.pieChart, this.currentTheme);
+      charts.pie.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item', formatter: '{b}: ${c}K ({d}%)' },
         toolbox: this.defaultToolbox(),
@@ -744,8 +748,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.treemap = echarts.init(this.$refs.treemapChart, this.currentTheme);
-      this.charts.treemap.setOption({
+      charts.treemap = echarts.init(this.$refs.treemapChart, this.currentTheme);
+      charts.treemap.setOption({
         animation: !reduceMotion,
         tooltip: { formatter: (p) => p.name + ': ' + fmt.compact(p.value) },
         toolbox: this.defaultToolbox(),
@@ -761,8 +765,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.funnel = echarts.init(this.$refs.funnelChart, this.currentTheme);
-      this.charts.funnel.setOption({
+      charts.funnel = echarts.init(this.$refs.funnelChart, this.currentTheme);
+      charts.funnel.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item', formatter: (p) => p.name + ': ' + fmt.num(p.value) },
         toolbox: this.defaultToolbox(),
@@ -774,8 +778,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.sankey = echarts.init(this.$refs.sankeyChart, this.currentTheme);
-      this.charts.sankey.setOption({
+      charts.sankey = echarts.init(this.$refs.sankeyChart, this.currentTheme);
+      charts.sankey.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item',
@@ -797,8 +801,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initStatistical() {
-      this.charts.scatter = echarts.init(this.$refs.scatterChart, this.currentTheme);
-      this.charts.scatter.setOption({
+      charts.scatter = echarts.init(this.$refs.scatterChart, this.currentTheme);
+      charts.scatter.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item', confine: true,
@@ -825,8 +829,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.heatmap = echarts.init(this.$refs.heatmapChart, this.currentTheme);
-      this.charts.heatmap.setOption({
+      charts.heatmap = echarts.init(this.$refs.heatmapChart, this.currentTheme);
+      charts.heatmap.setOption({
         animation: !reduceMotion,
         tooltip: {
           confine: true,
@@ -848,8 +852,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.radar = echarts.init(this.$refs.radarChart, this.currentTheme);
-      this.charts.radar.setOption({
+      charts.radar = echarts.init(this.$refs.radarChart, this.currentTheme);
+      charts.radar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item' },
         toolbox: this.defaultToolbox(),
@@ -863,8 +867,8 @@ document.addEventListener('alpine:init', () => {
         series: [{ type: 'radar', data: RADAR_DATA, areaStyle: { opacity: 0.15 } }]
       });
 
-      this.charts.boxplot = echarts.init(this.$refs.boxplotChart, this.currentTheme);
-      this.charts.boxplot.setOption({
+      charts.boxplot = echarts.init(this.$refs.boxplotChart, this.currentTheme);
+      charts.boxplot.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item', confine: true,
@@ -907,16 +911,16 @@ document.addEventListener('alpine:init', () => {
       };
 
       const bands = [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']];
-      this.charts.gauge1 = gaugeBase(this.$refs.gauge1, 78, 'Revenue', 0, 100, bands);
-      this.charts.gauge2 = gaugeBase(this.$refs.gauge2, 92, 'CSAT', 0, 100, bands);
-      this.charts.gauge3 = gaugeBase(this.$refs.gauge3, 99.7, 'Uptime', 95, 100,
+      charts.gauge1 = gaugeBase(this.$refs.gauge1, 78, 'Revenue', 0, 100, bands);
+      charts.gauge2 = gaugeBase(this.$refs.gauge2, 92, 'CSAT', 0, 100, bands);
+      charts.gauge3 = gaugeBase(this.$refs.gauge3, 99.7, 'Uptime', 95, 100,
         [[0.4, '#ef4444'], [0.7, '#f59e0b'], [1, '#10b981']]);
     },
 
     initFinancial() {
       // Candlestick + Volume
-      this.charts.candle = echarts.init(this.$refs.candleChart, this.currentTheme);
-      this.charts.candle.setOption({
+      charts.candle = echarts.init(this.$refs.candleChart, this.currentTheme);
+      charts.candle.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, confine: true },
         toolbox: this.defaultToolbox(),
@@ -939,8 +943,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Waterfall chart
-      this.charts.waterfall = echarts.init(this.$refs.waterfallChart, this.currentTheme);
-      this.charts.waterfall.setOption({
+      charts.waterfall = echarts.init(this.$refs.waterfallChart, this.currentTheme);
+      charts.waterfall.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true,
@@ -983,8 +987,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Calendar heatmap
-      this.charts.calendar = echarts.init(this.$refs.calendarChart, this.currentTheme);
-      this.charts.calendar.setOption({
+      charts.calendar = echarts.init(this.$refs.calendarChart, this.currentTheme);
+      charts.calendar.setOption({
         animation: !reduceMotion,
         tooltip: {
           formatter: (p) => p.data[0] + ': ' + p.data[1] + ' contributions'
@@ -1015,8 +1019,8 @@ document.addEventListener('alpine:init', () => {
 
     initAdvanced() {
       // Sunburst
-      this.charts.sunburst = echarts.init(this.$refs.sunburstChart, this.currentTheme);
-      this.charts.sunburst.setOption({
+      charts.sunburst = echarts.init(this.$refs.sunburstChart, this.currentTheme);
+      charts.sunburst.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'item', formatter: (p) => p.name + (p.value != null ? ': ' + p.value : '') },
@@ -1038,8 +1042,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Graph / Network
-      this.charts.graph = echarts.init(this.$refs.graphChart, this.currentTheme);
-      this.charts.graph.setOption({
+      charts.graph = echarts.init(this.$refs.graphChart, this.currentTheme);
+      charts.graph.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: { formatter: (p) => p.dataType === 'node' ? p.name : p.data.source + ' → ' + p.data.target },
@@ -1060,8 +1064,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Parallel Coordinates
-      this.charts.parallel = echarts.init(this.$refs.parallelChart, this.currentTheme);
-      this.charts.parallel.setOption({
+      charts.parallel = echarts.init(this.$refs.parallelChart, this.currentTheme);
+      charts.parallel.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         parallelAxis: PARALLEL_DIMS.map(d => ({
@@ -1084,8 +1088,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // ThemeRiver
-      this.charts.themeriver = echarts.init(this.$refs.themeriverChart, this.currentTheme);
-      this.charts.themeriver.setOption({
+      charts.themeriver = echarts.init(this.$refs.themeriverChart, this.currentTheme);
+      charts.themeriver.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'axis', confine: true },
@@ -1104,8 +1108,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Polar Bar (Nightingale Rose)
-      this.charts.polar = echarts.init(this.$refs.polarChart, this.currentTheme);
-      this.charts.polar.setOption({
+      charts.polar = echarts.init(this.$refs.polarChart, this.currentTheme);
+      charts.polar.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'item', formatter: (p) => p.name + ': $' + p.value + 'K' },
@@ -1136,9 +1140,9 @@ document.addEventListener('alpine:init', () => {
       const mutedColor = this.tc.textMuted;
 
       // Bullet chart
-      this.charts.bullet = echarts.init(this.$refs.bulletChart, this.currentTheme);
+      charts.bullet = echarts.init(this.$refs.bulletChart, this.currentTheme);
       const bulletLabels = BULLET_DATA.map(b => b.label);
-      this.charts.bullet.setOption({
+      charts.bullet.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: {
@@ -1191,8 +1195,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Lollipop chart
-      this.charts.lollipop = echarts.init(this.$refs.lollipopChart, this.currentTheme);
-      this.charts.lollipop.setOption({
+      charts.lollipop = echarts.init(this.$refs.lollipopChart, this.currentTheme);
+      charts.lollipop.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: {
@@ -1234,7 +1238,7 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Small multiples
-      this.charts.smallmult = echarts.init(this.$refs.smallmultChart, this.currentTheme);
+      charts.smallmult = echarts.init(this.$refs.smallmultChart, this.currentTheme);
       const cols = 3, rows = 2;
       const cellW = 100 / cols, cellH = 100 / rows;
       const pad = { left: 7, right: 2, top: 6, bottom: 4 };
@@ -1272,7 +1276,7 @@ document.addEventListener('alpine:init', () => {
         });
       });
 
-      this.charts.smallmult.setOption({
+      charts.smallmult.setOption({
         animation: !reduceMotion,
         color: this.palette,
         grid: grid,
@@ -1282,7 +1286,7 @@ document.addEventListener('alpine:init', () => {
         tooltip: { trigger: 'axis', confine: true }
       });
     }
-  }));
+  }; });
 
 });
 </script>
