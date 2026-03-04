@@ -1107,6 +1107,7 @@ document.addEventListener('alpine:init', () => {
         tooltip: { trigger: 'axis', confine: true },
         singleAxis: {
           type: 'category', bottom: 30, top: 50,
+          data: _trQuarters,
           axisLine: { lineStyle: { color: this.tc.border } },
           axisLabel: { color: this.tc.textMuted },
           axisTick: { lineStyle: { color: this.tc.border } }
