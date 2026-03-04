@@ -708,8 +708,8 @@ document.addEventListener('alpine:init', () => {
           formatter: (params) => {
             let html = params[0].axisValueLabel + '<br/>';
             params.forEach(p => {
-              const val = p.seriesName === 'Revenue'
-                ? fmt.compact(p.value * 1000) : fmt.pct(p.value);
+              const val = p.value == null ? '--'
+                : p.seriesName === 'Revenue' ? fmt.compact(p.value * 1000) : fmt.pct(p.value);
               html += p.marker + ' ' + p.seriesName + ': ' + val + '<br/>';
             });
             return html;
@@ -756,7 +756,7 @@ document.addEventListener('alpine:init', () => {
         series: [{
           type: 'treemap', data: BUDGET, roam: false, leafDepth: 1,
           label: { formatter: (p) => p.name + '\n' + fmt.compact(p.value), fontSize: 12 },
-          breadcrumb: { itemStyle: { color: this.tc.border, textStyle: { color: this.tc.text } } },
+          breadcrumb: { itemStyle: { color: this.tc.border }, textStyle: { color: this.tc.text } },
           levels: [
             { itemStyle: { borderColor: this.tc.border, borderWidth: 2, gapWidth: 2 } },
             { itemStyle: { borderColor: this.tc.borderLight, borderWidth: 1, gapWidth: 1 },
@@ -1300,7 +1300,7 @@ document.addEventListener('alpine:init', () => {
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6">
       <div>
         <h1 class="text-xl md:text-2xl font-bold mb-1">ECharts Type Showcase</h1>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400">20 chart types organized by category. Each panel labels the chart type and its use case.</p>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">23 chart types organized by category. Each panel labels the chart type and its use case.</p>
       </div>
       <div class="flex items-center gap-2 mt-3 sm:mt-0 no-print">
         <button @click="toggleColorBlind()"
@@ -1321,7 +1321,7 @@ document.addEventListener('alpine:init', () => {
                   d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
           </svg>
         </button>
-        <span class="text-xs text-zinc-400 hidden md:inline">Press 1-6 for tabs. Esc to exit fullscreen.</span>
+        <span class="text-xs text-zinc-400 hidden md:inline">Press 1-7 for tabs. Esc to exit fullscreen.</span>
       </div>
     </div>
 

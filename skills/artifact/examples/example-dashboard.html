@@ -172,6 +172,7 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('dashboard', () => {
     // Keep chart instances outside Alpine's reactive proxy.
     let charts = {};
+    let sparklines = {};
 
     return {
     tab: 'Overview',
@@ -418,11 +419,10 @@ document.addEventListener('alpine:init', () => {
     },
 
     // ── Sparklines ────────────────────────────────────────
-    _sparklines: {},
 
     initSparkline(el, row) {
       const key = 'spark-' + row.id;
-      if (this._sparklines[key]) this._sparklines[key].dispose();
+      if (sparklines[key]) sparklines[key].dispose();
       const chart = echarts.init(el, this.currentTheme, { width: 80, height: 24 });
       const colors = {
         error:   { line: '#ef4444', fill: 'rgba(239, 68, 68, 0.3)' },
@@ -447,12 +447,12 @@ document.addEventListener('alpine:init', () => {
         }],
         tooltip: { show: false }
       });
-      this._sparklines[key] = chart;
+      sparklines[key] = chart;
     },
 
     disposeSparklines() {
-      Object.values(this._sparklines).forEach(c => c.dispose());
-      this._sparklines = {};
+      Object.values(sparklines).forEach(c => c.dispose());
+      sparklines = {};
     }
   }; });
 
@@ -671,10 +671,10 @@ document.addEventListener('alpine:init', () => {
                           x-text="row.status"></span>
                   </td>
                   <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300" x-text="row.cpu + '%'"></td>
+                  <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300" x-text="row.memory + ' MB'"></td>
                   <td class="px-4 py-3">
                     <div x-init="$nextTick(() => initSparkline($el, row))" style="width:80px;height:24px"></div>
                   </td>
-                  <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300" x-text="row.memory + ' MB'"></td>
                   <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300" x-text="row.uptime"></td>
                 </tr>
               </template>

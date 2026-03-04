@@ -569,16 +569,16 @@ document.addEventListener('alpine:init', () => {
               return auto > 50 ? '#ef4444' : auto > 35 ? '#f59e0b' : '#10b981';
             },
             opacity: 0.8
+          },
+          markLine: {
+            data: [
+              { xAxis: 2.43, name: 'Avg Growth' },
+              { yAxis: 40, name: 'Avg Automation' }
+            ],
+            lineStyle: { type: 'dashed', color: this.tc.border },
+            label: { show: false }
           }
-        }],
-        markLine: {
-          data: [
-            { xAxis: 2.43, name: 'Avg Growth' },
-            { yAxis: 40, name: 'Avg Automation' }
-          ],
-          lineStyle: { type: 'dashed', color: this.tc.border },
-          label: { show: false }
-        }
+        }]
       });
 
       // Radar: sector vulnerability profile
