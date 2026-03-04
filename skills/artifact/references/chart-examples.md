@@ -514,67 +514,59 @@ Stack three `'bar'` series with `barGap: '-100%'` to overlay range bands. The na
     inverse: true
   },
   xAxis: { type: 'value', name: 'Satisfaction %', max: 100 },
-  series: [{
-    type: 'custom',
-    renderItem: (params, api) => {
-      const y = api.coord([0, api.value(0)])[1];
-      const x = api.coord([api.value(1), 0])[0];
-      const baseX = api.coord([0, 0])[0];
-      // Map value to color intensity: higher values get more saturated
-      const val = api.value(1);
-      const ratio = (val - 45) / 50;  // normalize to 0-1 range for your data spread
-      const colors = ['#6ee7b7', '#34d399', '#10b981', '#059669', '#047857'];
-      const colorIdx = Math.min(Math.floor(ratio * colors.length), colors.length - 1);
-      const color = colors[colorIdx];
-      return {
-        type: 'group',
-        children: [
-          // Stem -- gradient from faint at baseline to full color at dot
-          {
-            type: 'line',
-            shape: { x1: baseX, y1: y, x2: x, y2: y },
-            style: {
-              stroke: {
-                type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
-                colorStops: [
-                  { offset: 0, color: 'rgba(16, 185, 129, 0.15)' },
-                  { offset: 1, color: color }
-                ]
-              },
-              lineWidth: 2
-            }
-          },
-          // Dot -- filled circle with subtle glow ring
-          {
-            type: 'circle',
-            shape: { cx: x, cy: y, r: 10 },
-            style: { fill: 'rgba(16, 185, 129, 0.12)' }
-          },
-          {
-            type: 'circle',
-            shape: { cx: x, cy: y, r: 6 },
-            style: { fill: color }
-          }
-        ]
-      };
+  series: [
+    // Stems -- thin bars with gradient fill
+    {
+      type: 'bar',
+      data: [93, 87, 82, 79, 68, 61, 49],
+      barWidth: 2,
+      z: 1,
+      itemStyle: {
+        color: (params) => {
+          const ratio = Math.max(0, Math.min(1, (params.value - 40) / 55));
+          const colors = ['#6ee7b7', '#34d399', '#10b981', '#059669', '#047857'];
+          const c = colors[Math.min(Math.floor(ratio * colors.length), colors.length - 1)];
+          return new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: 'rgba(16, 185, 129, 0.08)' },
+            { offset: 1, color: c }
+          ]);
+        }
+      },
+      silent: true
     },
-    data: [[0, 93], [1, 87], [2, 82], [3, 79], [4, 68], [5, 61], [6, 49]],  // [categoryIndex, value]
-    label: {
-      show: true, position: 'right', color: '#d4d4d8',
-      formatter: (params) => params.value[1]
-    },
-    emphasis: {
-      itemStyle: { shadowBlur: 8, shadowColor: 'rgba(16, 185, 129, 0.5)' }
+    // Dots -- scatter with value-scaled color
+    {
+      type: 'scatter',
+      data: [93, 87, 82, 79, 68, 61, 49],
+      symbolSize: 12,
+      z: 2,
+      itemStyle: {
+        color: (params) => {
+          const ratio = Math.max(0, Math.min(1, (params.value - 40) / 55));
+          const colors = ['#6ee7b7', '#34d399', '#10b981', '#059669', '#047857'];
+          return colors[Math.min(Math.floor(ratio * colors.length), colors.length - 1)];
+        },
+        shadowBlur: 6,
+        shadowColor: 'rgba(16, 185, 129, 0.25)'
+      },
+      emphasis: {
+        itemStyle: { shadowBlur: 12, shadowColor: 'rgba(16, 185, 129, 0.5)' },
+        scale: 1.4
+      },
+      label: {
+        show: true, position: 'right', color: '#d4d4d8',
+        formatter: (p) => p.value + '%'
+      }
     }
-  }],
+  ],
   tooltip: {
     trigger: 'axis',
-    formatter: (params) => params[0].name + ': ' + params[0].value[1] + '%'
+    formatter: (params) => params[0].name + ': ' + params[0].value + '%'
   }
 }
 ```
 
-The `renderItem` returns a `'group'` with three children: a gradient stem that fades from transparent at the baseline to full color at the data point, a faint outer ring for depth, and a solid dot. The color intensity scales with the value -- higher scores get darker greens from the `colors` array, giving the chart visual hierarchy at a glance. Realistic category labels (languages, products, regions) make examples easier to read than abstract names like "Team A". Horizontal orientation (categories on y-axis, values on x-axis) reads naturally for ranked lists. Set `inverse: true` on the y-axis so the highest-ranked item is at the top.
+Uses two overlapping series instead of `renderItem`: a thin `bar` for stems and a `scatter` for dots. This avoids `custom` series coordinate-mapping pitfalls and gives proper axis scaling, tooltip, and emphasis for free. The bar `itemStyle.color` callback applies a left-to-right gradient per stem. The scatter `itemStyle.color` callback maps values to a green intensity ramp, so high-ranked items are visually heavier. Horizontal orientation (categories on y-axis, values on x-axis) reads naturally for ranked lists. Set `inverse: true` on the y-axis so the highest-ranked item is at the top.
 
 **Small multiples** -- a grid of identical mini-charts, one per category. Uses multiple ECharts `grid` components with paired axes in a single instance:
 
