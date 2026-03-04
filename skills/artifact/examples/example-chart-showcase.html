@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,6 +23,11 @@
   </style>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: "class" }</script>
+  <script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
 </head>
 <body class="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen transition-colors">
@@ -118,13 +123,12 @@ document.addEventListener('alpine:init', () => {
   });
 
   // ── Reduced motion check ─────────────────────────────────
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let reduceMotion = motionQuery.matches;
+  motionQuery.addEventListener('change', (e) => { reduceMotion = e.matches; });
 
   // ── Formatters ──────────────────────────────────────────
   const fmt = {
-    currency: (v, d = 0) => '$' + Math.abs(v).toLocaleString('en-US', {
-      minimumFractionDigits: d, maximumFractionDigits: d
-    }),
     pct: (v, d = 1) => v.toFixed(d) + '%',
     num: (v) => v.toLocaleString('en-US'),
     compact: (v) => {
@@ -513,11 +517,15 @@ document.addEventListener('alpine:init', () => {
   };
 
   // ── Alpine component ───────────────────────────────────
-  Alpine.data('showcase', () => ({
+  Alpine.data('showcase', () => {
+    // Keep chart instances outside Alpine's reactive proxy.
+    // Proxied ECharts instances break treemap drill-down and breadcrumb navigation.
+    let charts = {};
+    let initialized = {};
+
+    return {
     tab: 'Standard',
     tabs: ['Standard', 'Part-to-Whole', 'Statistical', 'KPI', 'Financial', 'Advanced', 'Custom'],
-    charts: {},
-    initialized: {},
     fullscreen: null,
     chartTypes: CHART_TYPES,
     darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -549,60 +557,68 @@ document.addEventListener('alpine:init', () => {
       };
     },
 
+    _onResize() { Object.values(charts).forEach(c => c.resize()); },
+
     init() {
       const skel = document.getElementById('skeleton');
       if (skel) skel.style.display = 'none';
 
       document.documentElement.classList.toggle('dark', this.darkMode);
 
+      this._boundResize = () => this._onResize();
+      window.addEventListener('resize', this._boundResize);
+
       this.$nextTick(() => {
         this.initTab('Standard');
         requestAnimationFrame(() => {
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
-      });
-
-      window.addEventListener('resize', () => {
-        Object.values(this.charts).forEach(c => c.resize());
       });
 
       this.$watch('tab', () => {
         this.$nextTick(() => {
           this.initTab(this.tab);
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
       });
 
       this.$watch('fullscreen', () => {
-        this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+        this.$nextTick(() => Object.values(charts).forEach(c => c.resize()));
       });
+    },
+
+    destroy() {
+      window.removeEventListener('resize', this._boundResize);
+      Object.values(charts).forEach(c => c.dispose());
+      charts = {};
+      initialized = {};
     },
 
     toggleTheme() {
       this.darkMode = !this.darkMode;
       document.documentElement.classList.toggle('dark', this.darkMode);
-      Object.values(this.charts).forEach(c => c.dispose());
-      this.charts = {};
-      this.initialized = {};
+      Object.values(charts).forEach(c => c.dispose());
+      charts = {};
+      initialized = {};
       this.$nextTick(() => {
         this.initTab(this.tab);
         if (this.colorBlindMode) {
-          Object.values(this.charts).forEach(c => c.setOption({ color: this.palette }));
+          Object.values(charts).forEach(c => c.setOption({ color: this.palette }));
         }
       });
     },
 
     toggleColorBlind() {
       this.colorBlindMode = !this.colorBlindMode;
-      Object.values(this.charts).forEach(c => {
+      Object.values(charts).forEach(c => {
         c.setOption({ color: this.palette });
       });
     },
 
     togglePieMode() {
       this.pieMode = this.pieMode === 'donut' ? 'pie' : 'donut';
-      if (this.charts.pie) {
-        this.charts.pie.setOption({
+      if (charts.pie) {
+        charts.pie.setOption({
           series: [{ radius: this.pieMode === 'donut' ? ['40%', '70%'] : [0, '70%'] }]
         });
       }
@@ -624,8 +640,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initTab(name) {
-      if (this.initialized[name]) return;
-      this.initialized[name] = true;
+      if (initialized[name]) return;
+      initialized[name] = true;
 
       const init = {
         'Standard': () => this.initStandard(),
@@ -640,8 +656,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initStandard() {
-      this.charts.line = echarts.init(this.$refs.lineChart, this.currentTheme);
-      this.charts.line.setOption({
+      charts.line = echarts.init(this.$refs.lineChart, this.currentTheme);
+      charts.line.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true },
         toolbox: this.defaultToolbox(),
@@ -664,8 +680,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.bar = echarts.init(this.$refs.barChart, this.currentTheme);
-      this.charts.bar.setOption({
+      charts.bar = echarts.init(this.$refs.barChart, this.currentTheme);
+      charts.bar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
         toolbox: this.defaultToolbox(),
@@ -682,8 +698,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.area = echarts.init(this.$refs.areaChart, this.currentTheme);
-      this.charts.area.setOption({
+      charts.area = echarts.init(this.$refs.areaChart, this.currentTheme);
+      charts.area.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true },
         toolbox: this.defaultToolbox(),
@@ -696,16 +712,16 @@ document.addEventListener('alpine:init', () => {
         }))
       });
 
-      this.charts.combo = echarts.init(this.$refs.comboChart, this.currentTheme);
-      this.charts.combo.setOption({
+      charts.combo = echarts.init(this.$refs.comboChart, this.currentTheme);
+      charts.combo.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', axisPointer: { type: 'cross' }, confine: true,
           formatter: (params) => {
             let html = params[0].axisValueLabel + '<br/>';
             params.forEach(p => {
-              const val = p.seriesName === 'Revenue'
-                ? fmt.compact(p.value * 1000) : fmt.pct(p.value);
+              const val = p.value == null ? '--'
+                : p.seriesName === 'Revenue' ? fmt.compact(p.value * 1000) : fmt.pct(p.value);
               html += p.marker + ' ' + p.seriesName + ': ' + val + '<br/>';
             });
             return html;
@@ -730,8 +746,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initPartToWhole() {
-      this.charts.pie = echarts.init(this.$refs.pieChart, this.currentTheme);
-      this.charts.pie.setOption({
+      charts.pie = echarts.init(this.$refs.pieChart, this.currentTheme);
+      charts.pie.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item', formatter: '{b}: ${c}K ({d}%)' },
         toolbox: this.defaultToolbox(),
@@ -744,15 +760,15 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.treemap = echarts.init(this.$refs.treemapChart, this.currentTheme);
-      this.charts.treemap.setOption({
+      charts.treemap = echarts.init(this.$refs.treemapChart, this.currentTheme);
+      charts.treemap.setOption({
         animation: !reduceMotion,
         tooltip: { formatter: (p) => p.name + ': ' + fmt.compact(p.value) },
         toolbox: this.defaultToolbox(),
         series: [{
           type: 'treemap', data: BUDGET, roam: false, leafDepth: 1,
           label: { formatter: (p) => p.name + '\n' + fmt.compact(p.value), fontSize: 12 },
-          breadcrumb: { itemStyle: { color: this.tc.border, textStyle: { color: this.tc.text } } },
+          breadcrumb: { itemStyle: { color: this.tc.border }, textStyle: { color: this.tc.text } },
           levels: [
             { itemStyle: { borderColor: this.tc.border, borderWidth: 2, gapWidth: 2 } },
             { itemStyle: { borderColor: this.tc.borderLight, borderWidth: 1, gapWidth: 1 },
@@ -761,8 +777,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.funnel = echarts.init(this.$refs.funnelChart, this.currentTheme);
-      this.charts.funnel.setOption({
+      charts.funnel = echarts.init(this.$refs.funnelChart, this.currentTheme);
+      charts.funnel.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item', formatter: (p) => p.name + ': ' + fmt.num(p.value) },
         toolbox: this.defaultToolbox(),
@@ -774,8 +790,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.sankey = echarts.init(this.$refs.sankeyChart, this.currentTheme);
-      this.charts.sankey.setOption({
+      charts.sankey = echarts.init(this.$refs.sankeyChart, this.currentTheme);
+      charts.sankey.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item',
@@ -797,8 +813,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initStatistical() {
-      this.charts.scatter = echarts.init(this.$refs.scatterChart, this.currentTheme);
-      this.charts.scatter.setOption({
+      charts.scatter = echarts.init(this.$refs.scatterChart, this.currentTheme);
+      charts.scatter.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item', confine: true,
@@ -825,8 +841,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.heatmap = echarts.init(this.$refs.heatmapChart, this.currentTheme);
-      this.charts.heatmap.setOption({
+      charts.heatmap = echarts.init(this.$refs.heatmapChart, this.currentTheme);
+      charts.heatmap.setOption({
         animation: !reduceMotion,
         tooltip: {
           confine: true,
@@ -848,8 +864,8 @@ document.addEventListener('alpine:init', () => {
         }]
       });
 
-      this.charts.radar = echarts.init(this.$refs.radarChart, this.currentTheme);
-      this.charts.radar.setOption({
+      charts.radar = echarts.init(this.$refs.radarChart, this.currentTheme);
+      charts.radar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item' },
         toolbox: this.defaultToolbox(),
@@ -863,8 +879,8 @@ document.addEventListener('alpine:init', () => {
         series: [{ type: 'radar', data: RADAR_DATA, areaStyle: { opacity: 0.15 } }]
       });
 
-      this.charts.boxplot = echarts.init(this.$refs.boxplotChart, this.currentTheme);
-      this.charts.boxplot.setOption({
+      charts.boxplot = echarts.init(this.$refs.boxplotChart, this.currentTheme);
+      charts.boxplot.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item', confine: true,
@@ -907,16 +923,16 @@ document.addEventListener('alpine:init', () => {
       };
 
       const bands = [[0.6, '#ef4444'], [0.8, '#f59e0b'], [1, '#10b981']];
-      this.charts.gauge1 = gaugeBase(this.$refs.gauge1, 78, 'Revenue', 0, 100, bands);
-      this.charts.gauge2 = gaugeBase(this.$refs.gauge2, 92, 'CSAT', 0, 100, bands);
-      this.charts.gauge3 = gaugeBase(this.$refs.gauge3, 99.7, 'Uptime', 95, 100,
+      charts.gauge1 = gaugeBase(this.$refs.gauge1, 78, 'Revenue', 0, 100, bands);
+      charts.gauge2 = gaugeBase(this.$refs.gauge2, 92, 'CSAT', 0, 100, bands);
+      charts.gauge3 = gaugeBase(this.$refs.gauge3, 99.7, 'Uptime', 95, 100,
         [[0.4, '#ef4444'], [0.7, '#f59e0b'], [1, '#10b981']]);
     },
 
     initFinancial() {
       // Candlestick + Volume
-      this.charts.candle = echarts.init(this.$refs.candleChart, this.currentTheme);
-      this.charts.candle.setOption({
+      charts.candle = echarts.init(this.$refs.candleChart, this.currentTheme);
+      charts.candle.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, confine: true },
         toolbox: this.defaultToolbox(),
@@ -939,8 +955,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Waterfall chart
-      this.charts.waterfall = echarts.init(this.$refs.waterfallChart, this.currentTheme);
-      this.charts.waterfall.setOption({
+      charts.waterfall = echarts.init(this.$refs.waterfallChart, this.currentTheme);
+      charts.waterfall.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true,
@@ -983,8 +999,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Calendar heatmap
-      this.charts.calendar = echarts.init(this.$refs.calendarChart, this.currentTheme);
-      this.charts.calendar.setOption({
+      charts.calendar = echarts.init(this.$refs.calendarChart, this.currentTheme);
+      charts.calendar.setOption({
         animation: !reduceMotion,
         tooltip: {
           formatter: (p) => p.data[0] + ': ' + p.data[1] + ' contributions'
@@ -1015,8 +1031,8 @@ document.addEventListener('alpine:init', () => {
 
     initAdvanced() {
       // Sunburst
-      this.charts.sunburst = echarts.init(this.$refs.sunburstChart, this.currentTheme);
-      this.charts.sunburst.setOption({
+      charts.sunburst = echarts.init(this.$refs.sunburstChart, this.currentTheme);
+      charts.sunburst.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'item', formatter: (p) => p.name + (p.value != null ? ': ' + p.value : '') },
@@ -1038,8 +1054,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Graph / Network
-      this.charts.graph = echarts.init(this.$refs.graphChart, this.currentTheme);
-      this.charts.graph.setOption({
+      charts.graph = echarts.init(this.$refs.graphChart, this.currentTheme);
+      charts.graph.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: { formatter: (p) => p.dataType === 'node' ? p.name : p.data.source + ' → ' + p.data.target },
@@ -1060,8 +1076,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Parallel Coordinates
-      this.charts.parallel = echarts.init(this.$refs.parallelChart, this.currentTheme);
-      this.charts.parallel.setOption({
+      charts.parallel = echarts.init(this.$refs.parallelChart, this.currentTheme);
+      charts.parallel.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         parallelAxis: PARALLEL_DIMS.map(d => ({
@@ -1084,8 +1100,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // ThemeRiver
-      this.charts.themeriver = echarts.init(this.$refs.themeriverChart, this.currentTheme);
-      this.charts.themeriver.setOption({
+      charts.themeriver = echarts.init(this.$refs.themeriverChart, this.currentTheme);
+      charts.themeriver.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'axis', confine: true },
@@ -1104,8 +1120,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Polar Bar (Nightingale Rose)
-      this.charts.polar = echarts.init(this.$refs.polarChart, this.currentTheme);
-      this.charts.polar.setOption({
+      charts.polar = echarts.init(this.$refs.polarChart, this.currentTheme);
+      charts.polar.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'item', formatter: (p) => p.name + ': $' + p.value + 'K' },
@@ -1136,9 +1152,9 @@ document.addEventListener('alpine:init', () => {
       const mutedColor = this.tc.textMuted;
 
       // Bullet chart
-      this.charts.bullet = echarts.init(this.$refs.bulletChart, this.currentTheme);
+      charts.bullet = echarts.init(this.$refs.bulletChart, this.currentTheme);
       const bulletLabels = BULLET_DATA.map(b => b.label);
-      this.charts.bullet.setOption({
+      charts.bullet.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: {
@@ -1191,8 +1207,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Lollipop chart
-      this.charts.lollipop = echarts.init(this.$refs.lollipopChart, this.currentTheme);
-      this.charts.lollipop.setOption({
+      charts.lollipop = echarts.init(this.$refs.lollipopChart, this.currentTheme);
+      charts.lollipop.setOption({
         animation: !reduceMotion,
         toolbox: this.defaultToolbox(),
         tooltip: {
@@ -1234,7 +1250,7 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Small multiples
-      this.charts.smallmult = echarts.init(this.$refs.smallmultChart, this.currentTheme);
+      charts.smallmult = echarts.init(this.$refs.smallmultChart, this.currentTheme);
       const cols = 3, rows = 2;
       const cellW = 100 / cols, cellH = 100 / rows;
       const pad = { left: 7, right: 2, top: 6, bottom: 4 };
@@ -1272,7 +1288,7 @@ document.addEventListener('alpine:init', () => {
         });
       });
 
-      this.charts.smallmult.setOption({
+      charts.smallmult.setOption({
         animation: !reduceMotion,
         color: this.palette,
         grid: grid,
@@ -1282,7 +1298,7 @@ document.addEventListener('alpine:init', () => {
         tooltip: { trigger: 'axis', confine: true }
       });
     }
-  }));
+  }; });
 
 });
 </script>
@@ -1296,7 +1312,7 @@ document.addEventListener('alpine:init', () => {
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6">
       <div>
         <h1 class="text-xl md:text-2xl font-bold mb-1">ECharts Type Showcase</h1>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400">20 chart types organized by category. Each panel labels the chart type and its use case.</p>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">23 chart types organized by category. Each panel labels the chart type and its use case.</p>
       </div>
       <div class="flex items-center gap-2 mt-3 sm:mt-0 no-print">
         <button @click="toggleColorBlind()"
@@ -1317,7 +1333,7 @@ document.addEventListener('alpine:init', () => {
                   d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
           </svg>
         </button>
-        <span class="text-xs text-zinc-400 hidden md:inline">Press 1-6 for tabs. Esc to exit fullscreen.</span>
+        <span class="text-xs text-zinc-400 hidden md:inline">Press 1-7 for tabs. Esc to exit fullscreen.</span>
       </div>
     </div>
 
@@ -1325,7 +1341,10 @@ document.addEventListener('alpine:init', () => {
     <div role="tablist" class="flex gap-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
       <template x-for="(t, i) in tabs" :key="t">
         <button role="tab"
+                :id="'tab-' + t.toLowerCase().replace(/[^a-z]/g, '')"
                 :aria-selected="tab === t"
+                :aria-controls="'panel-' + t.toLowerCase().replace(/[^a-z]/g, '')"
+                :tabindex="tab === t ? 0 : -1"
                 @click="tab = t"
                 :class="tab === t
                   ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
@@ -1337,7 +1356,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Standard: line, bar, stacked area, line+bar combo -->
-    <div role="tabpanel" x-show="tab === 'Standard'">
+    <div role="tabpanel" id="panel-standard" aria-labelledby="tab-standard" x-show="tab === 'Standard'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Standard']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1427,7 +1446,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Part-to-Whole: pie, treemap, funnel, sankey -->
-    <div role="tabpanel" x-show="tab === 'Part-to-Whole'">
+    <div role="tabpanel" id="panel-parttowhole" aria-labelledby="tab-parttowhole" x-show="tab === 'Part-to-Whole'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Part-to-Whole']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1465,7 +1484,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Statistical: scatter, heatmap, radar, boxplot -->
-    <div role="tabpanel" x-show="tab === 'Statistical'">
+    <div role="tabpanel" id="panel-statistical" aria-labelledby="tab-statistical" x-show="tab === 'Statistical'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Statistical']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1500,7 +1519,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- KPI: gauges -->
-    <div role="tabpanel" x-show="tab === 'KPI'">
+    <div role="tabpanel" id="panel-kpi" aria-labelledby="tab-kpi" x-show="tab === 'KPI'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['KPI']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1530,7 +1549,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Financial: candlestick + volume, waterfall, calendar heatmap -->
-    <div role="tabpanel" x-show="tab === 'Financial'">
+    <div role="tabpanel" id="panel-financial" aria-labelledby="tab-financial" x-show="tab === 'Financial'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Financial']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1564,7 +1583,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Advanced: sunburst, graph, parallel, themeriver, polar -->
-    <div role="tabpanel" x-show="tab === 'Advanced'">
+    <div role="tabpanel" id="panel-advanced" aria-labelledby="tab-advanced" x-show="tab === 'Advanced'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Advanced']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1669,7 +1688,16 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Custom tab -->
-    <div role="tabpanel" x-show="tab === 'Custom'">
+    <div role="tabpanel" id="panel-custom" aria-labelledby="tab-custom" x-show="tab === 'Custom'">
+      <div class="flex flex-wrap gap-2 mb-4">
+        <template x-for="ct in chartTypes['Custom']" :key="ct.key">
+          <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-zinc-900 dark:text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-500 dark:text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          </span>
+        </template>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Bullet chart -->
         <div :class="fullscreen === 'bullet' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
@@ -1741,7 +1769,6 @@ document.addEventListener('alpine:init', () => {
   </main>
 </div>
 
-<!-- bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400 bg-amber-900/30 text-amber-400 -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 </body>
 </html>

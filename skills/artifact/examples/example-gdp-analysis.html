@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,13 +23,21 @@
   </style>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: "class" }</script>
+  <script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
 </head>
 <body class="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen transition-colors">
 
-<!-- bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400
-     bg-amber-900/30 text-amber-400 bg-cyan-900/30 text-cyan-400
-     bg-blue-900/30 text-blue-400 bg-zinc-700 text-zinc-300 -->
+<!-- Tailwind JIT safelist:
+     bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400
+     bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
+     bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
+     bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400
+     bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 -->
 
 <!-- Skeleton loading -->
 <div id="skeleton" class="max-w-7xl mx-auto p-3 md:p-6">
@@ -123,7 +131,9 @@ document.addEventListener('alpine:init', () => {
     toolbox: { iconStyle: { borderColor: '#71717a' } }
   });
 
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let reduceMotion = motionQuery.matches;
+  motionQuery.addEventListener('change', (e) => { reduceMotion = e.matches; });
 
   // ── Formatters ──────────────────────────────────────────
   const fmt = {
@@ -235,20 +245,23 @@ document.addEventListener('alpine:init', () => {
 
   // Risk color mapping
   const RISK_COLORS = {
-    'High': { bg: 'bg-red-900/30', text: 'text-red-400' },
-    'Medium-High': { bg: 'bg-amber-900/30', text: 'text-amber-400' },
-    'Medium': { bg: 'bg-amber-900/30', text: 'text-amber-400' },
-    'Low-Medium': { bg: 'bg-cyan-900/30', text: 'text-cyan-400' },
-    'Low': { bg: 'bg-emerald-900/30', text: 'text-emerald-400' },
-    'Very Low': { bg: 'bg-emerald-900/30', text: 'text-emerald-400' },
+    'High': { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400' },
+    'Medium-High': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400' },
+    'Medium': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400' },
+    'Low-Medium': { bg: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-700 dark:text-cyan-400' },
+    'Low': { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400' },
+    'Very Low': { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400' },
   };
 
   // ── Alpine component ───────────────────────────────────
-  Alpine.data('gdp', () => ({
+  Alpine.data('gdp', () => {
+    // Keep chart instances outside Alpine's reactive proxy.
+    let charts = {};
+    let initialized = {};
+
+    return {
     tab: 'Economy',
     tabs: ['Economy', 'Sectors', 'Jobs', 'Tasks'],
-    charts: {},
-    initialized: {},
     fullscreen: null,
     selectedSector: null,
     selectedJob: null,
@@ -287,20 +300,20 @@ document.addEventListener('alpine:init', () => {
     toggleTheme() {
       this.darkMode = !this.darkMode;
       document.documentElement.classList.toggle('dark', this.darkMode);
-      Object.values(this.charts).forEach(c => c.dispose());
-      this.charts = {};
-      this.initialized = {};
+      Object.values(charts).forEach(c => c.dispose());
+      charts = {};
+      initialized = {};
       this.$nextTick(() => {
         this.initTab(this.tab);
         if (this.colorBlindMode) {
-          Object.values(this.charts).forEach(c => c.setOption({ color: this.palette }));
+          Object.values(charts).forEach(c => c.setOption({ color: this.palette }));
         }
       });
     },
 
     toggleColorBlind() {
       this.colorBlindMode = !this.colorBlindMode;
-      Object.values(this.charts).forEach(c => {
+      Object.values(charts).forEach(c => {
         c.setOption({ color: this.palette });
       });
     },
@@ -372,6 +385,9 @@ document.addEventListener('alpine:init', () => {
       };
     },
 
+    _onResize() { Object.values(charts).forEach(c => c.resize()); },
+    _onHashChange() { this.readHash(); },
+
     init() {
       const skel = document.getElementById('skeleton');
       if (skel) skel.style.display = 'none';
@@ -379,39 +395,48 @@ document.addEventListener('alpine:init', () => {
       document.documentElement.classList.toggle('dark', this.darkMode);
 
       this.readHash();
-      window.addEventListener('hashchange', () => this.readHash());
+      this._boundResize = () => this._onResize();
+      this._boundHash = () => this._onHashChange();
+      window.addEventListener('hashchange', this._boundHash);
+      window.addEventListener('resize', this._boundResize);
 
       this.$nextTick(() => {
         this.initTab('Economy');
         requestAnimationFrame(() => {
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
-      });
-
-      window.addEventListener('resize', () => {
-        Object.values(this.charts).forEach(c => c.resize());
       });
 
       this.$watch('tab', () => {
         this.writeHash();
         this.$nextTick(() => {
           this.initTab(this.tab);
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
       });
 
       this.$watch('fullscreen', () => {
-        this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+        this.$nextTick(() => Object.values(charts).forEach(c => c.resize()));
       });
 
       this.$watch('search', () => this.writeHash());
     },
 
+    destroy() {
+      window.removeEventListener('resize', this._boundResize);
+      window.removeEventListener('hashchange', this._boundHash);
+      Object.values(charts).forEach(c => c.dispose());
+      charts = {};
+      initialized = {};
+    },
+
     readHash() {
       const params = new URLSearchParams(location.hash.slice(1));
-      if (params.has('tab')) this.tab = params.get('tab');
+      const tab = params.get('tab');
+      if (tab && this.tabs.includes(tab)) this.tab = tab;
       if (params.has('q')) this.search = params.get('q');
-      if (params.has('sector')) this.selectedSector = params.get('sector');
+      const sector = params.get('sector');
+      if (sector && this.sectors.some(s => s.name === sector)) this.selectedSector = sector;
     },
 
     writeHash() {
@@ -424,8 +449,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initTab(name) {
-      if (this.initialized[name]) return;
-      this.initialized[name] = true;
+      if (initialized[name]) return;
+      initialized[name] = true;
       const init = {
         'Economy': () => this.initEconomy(),
         'Sectors': () => this.initSectors(),
@@ -437,8 +462,8 @@ document.addEventListener('alpine:init', () => {
 
     initEconomy() {
       // Quarterly GDP growth (bar + trend line)
-      this.charts.gdpGrowth = echarts.init(this.$refs.gdpGrowth, this.currentTheme);
-      this.charts.gdpGrowth.setOption({
+      charts.gdpGrowth = echarts.init(this.$refs.gdpGrowth, this.currentTheme);
+      charts.gdpGrowth.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true, valueFormatter: (v) => fmt.pct(v) },
         toolbox: this.defaultToolbox(),
@@ -449,7 +474,7 @@ document.addEventListener('alpine:init', () => {
             name: 'GDP Growth', type: 'bar', data: GDP_GROWTH, barWidth: '50%',
             itemStyle: { color: (p) => p.value >= 2.5 ? '#10b981' : p.value >= 2.0 ? '#3b82f6' : '#f59e0b' },
             markLine: {
-              data: [{ yAxis: 2.43, name: 'Avg' }],
+              data: [{ yAxis: 2.425, name: 'Avg' }],
               lineStyle: { type: 'dashed', color: this.tc.textMuted },
               label: { color: this.tc.textMuted, formatter: 'Avg: 2.4%' }
             }
@@ -462,8 +487,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Productivity index (line + change bars)
-      this.charts.productivity = echarts.init(this.$refs.productivity, this.currentTheme);
-      this.charts.productivity.setOption({
+      charts.productivity = echarts.init(this.$refs.productivity, this.currentTheme);
+      charts.productivity.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', confine: true,
@@ -471,7 +496,7 @@ document.addEventListener('alpine:init', () => {
             let html = params[0].axisValueLabel + '<br/>';
             params.forEach(p => {
               const val = p.seriesName === 'Index' ? p.value.toFixed(1)
-                : p.value != null ? '+' + fmt.pct(p.value) : '--';
+                : p.value != null ? (p.value >= 0 ? '+' : '') + fmt.pct(p.value) : '--';
               html += p.marker + ' ' + p.seriesName + ': ' + val + '<br/>';
             });
             return html;
@@ -491,9 +516,9 @@ document.addEventListener('alpine:init', () => {
       });
 
       // GDP by sector (horizontal bar)
-      this.charts.sectorBar = echarts.init(this.$refs.sectorBar, this.currentTheme);
+      charts.sectorBar = echarts.init(this.$refs.sectorBar, this.currentTheme);
       const sortedSectors = [...SECTORS].sort((a, b) => a.gdp - b.gdp);
-      this.charts.sectorBar.setOption({
+      charts.sectorBar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true, valueFormatter: (v) => fmt.compact(v * 1e9) },
         toolbox: this.defaultToolbox(),
@@ -507,7 +532,7 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Cross-filter: click sector bar to filter Jobs tab
-      this.charts.sectorBar.on('click', (params) => {
+      charts.sectorBar.on('click', (params) => {
         const sector = sortedSectors[params.dataIndex];
         if (sector) {
           this.selectedSector = this.selectedSector === sector.name ? null : sector.name;
@@ -518,8 +543,8 @@ document.addEventListener('alpine:init', () => {
 
     initSectors() {
       // Treemap of GDP by sector
-      this.charts.sectorTreemap = echarts.init(this.$refs.sectorTreemap, this.currentTheme);
-      this.charts.sectorTreemap.setOption({
+      charts.sectorTreemap = echarts.init(this.$refs.sectorTreemap, this.currentTheme);
+      charts.sectorTreemap.setOption({
         animation: !reduceMotion,
         tooltip: {
           formatter: (p) => p.name + '<br/>GDP: ' + fmt.compact(p.value * 1e9)
@@ -537,8 +562,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Scatter: Growth vs Automation exposure (bubble = employment)
-      this.charts.sectorScatter = echarts.init(this.$refs.sectorScatter, this.currentTheme);
-      this.charts.sectorScatter.setOption({
+      charts.sectorScatter = echarts.init(this.$refs.sectorScatter, this.currentTheme);
+      charts.sectorScatter.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item', confine: true,
@@ -566,25 +591,25 @@ document.addEventListener('alpine:init', () => {
               return auto > 50 ? '#ef4444' : auto > 35 ? '#f59e0b' : '#10b981';
             },
             opacity: 0.8
+          },
+          markLine: {
+            data: [
+              { xAxis: 2.425, name: 'Avg Growth' },
+              { yAxis: 40, name: 'Avg Automation' }
+            ],
+            lineStyle: { type: 'dashed', color: this.tc.border },
+            label: { show: false }
           }
-        }],
-        markLine: {
-          data: [
-            { xAxis: 2.43, name: 'Avg Growth' },
-            { yAxis: 40, name: 'Avg Automation' }
-          ],
-          lineStyle: { type: 'dashed', color: this.tc.border },
-          label: { show: false }
-        }
+        }]
       });
 
       // Radar: sector vulnerability profile
-      this.charts.sectorRadar = echarts.init(this.$refs.sectorRadar, this.currentTheme);
+      charts.sectorRadar = echarts.init(this.$refs.sectorRadar, this.currentTheme);
       const radarSectors = ['Info & Tech', 'Finance', 'Manufacturing', 'Retail', 'Healthcare', 'Construction'];
       const taskAuto = [41, 52, 58, 62, 34, 31];
       const reskill = [50, 75, 75, 90, 50, 25]; // mapped from categories
       const growthSens = [20, 50, 50, 80, 20, 20];
-      this.charts.sectorRadar.setOption({
+      charts.sectorRadar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item' },
         toolbox: this.defaultToolbox(),
@@ -610,22 +635,22 @@ document.addEventListener('alpine:init', () => {
 
     initJobs() {
       // Horizontal bar: automation exposure by job
-      this.charts.jobBar = echarts.init(this.$refs.jobBar, this.currentTheme);
+      charts.jobBar = echarts.init(this.$refs.jobBar, this.currentTheme);
       this.updateJobBar();
 
       // Scatter: AI exposure vs traditional automation
-      this.charts.jobScatter = echarts.init(this.$refs.jobScatter, this.currentTheme);
+      charts.jobScatter = echarts.init(this.$refs.jobScatter, this.currentTheme);
       this.updateJobScatter();
 
       this.$watch('filteredJobs', () => {
-        if (this.charts.jobBar) this.updateJobBar();
-        if (this.charts.jobScatter) this.updateJobScatter();
+        if (charts.jobBar) this.updateJobBar();
+        if (charts.jobScatter) this.updateJobScatter();
       });
     },
 
     updateJobScatter() {
       const jobs = this.filteredJobs;
-      this.charts.jobScatter.setOption({
+      charts.jobScatter.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item', confine: true,
@@ -659,7 +684,7 @@ document.addEventListener('alpine:init', () => {
 
     updateJobBar() {
       const sorted = [...this.filteredJobs].sort((a, b) => a.autoExposure - b.autoExposure);
-      this.charts.jobBar.setOption({
+      charts.jobBar.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', confine: true,
@@ -692,8 +717,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initTasks() {
-      this.charts.taskBar = echarts.init(this.$refs.taskBar, this.currentTheme);
-      this.charts.taskGauge = echarts.init(this.$refs.taskGauge, this.currentTheme);
+      charts.taskBar = echarts.init(this.$refs.taskBar, this.currentTheme);
+      charts.taskGauge = echarts.init(this.$refs.taskGauge, this.currentTheme);
       this.updateTaskCharts();
 
       this.$watch('taskDrill', () => this.updateTaskCharts());
@@ -713,7 +738,7 @@ document.addEventListener('alpine:init', () => {
         'Limited': '#f59e0b',
       };
 
-      this.charts.taskBar.setOption({
+      charts.taskBar.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', confine: true,
@@ -750,7 +775,7 @@ document.addEventListener('alpine:init', () => {
 
       // Gauge: weighted automation score for the role
       const weighted = tasks.reduce((sum, t) => sum + (t.time * t.feasibility / 100), 0);
-      this.charts.taskGauge.setOption({
+      charts.taskGauge.setOption({
         animation: !reduceMotion,
         series: [{
           type: 'gauge',
@@ -770,7 +795,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
     }
-  }));
+  }; });
 
 });
 </script>
@@ -824,7 +849,10 @@ document.addEventListener('alpine:init', () => {
     <div role="tablist" class="flex gap-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
       <template x-for="(t, i) in tabs" :key="t">
         <button role="tab"
+                :id="'tab-' + t.toLowerCase()"
                 :aria-selected="tab === t"
+                :aria-controls="'panel-' + t.toLowerCase()"
+                :tabindex="tab === t ? 0 : -1"
                 @click="tab = t"
                 :class="tab === t ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'"
                 class="px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap">
@@ -846,7 +874,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- ═══ Economy tab ═══ -->
-    <div role="tabpanel" x-show="tab === 'Economy'">
+    <div role="tabpanel" id="panel-economy" aria-labelledby="tab-economy" x-show="tab === 'Economy'">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <!-- GDP Growth -->
         <div :class="fullscreen === 'gdp' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
@@ -857,7 +885,8 @@ document.addEventListener('alpine:init', () => {
               <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Bar chart with markLine average and trend overlay.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'gdp' ? null : 'gdp'"
-                    class="text-zinc-400 hover:text-zinc-200 no-print p-1">
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'gdp' ? 'Exit fullscreen' : 'Fullscreen'">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
@@ -876,7 +905,8 @@ document.addEventListener('alpine:init', () => {
               <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">GDP per worker (2020=100). Line + bar combo, dual axis.</p>
             </div>
             <button @click="fullscreen = fullscreen === 'prod' ? null : 'prod'"
-                    class="text-zinc-400 hover:text-zinc-200 no-print p-1">
+                    class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                    :aria-label="fullscreen === 'prod' ? 'Exit fullscreen' : 'Fullscreen'">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
@@ -896,7 +926,8 @@ document.addEventListener('alpine:init', () => {
             <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Click a bar to cross-filter the Jobs tab by sector.</p>
           </div>
           <button @click="fullscreen = fullscreen === 'secbar' ? null : 'secbar'"
-                  class="text-zinc-400 hover:text-zinc-200 no-print p-1">
+                  class="text-zinc-400 hover:text-zinc-200 no-print p-1"
+                  :aria-label="fullscreen === 'secbar' ? 'Exit fullscreen' : 'Fullscreen'">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
@@ -908,7 +939,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- ═══ Sectors tab ═══ -->
-    <div role="tabpanel" x-show="tab === 'Sectors'">
+    <div role="tabpanel" id="panel-sectors" aria-labelledby="tab-sectors" x-show="tab === 'Sectors'">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <!-- Treemap -->
         <div :class="fullscreen === 'treemap' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
@@ -1022,7 +1053,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- ═══ Jobs tab ═══ -->
-    <div role="tabpanel" x-show="tab === 'Jobs'">
+    <div role="tabpanel" id="panel-jobs" aria-labelledby="tab-jobs" x-show="tab === 'Jobs'">
       <!-- Controls -->
       <div class="flex flex-col md:flex-row gap-3 mb-4 no-print">
         <div class="relative flex-1">
@@ -1139,7 +1170,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- ═══ Tasks tab ═══ -->
-    <div role="tabpanel" x-show="tab === 'Tasks'">
+    <div role="tabpanel" id="panel-tasks" aria-labelledby="tab-tasks" x-show="tab === 'Tasks'">
       <!-- Job selector -->
       <div class="flex flex-col sm:flex-row gap-3 mb-4">
         <div class="flex-1">
@@ -1220,10 +1251,10 @@ document.addEventListener('alpine:init', () => {
                   </td>
                   <td class="px-4 py-3">
                     <span :class="{
-                      'bg-emerald-900/30 text-emerald-400': t.readiness === 'Production-ready',
-                      'bg-blue-900/30 text-blue-400': t.readiness === 'Emerging',
-                      'bg-amber-900/30 text-amber-400': t.readiness === 'Augmentation' || t.readiness === 'Limited',
-                      'bg-red-900/30 text-red-400': t.readiness === 'Human-led' || t.readiness === 'Human-only' || t.readiness === 'Human-preferred'
+                      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400': t.readiness === 'Production-ready',
+                      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400': t.readiness === 'Emerging',
+                      'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400': t.readiness === 'Augmentation' || t.readiness === 'Limited',
+                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': t.readiness === 'Human-led' || t.readiness === 'Human-only' || t.readiness === 'Human-preferred'
                     }"
                     class="px-2 py-0.5 rounded text-xs font-medium"
                     x-text="t.readiness"></span>
