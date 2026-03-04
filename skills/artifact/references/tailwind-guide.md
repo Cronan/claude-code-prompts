@@ -285,3 +285,58 @@ These artifacts may run on a Raspberry Pi with 1GB RAM and a 1024x600 screen. Ke
 - ECharts: use the SVG renderer (`{ renderer: 'svg' }`) for dashboards with many small charts.
 - ECharts dataset sizes: under 1K points needs no special handling. 1K-10K: use `sampling: 'lttb'` (line series only) and `animation: false`. 10K-100K: add `large: true` and `largeThreshold: 2000`. Over 100K: pre-aggregate before charting.
 - Keep transition durations at 100-200ms. Longer durations feel sluggish on weak hardware.
+
+## System theme detection and dark/light toggle
+
+When building artifacts with a dark/light toggle, detect the system preference on load:
+
+```js
+Alpine.data('app', () => {
+  let charts = {};
+  return {
+  darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+
+  get currentTheme() {
+    return this.darkMode ? 'zinc-dark' : 'zinc-light';
+  },
+
+  toggleTheme() {
+    this.darkMode = !this.darkMode;
+    document.documentElement.classList.toggle('dark', this.darkMode);
+    // Dispose all charts and reinit from scratch.
+    // Do NOT use getOption/setOption -- it preserves stale hardcoded
+    // colors from the previous theme, causing invisible or low-contrast
+    // elements after the switch.
+    Object.values(charts).forEach(c => c.dispose());
+    charts = {};
+    this.$nextTick(() => this.initCharts());
+  }
+}; });
+```
+
+Register a `zinc-light` theme alongside the dark theme. Use `darkMode: "class"` in the Tailwind config so the `dark` class on `<html>` controls all Tailwind utilities. Use `dark:` prefix classes for dark mode and unprefixed for light:
+
+```html
+<body class="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen">
+```
+
+This sets the initial theme to match the user's OS setting. The toggle button overrides it.
+
+### Theme-aware colors in chart options
+
+Do not hardcode color literals (`'#fff'`, `'#a1a1aa'`, etc.) in chart options for axis labels, visualMap text, radar indicators, gauge pointers, treemap borders, or sankey labels. These values become invisible or low-contrast when the theme switches.
+
+Instead, derive colors from Alpine state so they update on reinit:
+
+```js
+get tc() {
+  return {
+    text: this.darkMode ? '#e4e4e7' : '#3f3f46',     // zinc-200 / zinc-700
+    subtext: this.darkMode ? '#a1a1aa' : '#71717a',   // zinc-400 / zinc-500
+    border: this.darkMode ? '#3f3f46' : '#e4e4e7',    // zinc-700 / zinc-200
+    bg: this.darkMode ? '#27272a' : '#ffffff',         // zinc-800 / white
+  };
+}
+```
+
+Then reference `this.tc.text` etc. in every `setOption` call where you would otherwise write a hex literal. When `initCharts()` runs after a theme toggle, the getter returns the correct values for the new mode automatically.
