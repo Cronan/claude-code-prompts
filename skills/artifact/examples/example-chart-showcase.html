@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,6 +23,11 @@
   </style>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: "class" }</script>
+  <script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
 </head>
 <body class="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-screen transition-colors">
@@ -118,13 +123,12 @@ document.addEventListener('alpine:init', () => {
   });
 
   // ── Reduced motion check ─────────────────────────────────
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let reduceMotion = motionQuery.matches;
+  motionQuery.addEventListener('change', (e) => { reduceMotion = e.matches; });
 
   // ── Formatters ──────────────────────────────────────────
   const fmt = {
-    currency: (v, d = 0) => '$' + Math.abs(v).toLocaleString('en-US', {
-      minimumFractionDigits: d, maximumFractionDigits: d
-    }),
     pct: (v, d = 1) => v.toFixed(d) + '%',
     num: (v) => v.toLocaleString('en-US'),
     compact: (v) => {
@@ -553,21 +557,22 @@ document.addEventListener('alpine:init', () => {
       };
     },
 
+    _onResize() { Object.values(charts).forEach(c => c.resize()); },
+
     init() {
       const skel = document.getElementById('skeleton');
       if (skel) skel.style.display = 'none';
 
       document.documentElement.classList.toggle('dark', this.darkMode);
 
+      this._boundResize = () => this._onResize();
+      window.addEventListener('resize', this._boundResize);
+
       this.$nextTick(() => {
         this.initTab('Standard');
         requestAnimationFrame(() => {
           Object.values(charts).forEach(c => c.resize());
         });
-      });
-
-      window.addEventListener('resize', () => {
-        Object.values(charts).forEach(c => c.resize());
       });
 
       this.$watch('tab', () => {
@@ -580,6 +585,13 @@ document.addEventListener('alpine:init', () => {
       this.$watch('fullscreen', () => {
         this.$nextTick(() => Object.values(charts).forEach(c => c.resize()));
       });
+    },
+
+    destroy() {
+      window.removeEventListener('resize', this._boundResize);
+      Object.values(charts).forEach(c => c.dispose());
+      charts = {};
+      initialized = {};
     },
 
     toggleTheme() {
@@ -1329,7 +1341,10 @@ document.addEventListener('alpine:init', () => {
     <div role="tablist" class="flex gap-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg p-1 mb-6 overflow-x-auto no-print">
       <template x-for="(t, i) in tabs" :key="t">
         <button role="tab"
+                :id="'tab-' + t.toLowerCase().replace(/[^a-z]/g, '')"
                 :aria-selected="tab === t"
+                :aria-controls="'panel-' + t.toLowerCase().replace(/[^a-z]/g, '')"
+                :tabindex="tab === t ? 0 : -1"
                 @click="tab = t"
                 :class="tab === t
                   ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
@@ -1341,7 +1356,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Standard: line, bar, stacked area, line+bar combo -->
-    <div role="tabpanel" x-show="tab === 'Standard'">
+    <div role="tabpanel" id="panel-standard" aria-labelledby="tab-standard" x-show="tab === 'Standard'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Standard']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1431,7 +1446,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Part-to-Whole: pie, treemap, funnel, sankey -->
-    <div role="tabpanel" x-show="tab === 'Part-to-Whole'">
+    <div role="tabpanel" id="panel-parttowhole" aria-labelledby="tab-parttowhole" x-show="tab === 'Part-to-Whole'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Part-to-Whole']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1469,7 +1484,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Statistical: scatter, heatmap, radar, boxplot -->
-    <div role="tabpanel" x-show="tab === 'Statistical'">
+    <div role="tabpanel" id="panel-statistical" aria-labelledby="tab-statistical" x-show="tab === 'Statistical'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Statistical']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1504,7 +1519,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- KPI: gauges -->
-    <div role="tabpanel" x-show="tab === 'KPI'">
+    <div role="tabpanel" id="panel-kpi" aria-labelledby="tab-kpi" x-show="tab === 'KPI'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['KPI']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1534,7 +1549,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Financial: candlestick + volume, waterfall, calendar heatmap -->
-    <div role="tabpanel" x-show="tab === 'Financial'">
+    <div role="tabpanel" id="panel-financial" aria-labelledby="tab-financial" x-show="tab === 'Financial'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Financial']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1568,7 +1583,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Advanced: sunburst, graph, parallel, themeriver, polar -->
-    <div role="tabpanel" x-show="tab === 'Advanced'">
+    <div role="tabpanel" id="panel-advanced" aria-labelledby="tab-advanced" x-show="tab === 'Advanced'">
       <div class="flex flex-wrap gap-2 mb-4">
         <template x-for="ct in chartTypes['Advanced']" :key="ct.key">
           <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
@@ -1673,7 +1688,16 @@ document.addEventListener('alpine:init', () => {
     </div>
 
     <!-- Custom tab -->
-    <div role="tabpanel" x-show="tab === 'Custom'">
+    <div role="tabpanel" id="panel-custom" aria-labelledby="tab-custom" x-show="tab === 'Custom'">
+      <div class="flex flex-wrap gap-2 mb-4">
+        <template x-for="ct in chartTypes['Custom']" :key="ct.key">
+          <span class="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded text-xs">
+            <span class="text-zinc-900 dark:text-white font-medium" x-text="ct.label"></span>
+            <span class="text-zinc-500 dark:text-zinc-400 ml-1" x-text="'-- ' + ct.desc"></span>
+          </span>
+        </template>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Bullet chart -->
         <div :class="fullscreen === 'bullet' ? 'fixed inset-0 z-50 bg-white dark:bg-zinc-900 p-4 md:p-8' : ''"
@@ -1745,7 +1769,6 @@ document.addEventListener('alpine:init', () => {
   </main>
 </div>
 
-<!-- bg-emerald-900/30 text-emerald-400 bg-red-900/30 text-red-400 bg-amber-900/30 text-amber-400 -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 </body>
 </html>
