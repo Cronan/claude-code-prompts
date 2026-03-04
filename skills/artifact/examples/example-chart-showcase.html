@@ -1213,7 +1213,7 @@ document.addEventListener('alpine:init', () => {
         toolbox: this.defaultToolbox(),
         tooltip: {
           trigger: 'axis', confine: true,
-          formatter: (params) => params[0].name + ': ' + params[0].value[1] + '%'
+          formatter: (params) => params[0].name + ': ' + params[0].value + '%'
         },
         grid: { left: '14%', right: '10%', top: '6%', bottom: '8%' },
         yAxis: { type: 'category', data: LOLLIPOP_LABELS, inverse: true,
@@ -1221,49 +1221,54 @@ document.addEventListener('alpine:init', () => {
           axisLine: { lineStyle: { color: this.tc.border } },
           axisTick: { show: false } },
         xAxis: { type: 'value', name: 'Satisfaction %', nameLocation: 'middle', nameGap: 28,
-          axisLabel: { color: mutedColor },
+          max: 100,
+          axisLabel: { color: mutedColor, formatter: '{value}%' },
           splitLine: { lineStyle: { color: this.tc.border } } },
-        series: [{
-          type: 'custom',
-          renderItem: (params, api) => {
-            const y = api.coord([0, api.value(0)])[1];
-            const x = api.coord([api.value(1), 0])[0];
-            const baseX = api.coord([0, 0])[0];
-            const val = api.value(1);
-            const ratio = Math.max(0, Math.min(1, (val - 30) / 70));
-            const palette = ['#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'];
-            const color = palette[Math.min(Math.floor(ratio * palette.length), palette.length - 1)];
-            return {
-              type: 'group',
-              children: [
-                { type: 'line',
-                  shape: { x1: baseX, y1: y, x2: x, y2: y },
-                  style: {
-                    stroke: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
-                      colorStops: [
-                        { offset: 0, color: 'rgba(59, 130, 246, 0.12)' },
-                        { offset: 1, color: color }
-                      ] },
-                    lineWidth: 2
-                  } },
-                { type: 'circle',
-                  shape: { cx: x, cy: y, r: 10 },
-                  style: { fill: 'rgba(59, 130, 246, 0.10)' } },
-                { type: 'circle',
-                  shape: { cx: x, cy: y, r: 6 },
-                  style: { fill: color } }
-              ]
-            };
+        series: [
+          // Stems
+          {
+            type: 'bar',
+            data: LOLLIPOP_VALUES,
+            barWidth: 2,
+            z: 1,
+            itemStyle: {
+              color: (params) => {
+                const ratio = Math.max(0, Math.min(1, (params.value - 30) / 70));
+                const palette = ['#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'];
+                const c = palette[Math.min(Math.floor(ratio * palette.length), palette.length - 1)];
+                return new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                  { offset: 0, color: 'rgba(59, 130, 246, 0.08)' },
+                  { offset: 1, color: c }
+                ]);
+              }
+            },
+            silent: true
           },
-          data: LOLLIPOP_LABELS.map((_, i) => [i, LOLLIPOP_VALUES[i]]),
-          label: {
-            show: true, position: 'right', color: textColor,
-            formatter: (p) => p.value[1] + '%'
-          },
-          emphasis: {
-            itemStyle: { shadowBlur: 8, shadowColor: 'rgba(59, 130, 246, 0.5)' }
+          // Dots
+          {
+            type: 'scatter',
+            data: LOLLIPOP_VALUES,
+            symbolSize: 12,
+            z: 2,
+            itemStyle: {
+              color: (params) => {
+                const ratio = Math.max(0, Math.min(1, (params.value - 30) / 70));
+                const palette = ['#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'];
+                return palette[Math.min(Math.floor(ratio * palette.length), palette.length - 1)];
+              },
+              shadowBlur: 6,
+              shadowColor: 'rgba(59, 130, 246, 0.25)'
+            },
+            emphasis: {
+              itemStyle: { shadowBlur: 12, shadowColor: 'rgba(59, 130, 246, 0.5)' },
+              scale: 1.4
+            },
+            label: {
+              show: true, position: 'right', color: textColor,
+              formatter: (p) => p.value + '%'
+            }
           }
-        }]
+        ]
       });
 
       // Small multiples
