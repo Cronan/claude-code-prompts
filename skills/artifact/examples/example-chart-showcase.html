@@ -1229,15 +1229,29 @@ document.addEventListener('alpine:init', () => {
             const y = api.coord([0, api.value(0)])[1];
             const x = api.coord([api.value(1), 0])[0];
             const baseX = api.coord([0, 0])[0];
+            const val = api.value(1);
+            const ratio = Math.max(0, Math.min(1, (val - 30) / 70));
+            const palette = ['#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'];
+            const color = palette[Math.min(Math.floor(ratio * palette.length), palette.length - 1)];
             return {
               type: 'group',
               children: [
                 { type: 'line',
                   shape: { x1: baseX, y1: y, x2: x, y2: y },
-                  style: { stroke: '#3b82f6', lineWidth: 2 } },
+                  style: {
+                    stroke: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
+                      colorStops: [
+                        { offset: 0, color: 'rgba(59, 130, 246, 0.12)' },
+                        { offset: 1, color: color }
+                      ] },
+                    lineWidth: 2
+                  } },
+                { type: 'circle',
+                  shape: { cx: x, cy: y, r: 10 },
+                  style: { fill: 'rgba(59, 130, 246, 0.10)' } },
                 { type: 'circle',
                   shape: { cx: x, cy: y, r: 6 },
-                  style: { fill: '#3b82f6' } }
+                  style: { fill: color } }
               ]
             };
           },
@@ -1245,6 +1259,9 @@ document.addEventListener('alpine:init', () => {
           label: {
             show: true, position: 'right', color: textColor,
             formatter: (p) => p.value[1] + '%'
+          },
+          emphasis: {
+            itemStyle: { shadowBlur: 8, shadowColor: 'rgba(59, 130, 246, 0.5)' }
           }
         }]
       });
