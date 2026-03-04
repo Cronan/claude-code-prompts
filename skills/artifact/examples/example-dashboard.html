@@ -169,7 +169,11 @@ document.addEventListener('alpine:init', () => {
   ];
 
   // ── Alpine component ───────────────────────────────────
-  Alpine.data('dashboard', () => ({
+  Alpine.data('dashboard', () => {
+    // Keep chart instances outside Alpine's reactive proxy.
+    let charts = {};
+
+    return {
     tab: 'Overview',
     tabs: ['Overview', 'Services', 'Storage'],
     search: '',
@@ -179,7 +183,6 @@ document.addEventListener('alpine:init', () => {
     sortDir: 'asc',
     services: SERVICES,
     disk: DISK_USAGE,
-    charts: {},
     fullscreen: null,
     selectedStatus: null,
     darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -207,20 +210,20 @@ document.addEventListener('alpine:init', () => {
     toggleTheme() {
       this.darkMode = !this.darkMode;
       document.documentElement.classList.toggle('dark', this.darkMode);
-      Object.values(this.charts).forEach(c => c.dispose());
-      this.charts = {};
+      Object.values(charts).forEach(c => c.dispose());
+      charts = {};
       this.disposeSparklines();
       this.$nextTick(() => {
         this.initCharts();
         if (this.colorBlindMode) {
-          Object.values(this.charts).forEach(c => c.setOption({ color: this.palette }));
+          Object.values(charts).forEach(c => c.setOption({ color: this.palette }));
         }
       });
     },
 
     toggleColorBlind() {
       this.colorBlindMode = !this.colorBlindMode;
-      Object.values(this.charts).forEach(c => {
+      Object.values(charts).forEach(c => {
         c.setOption({ color: this.palette });
       });
     },
@@ -285,8 +288,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initCharts() {
-      this.charts.cpu = echarts.init(this.$refs.cpuChart, this.currentTheme);
-      this.charts.cpu.setOption({
+      charts.cpu = echarts.init(this.$refs.cpuChart, this.currentTheme);
+      charts.cpu.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, confine: true },
         legend: { data: ['CPU', 'Memory'] },
@@ -323,10 +326,10 @@ document.addEventListener('alpine:init', () => {
         ]
       });
 
-      this.charts.serviceCpu = echarts.init(this.$refs.serviceCpuChart, this.currentTheme);
+      charts.serviceCpu = echarts.init(this.$refs.serviceCpuChart, this.currentTheme);
       this.updateServiceChart();
 
-      this.charts.serviceCpu.on('click', (params) => {
+      charts.serviceCpu.on('click', (params) => {
         const service = this.filtered[params.dataIndex];
         if (service) {
           this.selectedStatus = this.selectedStatus === service.status ? null : service.status;
@@ -346,23 +349,23 @@ document.addEventListener('alpine:init', () => {
       this.$nextTick(() => {
         this.initCharts();
         requestAnimationFrame(() => {
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
       });
 
       window.addEventListener('resize', () => {
-        Object.values(this.charts).forEach(c => c.resize());
+        Object.values(charts).forEach(c => c.resize());
       });
 
       this.$watch('filtered', () => this.updateServiceChart());
 
       this.$watch('tab', () => {
         this.writeHash();
-        this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+        this.$nextTick(() => Object.values(charts).forEach(c => c.resize()));
       });
 
       this.$watch('fullscreen', () => {
-        this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+        this.$nextTick(() => Object.values(charts).forEach(c => c.resize()));
       });
 
       this.$watch('search', () => this.writeHash());
@@ -386,7 +389,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     updateServiceChart() {
-      this.charts.serviceCpu.setOption({
+      charts.serviceCpu.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, confine: true },
         toolbox: {
@@ -451,7 +454,7 @@ document.addEventListener('alpine:init', () => {
       Object.values(this._sparklines).forEach(c => c.dispose());
       this._sparklines = {};
     }
-  }));
+  }; });
 
 });
 </script>

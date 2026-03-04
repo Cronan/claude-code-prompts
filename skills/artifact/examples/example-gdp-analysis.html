@@ -244,11 +244,14 @@ document.addEventListener('alpine:init', () => {
   };
 
   // ── Alpine component ───────────────────────────────────
-  Alpine.data('gdp', () => ({
+  Alpine.data('gdp', () => {
+    // Keep chart instances outside Alpine's reactive proxy.
+    let charts = {};
+    let initialized = {};
+
+    return {
     tab: 'Economy',
     tabs: ['Economy', 'Sectors', 'Jobs', 'Tasks'],
-    charts: {},
-    initialized: {},
     fullscreen: null,
     selectedSector: null,
     selectedJob: null,
@@ -287,20 +290,20 @@ document.addEventListener('alpine:init', () => {
     toggleTheme() {
       this.darkMode = !this.darkMode;
       document.documentElement.classList.toggle('dark', this.darkMode);
-      Object.values(this.charts).forEach(c => c.dispose());
-      this.charts = {};
-      this.initialized = {};
+      Object.values(charts).forEach(c => c.dispose());
+      charts = {};
+      initialized = {};
       this.$nextTick(() => {
         this.initTab(this.tab);
         if (this.colorBlindMode) {
-          Object.values(this.charts).forEach(c => c.setOption({ color: this.palette }));
+          Object.values(charts).forEach(c => c.setOption({ color: this.palette }));
         }
       });
     },
 
     toggleColorBlind() {
       this.colorBlindMode = !this.colorBlindMode;
-      Object.values(this.charts).forEach(c => {
+      Object.values(charts).forEach(c => {
         c.setOption({ color: this.palette });
       });
     },
@@ -384,24 +387,24 @@ document.addEventListener('alpine:init', () => {
       this.$nextTick(() => {
         this.initTab('Economy');
         requestAnimationFrame(() => {
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
       });
 
       window.addEventListener('resize', () => {
-        Object.values(this.charts).forEach(c => c.resize());
+        Object.values(charts).forEach(c => c.resize());
       });
 
       this.$watch('tab', () => {
         this.writeHash();
         this.$nextTick(() => {
           this.initTab(this.tab);
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
       });
 
       this.$watch('fullscreen', () => {
-        this.$nextTick(() => Object.values(this.charts).forEach(c => c.resize()));
+        this.$nextTick(() => Object.values(charts).forEach(c => c.resize()));
       });
 
       this.$watch('search', () => this.writeHash());
@@ -424,8 +427,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initTab(name) {
-      if (this.initialized[name]) return;
-      this.initialized[name] = true;
+      if (initialized[name]) return;
+      initialized[name] = true;
       const init = {
         'Economy': () => this.initEconomy(),
         'Sectors': () => this.initSectors(),
@@ -437,8 +440,8 @@ document.addEventListener('alpine:init', () => {
 
     initEconomy() {
       // Quarterly GDP growth (bar + trend line)
-      this.charts.gdpGrowth = echarts.init(this.$refs.gdpGrowth, this.currentTheme);
-      this.charts.gdpGrowth.setOption({
+      charts.gdpGrowth = echarts.init(this.$refs.gdpGrowth, this.currentTheme);
+      charts.gdpGrowth.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true, valueFormatter: (v) => fmt.pct(v) },
         toolbox: this.defaultToolbox(),
@@ -462,8 +465,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Productivity index (line + change bars)
-      this.charts.productivity = echarts.init(this.$refs.productivity, this.currentTheme);
-      this.charts.productivity.setOption({
+      charts.productivity = echarts.init(this.$refs.productivity, this.currentTheme);
+      charts.productivity.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', confine: true,
@@ -491,9 +494,9 @@ document.addEventListener('alpine:init', () => {
       });
 
       // GDP by sector (horizontal bar)
-      this.charts.sectorBar = echarts.init(this.$refs.sectorBar, this.currentTheme);
+      charts.sectorBar = echarts.init(this.$refs.sectorBar, this.currentTheme);
       const sortedSectors = [...SECTORS].sort((a, b) => a.gdp - b.gdp);
-      this.charts.sectorBar.setOption({
+      charts.sectorBar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'axis', confine: true, valueFormatter: (v) => fmt.compact(v * 1e9) },
         toolbox: this.defaultToolbox(),
@@ -507,7 +510,7 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Cross-filter: click sector bar to filter Jobs tab
-      this.charts.sectorBar.on('click', (params) => {
+      charts.sectorBar.on('click', (params) => {
         const sector = sortedSectors[params.dataIndex];
         if (sector) {
           this.selectedSector = this.selectedSector === sector.name ? null : sector.name;
@@ -518,8 +521,8 @@ document.addEventListener('alpine:init', () => {
 
     initSectors() {
       // Treemap of GDP by sector
-      this.charts.sectorTreemap = echarts.init(this.$refs.sectorTreemap, this.currentTheme);
-      this.charts.sectorTreemap.setOption({
+      charts.sectorTreemap = echarts.init(this.$refs.sectorTreemap, this.currentTheme);
+      charts.sectorTreemap.setOption({
         animation: !reduceMotion,
         tooltip: {
           formatter: (p) => p.name + '<br/>GDP: ' + fmt.compact(p.value * 1e9)
@@ -537,8 +540,8 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Scatter: Growth vs Automation exposure (bubble = employment)
-      this.charts.sectorScatter = echarts.init(this.$refs.sectorScatter, this.currentTheme);
-      this.charts.sectorScatter.setOption({
+      charts.sectorScatter = echarts.init(this.$refs.sectorScatter, this.currentTheme);
+      charts.sectorScatter.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item', confine: true,
@@ -579,12 +582,12 @@ document.addEventListener('alpine:init', () => {
       });
 
       // Radar: sector vulnerability profile
-      this.charts.sectorRadar = echarts.init(this.$refs.sectorRadar, this.currentTheme);
+      charts.sectorRadar = echarts.init(this.$refs.sectorRadar, this.currentTheme);
       const radarSectors = ['Info & Tech', 'Finance', 'Manufacturing', 'Retail', 'Healthcare', 'Construction'];
       const taskAuto = [41, 52, 58, 62, 34, 31];
       const reskill = [50, 75, 75, 90, 50, 25]; // mapped from categories
       const growthSens = [20, 50, 50, 80, 20, 20];
-      this.charts.sectorRadar.setOption({
+      charts.sectorRadar.setOption({
         animation: !reduceMotion,
         tooltip: { trigger: 'item' },
         toolbox: this.defaultToolbox(),
@@ -610,22 +613,22 @@ document.addEventListener('alpine:init', () => {
 
     initJobs() {
       // Horizontal bar: automation exposure by job
-      this.charts.jobBar = echarts.init(this.$refs.jobBar, this.currentTheme);
+      charts.jobBar = echarts.init(this.$refs.jobBar, this.currentTheme);
       this.updateJobBar();
 
       // Scatter: AI exposure vs traditional automation
-      this.charts.jobScatter = echarts.init(this.$refs.jobScatter, this.currentTheme);
+      charts.jobScatter = echarts.init(this.$refs.jobScatter, this.currentTheme);
       this.updateJobScatter();
 
       this.$watch('filteredJobs', () => {
-        if (this.charts.jobBar) this.updateJobBar();
-        if (this.charts.jobScatter) this.updateJobScatter();
+        if (charts.jobBar) this.updateJobBar();
+        if (charts.jobScatter) this.updateJobScatter();
       });
     },
 
     updateJobScatter() {
       const jobs = this.filteredJobs;
-      this.charts.jobScatter.setOption({
+      charts.jobScatter.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'item', confine: true,
@@ -659,7 +662,7 @@ document.addEventListener('alpine:init', () => {
 
     updateJobBar() {
       const sorted = [...this.filteredJobs].sort((a, b) => a.autoExposure - b.autoExposure);
-      this.charts.jobBar.setOption({
+      charts.jobBar.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', confine: true,
@@ -692,8 +695,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     initTasks() {
-      this.charts.taskBar = echarts.init(this.$refs.taskBar, this.currentTheme);
-      this.charts.taskGauge = echarts.init(this.$refs.taskGauge, this.currentTheme);
+      charts.taskBar = echarts.init(this.$refs.taskBar, this.currentTheme);
+      charts.taskGauge = echarts.init(this.$refs.taskGauge, this.currentTheme);
       this.updateTaskCharts();
 
       this.$watch('taskDrill', () => this.updateTaskCharts());
@@ -713,7 +716,7 @@ document.addEventListener('alpine:init', () => {
         'Limited': '#f59e0b',
       };
 
-      this.charts.taskBar.setOption({
+      charts.taskBar.setOption({
         animation: !reduceMotion,
         tooltip: {
           trigger: 'axis', confine: true,
@@ -750,7 +753,7 @@ document.addEventListener('alpine:init', () => {
 
       // Gauge: weighted automation score for the role
       const weighted = tasks.reduce((sum, t) => sum + (t.time * t.feasibility / 100), 0);
-      this.charts.taskGauge.setOption({
+      charts.taskGauge.setOption({
         animation: !reduceMotion,
         series: [{
           type: 'gauge',
@@ -770,7 +773,7 @@ document.addEventListener('alpine:init', () => {
         }]
       });
     }
-  }));
+  }; });
 
 });
 </script>

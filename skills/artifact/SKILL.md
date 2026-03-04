@@ -97,11 +97,18 @@ document.addEventListener('alpine:init', () => {
   ];
 
   // ── Alpine component ───────────────────────────────────
-  Alpine.data('app', () => ({
+  Alpine.data('app', () => {
+    // Chart instances must live outside Alpine's reactive proxy.
+    // Alpine v3 wraps data properties in Proxy objects, which breaks
+    // ECharts internal state -- treemap drill-down, brushSelection,
+    // dispatchAction, and breadcrumb navigation all fail silently
+    // when the instance is proxied.
+    let charts = {};
+
+    return {
     tab: 'overview',
     search: '',
     items: ITEMS,
-    charts: {},
 
     get filtered() {
       return this.items.filter(item =>
@@ -113,29 +120,29 @@ document.addEventListener('alpine:init', () => {
       this.$nextTick(() => {
         this.initCharts();
         requestAnimationFrame(() => {
-          Object.values(this.charts).forEach(c => c.resize());
+          Object.values(charts).forEach(c => c.resize());
         });
       });
 
       this.$watch('filtered', () => this.updateCharts());
 
       window.addEventListener('resize', () => {
-        Object.values(this.charts).forEach(c => c.resize());
+        Object.values(charts).forEach(c => c.resize());
       });
     },
 
     initCharts() {
-      this.charts.main = echarts.init(this.$refs.mainChart, 'zinc-dark');
-      this.charts.main.setOption({ /* ... */ });
+      charts.main = echarts.init(this.$refs.mainChart, 'zinc-dark');
+      charts.main.setOption({ /* ... */ });
     },
 
     updateCharts() {
-      this.charts.main.setOption({
+      charts.main.setOption({
         xAxis: { data: this.filtered.map(d => d.name) },
         series: [{ data: this.filtered.map(d => d.value) }]
       });
     }
-  }));
+  }; });
 
 });
 </script>
@@ -280,16 +287,19 @@ When the user requests a theme toggle, use Alpine state and Tailwind's `dark:` v
 ```
 
 ```js
-Alpine.data('app', () => ({
+Alpine.data('app', () => {
+  let charts = {};
+  return {
   darkMode: true,
   // ...
   toggleTheme() {
     this.darkMode = !this.darkMode;
     // Re-initialize charts with the appropriate theme
-    Object.values(this.charts).forEach(c => c.dispose());
+    Object.values(charts).forEach(c => c.dispose());
+    charts = {};
     this.$nextTick(() => this.initCharts());
   }
-}));
+}; });
 ```
 
 Configure Tailwind for class-based dark mode (already in the standard config):
@@ -309,7 +319,7 @@ Register both ECharts themes and select based on mode:
 
 ```js
 const theme = this.darkMode ? 'zinc-dark' : null;  // null = ECharts light default
-this.charts.main = echarts.init(this.$refs.mainChart, theme);
+charts.main = echarts.init(this.$refs.mainChart, theme);
 ```
 
 For the toggle button:
@@ -422,7 +432,9 @@ Important: `<template x-for>` must be inside `<tbody>`, not `<table>` directly. 
 
 ### Initialization
 
-Initialize charts in the Alpine `init()` method using `$refs`. Wrap the init calls in `$nextTick` so the DOM has settled after Alpine removes `x-cloak` -- without this, `echarts.init()` can run on a zero-size container and charts render blank on first load (especially on mobile):
+Initialize charts in the Alpine `init()` method using `$refs`. Store chart instances in a closure variable (`let charts = {}`), not as a property on the Alpine data object. Alpine v3 wraps data properties in Proxy objects, which breaks ECharts internal state management -- treemap drill-down, breadcrumb navigation, brushSelection, and dispatchAction all fail silently when the instance is proxied.
+
+Wrap the init calls in `$nextTick` so the DOM has settled after Alpine removes `x-cloak` -- without this, `echarts.init()` can run on a zero-size container and charts render blank on first load (especially on mobile):
 
 ```js
 init() {
@@ -431,18 +443,18 @@ init() {
     // One extra resize after the first paint to catch any remaining
     // layout shifts (mobile orientation, late font load, etc.)
     requestAnimationFrame(() => {
-      Object.values(this.charts).forEach(c => c.resize());
+      Object.values(charts).forEach(c => c.resize());
     });
   });
 
   window.addEventListener('resize', () => {
-    Object.values(this.charts).forEach(c => c.resize());
+    Object.values(charts).forEach(c => c.resize());
   });
 },
 
 initCharts() {
-  this.charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
-  this.charts.cpu.setOption({
+  charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
+  charts.cpu.setOption({
     tooltip: { trigger: 'axis' },
     xAxis: { type: 'category', data: labels },
     yAxis: { type: 'value' },
@@ -450,6 +462,8 @@ initCharts() {
   });
 }
 ```
+
+The `charts` variable is declared as `let charts = {}` inside the `Alpine.data()` factory function but outside the returned object (the revealing module pattern). See the scaffold at the top of this document for the full structure.
 
 Extracting chart setup into a separate `initCharts()` method makes it reusable for theme toggles, which need to dispose and reinit all charts from scratch.
 
@@ -468,12 +482,12 @@ ECharts cannot initialize on a zero-size container. When a chart is inside an `x
 ```js
 init() {
   // Initialize even for hidden tabs
-  this.charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
-  this.charts.cpu.setOption({ /* ... */ });
+  charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
+  charts.cpu.setOption({ /* ... */ });
 
   this.$watch('tab', () => {
     this.$nextTick(() => {
-      Object.values(this.charts).forEach(c => c.resize());
+      Object.values(charts).forEach(c => c.resize());
     });
   });
 }
@@ -486,10 +500,10 @@ Use `x-show` (not `x-if`) for tab panels so the DOM elements exist at init time.
 ```js
 init() {
   this.$watch('tab', (val) => {
-    if (val === 'charts' && !this.charts.cpu) {
+    if (val === 'charts' && !charts.cpu) {
       this.$nextTick(() => {
-        this.charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
-        this.charts.cpu.setOption({ /* ... */ });
+        charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
+        charts.cpu.setOption({ /* ... */ });
       });
     }
   });
@@ -1203,7 +1217,7 @@ toolbox: {
 Wire the selection to Alpine state:
 
 ```js
-this.charts.scatter.on('brushSelected', (params) => {
+charts.scatter.on('brushSelected', (params) => {
   const selected = params.batch[0]?.selected[0]?.dataIndex || [];
   this.brushedItems = selected.map(i => this.items[i]);
 });
@@ -1235,7 +1249,7 @@ Use piecewise visualMap for risk levels, status categories, or any discrete clas
 Synchronize tooltip position, legend toggles, and zoom range across charts:
 
 ```js
-echarts.connect([this.charts.cpu, this.charts.memory, this.charts.network]);
+echarts.connect([charts.cpu, charts.memory, charts.network]);
 ```
 
 Connected charts show linked crosshairs on hover -- move over one chart and see the corresponding position on all others. Only connect charts that share compatible axis types and data ranges. Connecting a time-series line chart to a categorical bar chart produces confusing crosshair behavior.
@@ -1246,7 +1260,7 @@ When Alpine state changes (search, filter, tab), update charts with `setOption`.
 
 ```js
 this.$watch('filtered', () => {
-  this.charts.main.setOption({
+  charts.main.setOption({
     xAxis: { data: this.filtered.map(d => d.name) },
     series: [{ data: this.filtered.map(d => d.value) }]
   });
@@ -1408,9 +1422,9 @@ Wire ECharts click events to Alpine state for drill-down patterns:
 
 ```js
 init() {
-  this.charts.main = echarts.init(this.$refs.mainChart, 'zinc-dark');
-  this.charts.main.setOption({ /* ... */ });
-  this.charts.main.on('click', (params) => {
+  charts.main = echarts.init(this.$refs.mainChart, 'zinc-dark');
+  charts.main.setOption({ /* ... */ });
+  charts.main.on('click', (params) => {
     this.selectedItem = params.name;  // updates Alpine state
   });
 }
@@ -1624,18 +1638,19 @@ Color the sparkline to match the row's status (green for active, amber for warni
 
 ### State management
 
-All UI state lives in the `x-data` object. Define properties for tabs, search queries, sort keys, expanded sections, and selected items:
+All UI state lives in the `x-data` object. Define properties for tabs, search queries, sort keys, expanded sections, and selected items. Chart instances go in a closure variable, not on the data object (see the ECharts initialization section):
 
 ```js
-Alpine.data('app', () => ({
+Alpine.data('app', () => {
+  let charts = {};
+  return {
   tab: 'overview',
   search: '',
   sortKey: 'name',
   sortDir: 'asc',
   items: ITEMS,
-  charts: {},
   // ...
-}));
+}; });
 ```
 
 ### Computed values (getters)
@@ -1953,9 +1968,10 @@ In CSS, disable transitions for users who prefer reduced motion:
 When building artifacts with a dark/light toggle, detect the system preference on load:
 
 ```js
-Alpine.data('app', () => ({
+Alpine.data('app', () => {
+  let charts = {};
+  return {
   darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
-  charts: {},
 
   get currentTheme() {
     return this.darkMode ? 'zinc-dark' : 'zinc-light';
@@ -1968,11 +1984,11 @@ Alpine.data('app', () => ({
     // Do NOT use getOption/setOption -- it preserves stale hardcoded
     // colors from the previous theme, causing invisible or low-contrast
     // elements after the switch.
-    Object.values(this.charts).forEach(c => c.dispose());
-    this.charts = {};
+    Object.values(charts).forEach(c => c.dispose());
+    charts = {};
     this.$nextTick(() => this.initCharts());
   }
-}));
+}; });
 ```
 
 Register a `zinc-light` theme alongside the dark theme. Use `darkMode: "class"` in the Tailwind config so the `dark` class on `<html>` controls all Tailwind utilities. Use `dark:` prefix classes for dark mode and unprefixed for light:
@@ -2050,12 +2066,12 @@ Use `echarts.connect()` to synchronize tooltip position and crosshair across mul
 
 ```js
 init() {
-  this.charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
-  this.charts.memory = echarts.init(this.$refs.memChart, 'zinc-dark');
-  this.charts.network = echarts.init(this.$refs.netChart, 'zinc-dark');
+  charts.cpu = echarts.init(this.$refs.cpuChart, 'zinc-dark');
+  charts.memory = echarts.init(this.$refs.memChart, 'zinc-dark');
+  charts.network = echarts.init(this.$refs.netChart, 'zinc-dark');
 
   // Sync hover crosshair across all three
-  echarts.connect([this.charts.cpu, this.charts.memory, this.charts.network]);
+  echarts.connect([charts.cpu, charts.memory, charts.network]);
 }
 ```
 
@@ -2129,7 +2145,7 @@ fullscreen: null,
 init() {
   this.$watch('fullscreen', () => {
     this.$nextTick(() => {
-      Object.values(this.charts).forEach(c => c.resize());
+      Object.values(charts).forEach(c => c.resize());
     });
   });
 }
@@ -2226,7 +2242,9 @@ Use skeletons for dashboards with multiple CDN dependencies where the load delay
 Wire chart click events to Alpine state to filter other charts and tables. This is the pattern that separates a dashboard from a page of independent charts:
 
 ```js
-Alpine.data('app', () => ({
+Alpine.data('app', () => {
+  let charts = {};
+  return {
   selectedCategory: null,
   items: ITEMS,
 
@@ -2236,11 +2254,11 @@ Alpine.data('app', () => ({
   },
 
   init() {
-    this.charts.pie = echarts.init(this.$refs.pieChart, 'zinc-dark');
-    this.charts.pie.setOption({ /* ... */ });
+    charts.pie = echarts.init(this.$refs.pieChart, 'zinc-dark');
+    charts.pie.setOption({ /* ... */ });
 
     // Click a pie slice to filter everything else
-    this.charts.pie.on('click', (params) => {
+    charts.pie.on('click', (params) => {
       this.selectedCategory = this.selectedCategory === params.name
         ? null  // click again to clear
         : params.name;
@@ -2249,7 +2267,7 @@ Alpine.data('app', () => ({
     // Update dependent charts when filter changes
     this.$watch('filtered', () => this.updateBarChart());
   }
-}));
+}; });
 ```
 
 In the HTML, show the active filter and a clear button:
@@ -2266,7 +2284,7 @@ Highlight the selected element in the source chart using ECharts `dispatchAction
 
 ```js
 this.$watch('selectedCategory', (val) => {
-  this.charts.pie.dispatchAction({
+  charts.pie.dispatchAction({
     type: val ? 'highlight' : 'downplay',
     name: val
   });
@@ -2354,9 +2372,10 @@ For screen readers, the table view provides equivalent access to all data that t
 Add a runtime toggle that swaps the ECharts color palette to a color-blind-safe set. This goes beyond the static palette guidance in the theme section:
 
 ```js
-Alpine.data('app', () => ({
+Alpine.data('app', () => {
+  let charts = {};
+  return {
   colorBlindMode: false,
-  charts: {},
 
   get palette() {
     return this.colorBlindMode
@@ -2367,11 +2386,11 @@ Alpine.data('app', () => ({
   toggleColorBlind() {
     this.colorBlindMode = !this.colorBlindMode;
     // Re-apply palette to all charts
-    Object.values(this.charts).forEach(c => {
+    Object.values(charts).forEach(c => {
       c.setOption({ color: this.palette });
     });
   }
-}));
+}; });
 ```
 
 Toggle button (place in the header):
