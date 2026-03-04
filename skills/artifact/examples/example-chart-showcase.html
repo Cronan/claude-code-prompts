@@ -436,9 +436,9 @@ document.addEventListener('alpine:init', () => {
     'Go':         [240, 248, 258, 270, 280, 290, 300, 310, 318, 328, 335, 340, 348, 352, 358, 360, 365, 370, 375, 380]
   };
   const _trQuarters = [
-    '2019Q1', '2019Q2', '2019Q3', '2019Q4', '2020Q1', '2020Q2', '2020Q3', '2020Q4',
-    '2021Q1', '2021Q2', '2021Q3', '2021Q4', '2022Q1', '2022Q2', '2022Q3', '2022Q4',
-    '2023Q1', '2023Q2', '2023Q3', '2023Q4'
+    '2019-01', '2019-04', '2019-07', '2019-10', '2020-01', '2020-04', '2020-07', '2020-10',
+    '2021-01', '2021-04', '2021-07', '2021-10', '2022-01', '2022-04', '2022-07', '2022-10',
+    '2023-01', '2023-04', '2023-07', '2023-10'
   ];
   _trQuarters.forEach((date, i) => {
     THEME_RIVER_LANGS.forEach(lang => {
@@ -1106,8 +1106,7 @@ document.addEventListener('alpine:init', () => {
         toolbox: this.defaultToolbox(),
         tooltip: { trigger: 'axis', confine: true },
         singleAxis: {
-          type: 'category', bottom: 30, top: 50,
-          data: _trQuarters,
+          type: 'time', bottom: 30, top: 50,
           axisLine: { lineStyle: { color: this.tc.border } },
           axisLabel: { color: this.tc.textMuted },
           axisTick: { lineStyle: { color: this.tc.border } }

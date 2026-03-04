@@ -41,15 +41,15 @@
 
 <!-- Skeleton loading -->
 <div id="skeleton" class="max-w-7xl mx-auto p-3 md:p-6">
-  <div class="h-8 w-72 bg-zinc-800 rounded animate-pulse mb-2"></div>
-  <div class="h-4 w-96 bg-zinc-800 rounded animate-pulse mb-6"></div>
+  <div class="h-8 w-72 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse mb-2"></div>
+  <div class="h-4 w-96 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse mb-6"></div>
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-24 animate-pulse"></div>
-    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-24 animate-pulse"></div>
-    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-24 animate-pulse"></div>
-    <div class="bg-zinc-800 rounded-xl p-4 border border-zinc-700 h-24 animate-pulse"></div>
+    <div class="bg-zinc-200 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 h-24 animate-pulse"></div>
+    <div class="bg-zinc-200 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 h-24 animate-pulse"></div>
+    <div class="bg-zinc-200 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 h-24 animate-pulse"></div>
+    <div class="bg-zinc-200 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-300 dark:border-zinc-700 h-24 animate-pulse"></div>
   </div>
-  <div class="bg-zinc-800 rounded-xl border border-zinc-700 h-80 animate-pulse"></div>
+  <div class="bg-zinc-200 dark:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-700 h-80 animate-pulse"></div>
 </div>
 
 <script>
@@ -401,7 +401,7 @@ document.addEventListener('alpine:init', () => {
       window.addEventListener('resize', this._boundResize);
 
       this.$nextTick(() => {
-        this.initTab('Economy');
+        this.initTab(this.tab);
         requestAnimationFrame(() => {
           Object.values(charts).forEach(c => c.resize());
         });
@@ -662,7 +662,7 @@ document.addEventListener('alpine:init', () => {
         },
         toolbox: this.defaultToolbox(),
         xAxis: { type: 'value', name: 'AI Exposure (%)', max: 100, axisLabel: { formatter: '{value}%' } },
-        yAxis: { type: 'value', name: 'Traditional Automation (%)', max: 50, axisLabel: { formatter: '{value}%' } },
+        yAxis: { type: 'value', name: 'Traditional Automation (%)', axisLabel: { formatter: '{value}%' } },
         series: [{
           type: 'scatter',
           data: jobs.map(j => [j.aiExposure, j.autoExposure - j.aiExposure]),
@@ -1037,11 +1037,11 @@ document.addEventListener('alpine:init', () => {
                   <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="'$' + s.gdp.toLocaleString()"></td>
                   <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="s.share + '%'"></td>
                   <td class="px-4 py-3 text-right"
-                      :class="s.growth >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                      :class="s.growth >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'"
                       x-text="(s.growth >= 0 ? '+' : '') + s.growth + '%'"></td>
                   <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300 text-right" x-text="s.employment + 'M'"></td>
                   <td class="px-4 py-3 text-right">
-                    <span :class="s.automation > 50 ? 'text-red-400' : s.automation > 35 ? 'text-amber-400' : 'text-emerald-400'"
+                    <span :class="s.automation > 50 ? 'text-red-700 dark:text-red-400' : s.automation > 35 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'"
                           x-text="s.automation + '%'"></span>
                   </td>
                 </tr>
