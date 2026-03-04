@@ -565,21 +565,21 @@ For deeper guidance on dashboard composition patterns and analytical rationale, 
 | Scatter | `'scatter'` | Data is `[[x, y], ...]` pairs. Both axes are `type: 'value'`. For bubble charts, map a third dimension to `symbolSize`. |
 | Candlestick | `'candlestick'` | Data is `[[open, close, low, high], ...]`. Requires `type: 'category'` or `type: 'time'` x-axis. Standard for OHLC financial data. |
 | Heatmap | `'heatmap'` | Data is `[[x, y, value], ...]`. Requires a `visualMap` component for color mapping. Use for correlation matrices, calendar heatmaps, time-of-day activity patterns. |
-| Treemap | `'treemap'` | Data is `[{ name, value, children: [...] }]`. No axes. Use for hierarchical part-to-whole: portfolio allocation, budget breakdowns, file size maps. |
+| Treemap | `'treemap'` | Data is `[{ name, value, children: [...] }]`. No axes. Set `leafDepth: 1` for click-to-drill navigation. In `breadcrumb` config, `textStyle` is a sibling of `itemStyle`, not nested inside it (ECharts silently ignores the wrong nesting). Use for hierarchical part-to-whole: portfolio allocation, budget breakdowns, file size maps. |
 | Boxplot | `'boxplot'` | Data is `[[min, Q1, median, Q3, max], ...]`. Use for distribution comparisons, outlier detection, volatility analysis. |
 | Gauge | `'gauge'` | Single-value display. Data is `[{ value: 72, name: 'Score' }]`. No axes. Use for KPIs, health scores, completion percentage. |
 | Funnel | `'funnel'` | Data is `[{ name, value }]` in descending order. No axes. Use for conversion funnels, sales pipelines, process stages. |
 | Sankey | `'sankey'` | Data is `{ nodes: [...], links: [{ source, target, value }] }`. No axes. Use for flow visualization: budget allocation, traffic sources, energy flow. |
 | Waterfall | `'bar'` | Simulated using stacked bars with a transparent base. Data is `[{ name, value }]` with computed running total. Use for financial statements, variance analysis, bridge charts. |
 | Calendar heatmap | `'heatmap'` + `calendar` | Uses ECharts `calendar` component. Data is `[[date, value], ...]`. Use for activity tracking, contribution graphs, daily patterns over months. |
-| Sunburst | `'sunburst'` | Data is `[{ name, value, children: [...] }]`. No axes. Like treemap but radial; emphasizes hierarchy depth. Click a sector to drill in, click center to zoom out. Use for nested breakdowns: org structures, file system usage, cost allocation by department/team/project. |
+| Sunburst | `'sunburst'` | Data is `[{ name, value, children: [...] }]`. No axes. Like treemap but radial; emphasizes hierarchy depth. Click a sector to drill in, click center to zoom out. Parent node values may be 0 or undefined (auto-summed from children), so tooltip formatters must null-check: `p.name + (p.value != null ? ': ' + p.value : '')`. Use for nested breakdowns: org structures, file system usage, cost allocation by department/team/project. |
 | Graph/Network | `'graph'` | Data is `{ nodes: [{ name, ... }], links: [{ source, target, ... }] }`. No axes. Use `layout: 'force'` for auto-positioned nodes or `layout: 'circular'` for ring layout. Use for dependency maps, architecture diagrams, social networks, knowledge graphs. |
-| Parallel coordinates | `'parallel'` | Each dimension is a vertical axis; each data point is a polyline crossing all axes. Requires a `parallelAxis` array and `parallel` component instead of standard axes. Use for multi-criteria comparison: server benchmarks, product specs, dataset exploration. |
+| Parallel coordinates | `'parallel'` | Each dimension is a vertical axis; each data point is a polyline crossing all axes. Requires a `parallelAxis` array and `parallel` component instead of standard axes. Does not support `tooltip: { trigger: 'item' }` -- omit tooltip or use a custom formatter on the parallel component. Use for multi-criteria comparison: server benchmarks, product specs, dataset exploration. |
 | ThemeRiver | `'themeRiver'` | Data is `[[date, value, categoryName], ...]`. Uses a `singleAxis` with `type: 'time'` and ISO date strings. A centered streamgraph showing how category volumes evolve over time. Use for topic trends, content category shifts, technology adoption over time. |
-| Polar bar | `'bar'` + `polar` | Uses ECharts `polar`, `radiusAxis`, and `angleAxis` components. A Nightingale rose chart: bars arranged radially. Use for cyclical data patterns: monthly revenue, hourly traffic, seasonal comparisons, wind direction frequencies. |
-| Custom | `'custom'` | Fully custom rendering via a `renderItem` callback. Each data point returns a graphic element (rect, circle, line, group, etc.). Use for chart types ECharts does not have natively: bullet charts, lollipop charts, range bars, dumbbell charts. |
+| Polar bar | `'bar'` + `polar` | Uses ECharts `polar`, `radiusAxis`, and `angleAxis` components. A Nightingale rose chart: bars arranged radially. `borderRadius` must be a scalar (e.g. `4`), not the `[top, right, bottom, left]` array used by cartesian bars. Use for cyclical data patterns: monthly revenue, hourly traffic, seasonal comparisons, wind direction frequencies. |
+| Custom | `'custom'` | Fully custom rendering via a `renderItem` callback. Each data point returns a graphic element (rect, circle, line, group, etc.). Use for chart types ECharts does not have natively: bullet charts, range bars, dumbbell charts. |
 | Bullet | `'custom'` | Horizontal bar with qualitative range bands and a target marker. Data is `[actual, target, poor, satisfactory, good]`. Use for KPI vs target: revenue vs quota, response time vs SLA, utilization vs capacity. |
-| Lollipop | `'custom'` | Dot on a stem -- a bar chart with less ink. Data is `[{ name, value }]`. Use for ranked lists, survey results, benchmark comparisons where the exact value matters more than the bar area. |
+| Lollipop | `'bar'` + `'scatter'` | Dot on a stem -- a bar chart with less ink. Overlay a thin `bar` (barWidth: 2) for stems and a `scatter` for dots on a shared category axis. Data is a plain values array. Use for ranked lists, survey results, benchmark comparisons where the exact value matters more than the bar area. |
 | Small multiples | multiple instances | Grid of identical mini-charts, one per category. Use ECharts `grid` array with one x/y axis pair per cell, or multiple ECharts instances in a CSS grid. Use for per-service metrics, per-region trends, cohort comparisons. |
 
 For complete option objects for chart types beyond line/bar/area/pie/scatter, see `references/chart-examples.md`.
@@ -817,6 +817,12 @@ tooltip: {
 }
 ```
 
+Guard tooltip formatters against null values. Series with offset starts (e.g. a growth percentage that begins at null for the first data point) will pass `null` to the formatter and crash if you call methods on it:
+
+```js
+const val = p.value == null ? '--' : fmt.pct(p.value);
+```
+
 ### Reference lines and thresholds
 
 Use `markLine` for horizontal reference lines (targets, benchmarks, limits):
@@ -845,6 +851,8 @@ markArea: {
   label: { show: false }
 }
 ```
+
+Both `markLine` and `markArea` must be properties of a series object, not top-level option properties. ECharts silently ignores them if placed at the top level.
 
 ### Dual-axis charts
 
