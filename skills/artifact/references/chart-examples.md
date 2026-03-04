@@ -416,7 +416,7 @@ Each data entry is `[date, value, categoryName]`. The river is centered vertical
     type: 'bar',
     coordinateSystem: 'polar',
     data: [120, 98, 150, 180, 220, 280, 310, 295, 240, 190, 160, 130],
-    itemStyle: { borderRadius: [4, 4, 0, 0] },
+    itemStyle: { borderRadius: 4 },  // scalar, not array -- [t,r,b,l] is for cartesian bars only
     label: { show: true, position: 'outside', formatter: '{c}', color: '#d4d4d8' }
   }]
 }
