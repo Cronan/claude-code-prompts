@@ -14,6 +14,12 @@ cp -r skills/deep-init/ your-repo/.claude/skills/deep-init/
 | [`/stet`](skills/stet/) | Strip the 27 patterns that make AI-assisted writing monotonous, vague, and generic -- an editorial tool, not a humanizer |
 | [`/artifact`](skills/artifact/) | Build single-file HTML dashboards, trackers, and visualizations with Alpine.js, ECharts, and Tailwind -- opens directly in any browser |
 
+## Docs
+
+| Document | What it covers |
+|---|---|
+| [Structured Research with AI](docs/structured-research-with-ai.md) | A complete guide to producing evidence-backed documents using AI -- setup, multi-pass research, reconciliation, fact validation, and final production |
+
 ## Contributing
 
 Suggestions welcome via [issues](../../issues). Built by [Cronan](https://github.com/Cronan).
