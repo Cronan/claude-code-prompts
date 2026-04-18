@@ -13,6 +13,7 @@ cp -r skills/deep-init/ your-repo/.claude/skills/deep-init/
 | [`/deep-init`](skills/deep-init/) | Mine repo history (PRs, tickets, wiki) to produce a CLAUDE.md grounded in what the team actually learned, not just what the code looks like |
 | [`/stet`](skills/stet/) | Strip the 27 patterns that make AI-assisted writing monotonous, vague, and generic -- an editorial tool, not a humanizer |
 | [`/artifact`](skills/artifact/) | Build single-file HTML dashboards, trackers, and visualizations with Alpine.js, ECharts, and Tailwind -- opens directly in any browser |
+| [`/code-safety-preflight`](skills/code-safety-preflight/) | Triage a repo for hardcoded secrets, credentials in connection strings, sensitive committed files, and unsafe coding patterns -- a stopgap, not a security control |
 
 ## Docs
 
