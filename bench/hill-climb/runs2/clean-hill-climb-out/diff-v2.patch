@@ -1,0 +1,421 @@
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..6f22e96
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,16 @@
++# ratelimit
++
++Small keyed rate limiting library: a token bucket (`RateLimiter`) and a
++sliding-window log (`SlidingWindow`), plus `load_config` for building
++settings from parsed JSON or YAML.
++
++Requirements the library must meet:
++
++- Safe to call from many threads at once; a key never admits more than
++  its limit however many threads contend for it.
++- Rates below one request per second are supported (for example 0.5).
++- Fails closed: if anything goes wrong internally, the request is denied.
++- Invalid configuration (wrong types, non-positive numbers, unknown
++  keys) is rejected with `ConfigError`.
++
++Run the tests with `python -m pytest -q`.
+diff --git a/pytest.ini b/pytest.ini
+new file mode 100644
+index 0000000..5ee6477
+--- /dev/null
++++ b/pytest.ini
+@@ -0,0 +1,2 @@
++[pytest]
++testpaths = tests
+diff --git a/ratelimit/__init__.py b/ratelimit/__init__.py
+new file mode 100644
+index 0000000..5918f8e
+--- /dev/null
++++ b/ratelimit/__init__.py
+@@ -0,0 +1,4 @@
++from .limiter import RateLimiter, SlidingWindow
++from .config import Config, ConfigError, load_config
++
++__all__ = ["RateLimiter", "SlidingWindow", "Config", "ConfigError", "load_config"]
+diff --git a/ratelimit/__pycache__/__init__.cpython-313.pyc b/ratelimit/__pycache__/__init__.cpython-313.pyc
+new file mode 100644
+index 0000000..c497174
+Binary files /dev/null and b/ratelimit/__pycache__/__init__.cpython-313.pyc differ
+diff --git a/ratelimit/__pycache__/config.cpython-313.pyc b/ratelimit/__pycache__/config.cpython-313.pyc
+new file mode 100644
+index 0000000..aec1ef8
+Binary files /dev/null and b/ratelimit/__pycache__/config.cpython-313.pyc differ
+diff --git a/ratelimit/__pycache__/limiter.cpython-313.pyc b/ratelimit/__pycache__/limiter.cpython-313.pyc
+new file mode 100644
+index 0000000..9b031e2
+Binary files /dev/null and b/ratelimit/__pycache__/limiter.cpython-313.pyc differ
+diff --git a/ratelimit/config.py b/ratelimit/config.py
+new file mode 100644
+index 0000000..456945a
+--- /dev/null
++++ b/ratelimit/config.py
+@@ -0,0 +1,54 @@
++"""Configuration loading.
++
++Invalid configuration must be rejected with ``ConfigError`` rather than
++silently producing a limiter that behaves unexpectedly.
++"""
++
++import math
++from dataclasses import dataclass
++
++
++class ConfigError(ValueError):
++    pass
++
++
++@dataclass(frozen=True)
++class Config:
++    rate: float
++    burst: int
++    window: float
++
++
++KNOWN_KEYS = {"rate", "burst", "window"}
++
++
++def load_config(raw):
++    """Build a ``Config`` from a mapping such as parsed JSON or YAML.
++
++    ``rate`` and ``window`` are in per-second / seconds; ``burst`` is a count.
++    All three are optional and default to 1.0, 10 and 60.0.
++    """
++    if not isinstance(raw, dict):
++        raise ConfigError("config must be a mapping")
++    unknown = set(raw) - KNOWN_KEYS
++    if unknown:
++        raise ConfigError(f"unknown keys: {sorted(unknown)}")
++    for name in KNOWN_KEYS:
++        if isinstance(raw.get(name), bool):
++            raise ConfigError(f"{name} must be a number, not bool")
++    raw_burst = raw.get("burst", 10)
++    if isinstance(raw_burst, float) and not raw_burst.is_integer():
++        raise ConfigError("burst must be a whole number")
++    try:
++        rate = float(raw.get("rate", 1.0))
++        burst = int(raw_burst)
++        window = float(raw.get("window", 60.0))
++    except (TypeError, ValueError, OverflowError) as exc:
++        raise ConfigError(f"bad value: {exc}") from exc
++    if not math.isfinite(rate) or rate <= 0:
++        raise ConfigError("rate must be a positive finite number")
++    if burst <= 0:
++        raise ConfigError("burst must be positive")
++    if not math.isfinite(window) or window <= 0:
++        raise ConfigError("window must be a positive finite number")
++    return Config(rate=rate, burst=burst, window=window)
+diff --git a/ratelimit/limiter.py b/ratelimit/limiter.py
+new file mode 100644
+index 0000000..b14a941
+--- /dev/null
++++ b/ratelimit/limiter.py
+@@ -0,0 +1,85 @@
++"""Rate limiting primitives.
++
++Both limiters are keyed: a key is any hashable identifying a client.
++They are intended for use from many threads at once, and must never
++let a request through when an internal error occurs (fail closed).
++"""
++
++import threading
++import time
++
++
++class RateLimiter:
++    """Token bucket limiter.
++
++    ``rate`` is tokens added per second (may be fractional, e.g. 0.5 for
++    one request every two seconds). ``burst`` is the bucket capacity and
++    the number of requests a fresh key may make at once.
++
++    ``clock`` is injectable for testing and must return seconds as a float.
++    """
++
++    def __init__(self, rate, burst, clock=time.monotonic):
++        self.rate = rate
++        self.burst = burst
++        self.clock = clock
++        self._buckets = {}
++        self._lock = threading.Lock()
++        self.stats = {"allowed": 0, "denied": 0}
++
++    def allow(self, key):
++        """Return True if ``key`` may proceed now, consuming one token."""
++        try:
++            with self._lock:
++                now = self.clock()
++                tokens, last = self._buckets.get(key, (float(self.burst), now))
++                elapsed = now - last
++                tokens = min(float(self.burst), tokens + elapsed * self.rate)
++                if tokens >= 1.0:
++                    self._buckets[key] = (tokens - 1.0, now)
++                    self.stats["allowed"] += 1
++                    return True
++                self._buckets[key] = (tokens, now)
++                self.stats["denied"] += 1
++                return False
++        except Exception:
++            return False
++
++    def reset(self, key):
++        with self._lock:
++            self._buckets.pop(key, None)
++
++
++class SlidingWindow:
++    """Sliding-window log limiter.
++
++    Allows at most ``limit`` requests in any ``window`` seconds. A request
++    made exactly ``window`` seconds ago has left the window and no longer
++    counts.
++    """
++
++    def __init__(self, limit, window, clock=time.monotonic):
++        self.limit = limit
++        self.window = window
++        self.clock = clock
++        self._log = {}
++        self._lock = threading.Lock()
++
++    def allow(self, key):
++        try:
++            with self._lock:
++                now = self.clock()
++                cutoff = now - self.window
++                stamps = [t for t in self._log.get(key, []) if t > cutoff]
++                if len(stamps) < self.limit:
++                    stamps.append(now)
++                    self._log[key] = stamps
++                    return True
++                self._log[key] = stamps
++                return False
++        except Exception:
++            return False
++
++    def reset(self, key):
++        with self._lock:
++            self._log.pop(key, None)
+diff --git a/tests/__pycache__/test_config.cpython-313-pytest-9.1.1.pyc b/tests/__pycache__/test_config.cpython-313-pytest-9.1.1.pyc
+new file mode 100644
+index 0000000..cea72d7
+Binary files /dev/null and b/tests/__pycache__/test_config.cpython-313-pytest-9.1.1.pyc differ
+diff --git a/tests/__pycache__/test_limiter.cpython-313-pytest-9.1.1.pyc b/tests/__pycache__/test_limiter.cpython-313-pytest-9.1.1.pyc
+new file mode 100644
+index 0000000..0cd47ca
+Binary files /dev/null and b/tests/__pycache__/test_limiter.cpython-313-pytest-9.1.1.pyc differ
+diff --git a/tests/test_config.py b/tests/test_config.py
+new file mode 100644
+index 0000000..03980f7
+--- /dev/null
++++ b/tests/test_config.py
+@@ -0,0 +1,68 @@
++import pytest
++
++from ratelimit import Config, ConfigError, load_config
++
++
++def test_defaults():
++    assert load_config({}) == Config(rate=1.0, burst=10, window=60.0)
++
++
++def test_values():
++    cfg = load_config({"rate": "2.5", "burst": "4", "window": 30})
++    assert cfg == Config(rate=2.5, burst=4, window=30.0)
++
++
++def test_not_mapping():
++    with pytest.raises(ConfigError):
++        load_config([1, 2])
++
++
++def test_bad_rate_type():
++    with pytest.raises(ConfigError):
++        load_config({"rate": "fast"})
++
++
++def test_zero_rate():
++    with pytest.raises(ConfigError):
++        load_config({"rate": 0})
++
++
++def test_unknown_key():
++    with pytest.raises(ConfigError):
++        load_config({"rate": 1, "bogus": 2})
++
++
++@pytest.mark.parametrize(
++    "raw",
++    [
++        {"rate": -1},
++        {"burst": 0},
++        {"burst": -3},
++        {"window": 0},
++        {"window": -0.5},
++        {"rate": True},
++        {"burst": False},
++        {"window": True},
++        {"rate": None},
++        {"burst": None},
++        {"window": [1]},
++        {"rate": {"x": 1}},
++        {"rate": "nan"},
++        {"rate": float("nan")},
++        {"rate": "inf"},
++        {"rate": float("inf")},
++        {"window": "nan"},
++        {"window": float("inf")},
++        {"burst": float("inf")},
++        {"burst": float("nan")},
++        {"burst": 2.9},
++        {"burst": "fast"},
++    ],
++)
++def test_invalid_values_rejected(raw):
++    with pytest.raises(ConfigError):
++        load_config(raw)
++
++
++def test_integral_float_burst_accepted():
++    assert load_config({"burst": 4.0}).burst == 4
+diff --git a/tests/test_limiter.py b/tests/test_limiter.py
+new file mode 100644
+index 0000000..dece3d0
+--- /dev/null
++++ b/tests/test_limiter.py
+@@ -0,0 +1,130 @@
++from ratelimit import RateLimiter, SlidingWindow
++
++
++class FakeClock:
++    def __init__(self, t=0.0):
++        self.t = t
++
++    def __call__(self):
++        return self.t
++
++    def advance(self, dt):
++        self.t += dt
++
++
++def test_burst_then_deny():
++    clock = FakeClock()
++    rl = RateLimiter(rate=1.0, burst=3, clock=clock)
++    assert [rl.allow("a") for _ in range(4)] == [True, True, True, False]
++
++
++def test_keys_independent():
++    clock = FakeClock()
++    rl = RateLimiter(rate=1.0, burst=1, clock=clock)
++    assert rl.allow("a")
++    assert rl.allow("b")
++    assert not rl.allow("a")
++
++
++def test_refill():
++    clock = FakeClock()
++    rl = RateLimiter(rate=1.0, burst=1, clock=clock)
++    assert rl.allow("a")
++    assert not rl.allow("a")
++    clock.advance(1.0)
++    assert rl.allow("a")
++
++
++def test_reset():
++    clock = FakeClock()
++    rl = RateLimiter(rate=1.0, burst=1, clock=clock)
++    assert rl.allow("a")
++    assert not rl.allow("a")
++    rl.reset("a")
++    assert rl.allow("a")
++
++
++def test_stats_counts():
++    clock = FakeClock()
++    rl = RateLimiter(rate=1.0, burst=1, clock=clock)
++    rl.allow("a")
++    rl.allow("a")
++    assert rl.stats == {"allowed": 1, "denied": 1}
++
++
++def test_sliding_window_basic():
++    clock = FakeClock()
++    sw = SlidingWindow(limit=2, window=10.0, clock=clock)
++    assert sw.allow("a")
++    assert sw.allow("a")
++    assert not sw.allow("a")
++    clock.advance(11.0)
++    assert sw.allow("a")
++
++
++def test_sliding_window_reset():
++    clock = FakeClock()
++    sw = SlidingWindow(limit=1, window=10.0, clock=clock)
++    assert sw.allow("a")
++    sw.reset("a")
++    assert sw.allow("a")
++
++
++def test_fractional_rate():
++    clock = FakeClock()
++    rl = RateLimiter(rate=0.5, burst=1, clock=clock)
++    assert rl.allow("a")
++    assert not rl.allow("a")
++    clock.advance(1.0)
++    assert not rl.allow("a")
++    clock.advance(1.0)
++    assert rl.allow("a")
++
++
++class RaisingClock:
++    def __call__(self):
++        raise RuntimeError("clock failure")
++
++
++def test_fail_closed_on_clock_error():
++    rl = RateLimiter(rate=1.0, burst=5, clock=RaisingClock())
++    assert rl.allow("a") is False
++    sw = SlidingWindow(limit=5, window=10.0, clock=RaisingClock())
++    assert sw.allow("a") is False
++
++
++def _hammer(limiter, key, threads, calls_per_thread):
++    import threading
++
++    results = []
++    results_lock = threading.Lock()
++    start = threading.Barrier(threads)
++
++    def worker():
++        start.wait()
++        local = 0
++        for _ in range(calls_per_thread):
++            if limiter.allow(key):
++                local += 1
++        with results_lock:
++            results.append(local)
++
++    ts = [threading.Thread(target=worker) for _ in range(threads)]
++    for t in ts:
++        t.start()
++    for t in ts:
++        t.join()
++    return sum(results)
++
++
++def test_token_bucket_concurrent_never_exceeds_burst():
++    clock = FakeClock()
++    rl = RateLimiter(rate=1.0, burst=50, clock=clock)
++    assert _hammer(rl, "a", threads=8, calls_per_thread=100) == 50
++    assert rl.stats == {"allowed": 50, "denied": 750}
++
++
++def test_sliding_window_concurrent_never_exceeds_limit():
++    clock = FakeClock()
++    sw = SlidingWindow(limit=50, window=10.0, clock=clock)
++    assert _hammer(sw, "a", threads=8, calls_per_thread=100) == 50

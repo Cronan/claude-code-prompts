@@ -1,0 +1,10 @@
+# Benchmark brief
+
+You are running one review-and-fix loop skill on a small Python library, as a user would.
+
+- Repository under review: REPO (git, one commit on `master`, clean tree). The whole library is the change under review: where your skill wants a diff against `main`, treat the full tree as the diff and review every file.
+- Stated intent: the four requirements in REPO/README.md. Verifier: `python3 -m pytest -q` in REPO. Public signatures (`RateLimiter(rate, burst, clock=)`, `SlidingWindow(limit, window, clock=)`, `allow(key) -> bool`, `reset(key)`, `stats`, `load_config(dict) -> Config`, `ConfigError`) and the existing passing tests are frozen; tests may be added or made stricter.
+- Skill to follow: SKILL. Follow it literally, including its stopping rule and cap (use 3 where it offers one). There is no Agent tool in your session. Where the skill says to spawn a reviewer or critic, run a fresh process: `claude -p --no-session-persistence --model <model> --disallowedTools Edit,Write -- "<prompt>"` (add Bash to the disallowed list unless the skill tells the reviewer to run the verifier), giving it only what the skill says it gets. Where the skill asks the user for confirmation, treat it as given. Where it names npm commands, substitute the pytest verifier and say so.
+- Do not read anything under /home/claude/bench other than REPO and SKILL (and files SKILL names). Do not push or create branches.
+- Save every reviewer/critic/verifier report verbatim as OUT/reports/round<N>-<role>.md and every fix list as OUT/reports/round<N>-fixlist.md.
+- When the stopping rule fires, write OUT/REPORT.md (use the shell if the Write tool refuses): which rule stopped you; rounds with findings per round; number of reviewer processes run and model each; what you changed file by file; what remains; final verifier output.

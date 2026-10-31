@@ -14,12 +14,15 @@ cp -r skills/deep-init/ your-repo/.claude/skills/deep-init/
 | [`/stet`](skills/stet/) | Strip the 27 patterns that make AI-assisted writing monotonous, vague, and generic -- an editorial tool, not a humanizer |
 | [`/artifact`](skills/artifact/) | Build single-file HTML dashboards, trackers, and visualizations with Alpine.js, ECharts, and Tailwind -- opens directly in any browser |
 | [`/code-safety-preflight`](skills/code-safety-preflight/) | Triage a repo for hardcoded secrets, credentials in connection strings, sensitive committed files, and unsafe coding patterns -- a stopgap, not a security control |
+| [`/hill-climb`](skills/hill-climb/) | Improve a finished draft (code, runbook, essay, page, prompt) in rounds of cold review, reproduced findings and small fixes, stopping on a rule agreed before round one |
 
 ## Docs
 
 | Document | What it covers |
 |---|---|
 | [Structured Research with AI](docs/structured-research-with-ai.md) | A complete guide to producing evidence-backed documents using AI -- setup, multi-pass research, reconciliation, fact validation, and final production |
+| [hill-climb: literature review](docs/hill-climb-review-2026-10-31.md) | The self-correction and LLM-as-judge research behind `/hill-climb`, and the edits it prompted |
+| [hill-climb: benchmark](docs/hill-climb-benchmark-2026-10-31.md) | `/hill-climb` against three published review loops on seeded code, correct code and a runbook; harness in [`bench/hill-climb/`](bench/hill-climb/) |
 
 ## Contributing
 
