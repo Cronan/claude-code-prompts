@@ -21,8 +21,6 @@ cp -r skills/deep-init/ your-repo/.claude/skills/deep-init/
 | Document | What it covers |
 |---|---|
 | [Structured Research with AI](docs/structured-research-with-ai.md) | A complete guide to producing evidence-backed documents using AI -- setup, multi-pass research, reconciliation, fact validation, and final production |
-| [hill-climb: literature review](docs/hill-climb-review-2026-10-31.md) | The self-correction and LLM-as-judge research behind `/hill-climb`, and the edits it prompted |
-| [hill-climb: benchmark](docs/hill-climb-benchmark-2026-10-31.md) | `/hill-climb` against three published review loops on seeded code, correct code and a runbook; harness in [`bench/hill-climb/`](bench/hill-climb/) |
 
 ## Contributing
 
